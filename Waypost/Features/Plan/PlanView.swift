@@ -24,17 +24,21 @@ struct PlanView: View {
                     .foregroundStyle(WP.accent400)
             }
 
-            ScrollView {
+            ScrollView(.vertical) {
+                // Each section applies the page gutter itself. Nothing is laid out wider
+                // than the screen — an overflowing child is what let the whole page drift
+                // sideways under a horizontal drag.
                 VStack(alignment: .leading, spacing: 0) {
                     hero
-                    tripFold
-                    sourceAndSearch
+                    tripFold.padding(.horizontal, WP.gutter)
+                    sourceAndSearch.padding(.horizontal, WP.gutter)
                     if let note = store.sourceNote {
                         Text(note)
                             .font(WP.body(12.5))
                             .italic()
                             .opacity(0.68)
                             .padding(.top, 11)
+                            .padding(.horizontal, WP.gutter)
                     }
                     if !store.order.isEmpty { pickRail.padding(.top, 14) }
                     if let note = store.searchNote {
@@ -43,11 +47,12 @@ struct PlanView: View {
                             .italic()
                             .opacity(0.62)
                             .padding(.top, 18)
+                            .padding(.horizontal, WP.gutter)
                     }
-                    catalog.padding(.top, 10)
+                    catalog.padding(.top, 10).padding(.horizontal, WP.gutter)
                     Spacer(minLength: 96)
                 }
-                .padding(.horizontal, WP.gutter)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollDismissesKeyboard(.interactively)
 
@@ -78,10 +83,11 @@ struct PlanView: View {
                     .padding(.top, 12)
             }
             .padding(.vertical, 22)
+            .padding(.horizontal, WP.gutter)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // The wash bleeds to the screen edge; the text keeps the page gutter.
-        .background(HeroWash().padding(.horizontal, -WP.gutter))
+        // The wash runs the full screen width; only the text keeps the page gutter.
+        .background(HeroWash())
     }
 
     // MARK: The trip fold
@@ -304,7 +310,9 @@ struct PlanView: View {
             }
             .padding(.horizontal, WP.gutter)
         }
-        .padding(.horizontal, -WP.gutter)
+        // The rail scrolls edge to edge; the gutter lives on its content, so the rail
+        // itself is never wider than the screen.
+        .scrollIndicators(.hidden)
     }
 
     // MARK: Catalog

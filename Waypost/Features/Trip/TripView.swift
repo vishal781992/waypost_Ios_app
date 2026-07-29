@@ -20,7 +20,7 @@ struct TripView: View {
                 Color.clear.frame(width: 44, height: 1)
             }
 
-            ScrollView {
+            ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
                     header
                     statsGrid.padding(.top, 4)
@@ -66,6 +66,9 @@ struct TripView: View {
                     Spacer(minLength: 40)
                 }
                 .padding(.horizontal, WP.gutter)
+                // Pin the content to the scroll view's width so nothing can push the
+                // page sideways.
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .background(WP.bg)
@@ -158,7 +161,9 @@ struct RouteMap: View {
     }
 
     var body: some View {
-        Map(initialPosition: .region(region)) {
+        // No interaction modes: the card is a picture of the route, so a sideways drag
+        // over it scrolls the page instead of panning the map out of frame.
+        Map(initialPosition: .region(region), interactionModes: []) {
             if points.count > 1 {
                 MapPolyline(coordinates: points.map(\.coordinate))
                     .stroke(WP.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 4]))
