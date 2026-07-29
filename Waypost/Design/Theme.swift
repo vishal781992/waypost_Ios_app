@@ -45,6 +45,26 @@ enum WP {
     /// Destructive affordances (the Clear chip) — `oklch(0.55 0.21 27)`
     static let danger = Color(hex: 0xC0392B)
 
+    /// A selected segment carries the tint of what it selects, not one house accent —
+    /// amber for the default choice, green for state parks and electric, blue for air.
+    /// Converted from the design's OKLCH values (`.m-seg .wp-*:has(input:checked)`).
+    struct SegmentTint: Hashable {
+        var background: Color
+        var foreground: Color
+        var ring: Color
+    }
+
+    /// `--color-accent-100 / -800 / -300`
+    static let tintAmber = SegmentTint(background: accent100, foreground: accent800, ring: accent300)
+    /// `oklch(0.94 0.035 150)` · `oklch(0.36 0.09 150)` · `oklch(0.82 0.06 150)`
+    static let tintGreen = SegmentTint(background: Color(hex: 0xDCF2DF),
+                                       foreground: Color(hex: 0x0D4A22),
+                                       ring: Color(hex: 0xA9D0B0))
+    /// `oklch(0.94 0.03 240)` · `oklch(0.38 0.07 245)` · `oklch(0.84 0.05 240)`
+    static let tintBlue = SegmentTint(background: Color(hex: 0xDAEEFE),
+                                      foreground: Color(hex: 0x1E4665),
+                                      ring: Color(hex: 0xAED0E8))
+
     // MARK: Type
     //
     // The system pairs Cormorant Garamond (headings) with Lora (body). Neither ships
@@ -196,8 +216,21 @@ struct SectionLabel: View {
 /// A full-width segmented control in the mobile app's pill style. The system
 /// `Picker(.segmented)` cannot carry the serif type or the pill radius.
 struct WPSegmented<T: Hashable>: View {
-    var options: [(value: T, label: String)]
+    struct Option {
+        var value: T
+        var label: String
+        /// The tint the option wears when selected. Defaults to amber, the design's
+        /// colour for the first choice in every pair.
+        var tint: WP.SegmentTint = WP.tintAmber
+    }
+
+    var options: [Option]
     @Binding var selection: T
+
+    init(options: [Option], selection: Binding<T>) {
+        self.options = options
+        self._selection = selection
+    }
 
     var body: some View {
         HStack(spacing: 3) {
@@ -210,13 +243,15 @@ struct WPSegmented<T: Hashable>: View {
                         .font(WP.body(13))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)
-                        .background(active ? WP.bg : .clear)
-                        .foregroundStyle(active ? WP.accent : WP.text)
+                        .background(active ? opt.tint.background : .clear)
+                        .foregroundStyle(active ? opt.tint.foreground : WP.text)
                         .overlay(
                             RoundedRectangle(cornerRadius: 999)
-                                .stroke(active ? WP.accent : .clear, lineWidth: 1)
+                                .stroke(active ? opt.tint.ring : .clear, lineWidth: 1)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 999))
+                        .shadow(color: active ? WP.neutral900.opacity(0.14) : .clear,
+                                radius: 1, x: 0, y: 1)
                 }
                 .buttonStyle(.plain)
             }

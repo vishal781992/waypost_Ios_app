@@ -67,7 +67,7 @@ struct PlanView: View {
                 Text("The Itinerary Desk".uppercased())
                     .font(WP.body(10.5))
                     .tracking(1.7)
-                    .foregroundStyle(Color(hex: 0x2F5C43))
+                    .foregroundStyle(Color(hex: 0x174825))
                 Text("Plan the parks properly.")
                     .font(WP.heading(34, weight: .regular))
                     .padding(.top, 9)
@@ -169,13 +169,17 @@ struct PlanView: View {
                     }
 
                     field("Between stops") {
-                        WPSegmented(options: [(TravelMode.drive, "Drive"), (.fly, "Fly when faster")],
-                                    selection: $store.mode)
+                        WPSegmented(options: [
+                            .init(value: TravelMode.drive, label: "Drive"),
+                            .init(value: .fly, label: "Fly when faster", tint: WP.tintBlue),
+                        ], selection: $store.mode)
                     }
 
                     field("Vehicle") {
-                        WPSegmented(options: [(Vehicle.gas, "Gas"), (.ev, "Electric")],
-                                    selection: $store.vehicle)
+                        WPSegmented(options: [
+                            .init(value: Vehicle.gas, label: "Gas"),
+                            .init(value: .ev, label: "Electric", tint: WP.tintGreen),
+                        ], selection: $store.vehicle)
                     }
 
                     Text("\(store.dateSummary) \(store.originNote)")
@@ -233,7 +237,10 @@ struct PlanView: View {
 
         return VStack(spacing: 11) {
             WPSegmented(
-                options: [(ParkSource.nps, "National parks"), (.state, "State parks")],
+                options: [
+                    .init(value: ParkSource.nps, label: "National parks"),
+                    .init(value: .state, label: "State parks", tint: WP.tintGreen),
+                ],
                 selection: Binding(get: { store.parkSource }, set: { store.setParkSource($0) })
             )
             TextField(store.parkSource == .state ? "State park or state…" : "Park name or state…",
