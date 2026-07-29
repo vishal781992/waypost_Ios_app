@@ -311,8 +311,11 @@ struct PlanView: View {
             .padding(.horizontal, WP.gutter)
         }
         // The rail scrolls edge to edge; the gutter lives on its content, so the rail
-        // itself is never wider than the screen.
+        // itself is never wider than the screen. It only scrolls — and only bounces —
+        // when there are more chips than fit, so a sideways drag on a short route does
+        // not make the page look loose.
         .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize)
     }
 
     // MARK: Catalog
