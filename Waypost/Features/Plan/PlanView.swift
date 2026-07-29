@@ -387,6 +387,10 @@ struct PlanView: View {
                 WP.bg.opacity(0.55)
             }
             .overlay(alignment: .top) { Hairline() }
+            // The plate runs under the home indicator so the bar and the indicator read
+            // as one edge, as `env(safe-area-inset-bottom)` does on the web. Only the
+            // background bleeds — the buttons stay above the indicator.
+            .ignoresSafeArea(edges: .bottom)
         )
     }
 }
