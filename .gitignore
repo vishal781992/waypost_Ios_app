@@ -1,0 +1,18 @@
+# The Xcode project is generated from project.yml by xcodegen — never committed, so
+# project.pbxproj can't become a merge battleground.
+Waypost.xcodeproj/
+*.xcworkspace/
+
+# Build output
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# macOS
+.DS_Store
