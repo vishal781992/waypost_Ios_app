@@ -326,7 +326,10 @@ struct TheDayList: View {
                     app.toggleDone(item.key)
                 } label: {
                     DividedRow(vertical: 11) {
-                        HStack(alignment: .top, spacing: 11) {
+                        // Centred, not top-aligned: the text runs to two lines more often
+                        // than not, and a tick box pinned to the first line reads as a
+                        // misalignment rather than a hanging indent.
+                        HStack(alignment: .center, spacing: 11) {
                             ZStack {
                                 Circle()
                                     .strokeBorder(done ? WP.accent : WP.neutral400, lineWidth: 1.5)
@@ -338,19 +341,18 @@ struct TheDayList: View {
                                 }
                             }
                             .frame(width: 19, height: 19)
-                            .padding(.top, 1)
 
                             Text(item.time)
-                                .font(WP.heading(14, semibold: true))
+                                .font(WP.body(13, semibold: true))
                                 .foregroundStyle(WP.accent700)
-                                .frame(width: 56, alignment: .leading)
-                                .padding(.top, 1)
+                                .frame(width: 62, alignment: .leading)
 
                             Text(item.text)
                                 .font(WP.body(13.5))
                                 .lineSpacing(2)
                                 .strikethrough(done)
                                 .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .opacity(done ? 0.42 : 1)
                     }
