@@ -97,8 +97,6 @@ struct DetailSheet: View {
 
             GlowButton(
                 title: app.notifyPermits ? "✓  Alert set for this window" : "Notify me 15 minutes before",
-                filled: !app.notifyPermits,
-                strongGlow: app.notifyPermits,
                 minHeight: 50
             ) {
                 app.notifyPermits.toggle()

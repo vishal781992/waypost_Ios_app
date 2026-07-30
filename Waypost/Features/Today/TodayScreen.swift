@@ -433,8 +433,6 @@ struct PermitWindowCard: View {
 
             GlowButton(
                 title: app.notifyPermits ? "✓  Alert set" : "Notify me",
-                filled: false,
-                strongGlow: app.notifyPermits,
                 minHeight: 48
             ) {
                 app.sheet = .permit(drop: drop)
@@ -783,7 +781,7 @@ struct TimelineRail: View {
                             .font(WP.heading(18)).lineSpacing(2)
                             .multilineTextAlignment(.leading)
                         GlowButton(title: app.notifyPermits ? "✓  Alert set" : "Notify me",
-                                   filled: false, strongGlow: app.notifyPermits, minHeight: 40) {
+                                   minHeight: 40) {
                             app.sheet = .permit(drop: drop)
                         }
                         .frame(maxWidth: 190)
