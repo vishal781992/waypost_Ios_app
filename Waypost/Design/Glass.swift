@@ -287,12 +287,12 @@ struct StampShape: Shape {
 struct Kicker: View {
     var text: String
     var color: Color = WP.accent
-    var size: CGFloat = 9.5
+    var size: CGFloat = 10
 
     var body: some View {
         Text(text.uppercased())
             .font(WP.body(size))
-            .tracking(size * 0.17)
+            .tracking(1.4)
             .foregroundStyle(color)
     }
 }

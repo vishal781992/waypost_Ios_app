@@ -65,7 +65,7 @@ struct ParkScreen: View {
             )
             VStack(alignment: .leading, spacing: 5) {
                 Text("\(park.state) · \(park.region) · \(park.crowd)".uppercased())
-                    .font(WP.body(9.5)).tracking(1.7)
+                    .font(WP.body(10)).tracking(1.4)
                     .foregroundStyle(.white.opacity(0.82))
                 Text(park.name)
                     .font(WP.parkDisplay(38))
@@ -136,7 +136,7 @@ struct OverviewSection: View {
             if park.res {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Reserve before you arrive".uppercased())
-                        .font(WP.body(9.5)).tracking(1.4)
+                        .font(WP.body(10)).tracking(1.4)
                         .foregroundStyle(WP.accent800)
                     Text(park.resNote)
                         .font(WP.body(13)).lineSpacing(3)
@@ -170,7 +170,7 @@ struct OverviewSection: View {
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundStyle(WP.accent700)
                                 }
-                                Text(alert.title).font(WP.heading(17)).multilineTextAlignment(.leading)
+                                Text(alert.title).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
                                 Text(alert.body).font(WP.body(12.5)).lineSpacing(2).opacity(0.75)
                                     .multilineTextAlignment(.leading)
                             }
@@ -288,9 +288,9 @@ struct WeatherSection: View {
                         HStack(spacing: 6) {
                             Circle().fill(cell.dot).frame(width: 6, height: 6)
                             Text(cell.label.uppercased())
-                                .font(WP.body(9.5)).tracking(1.1).opacity(0.6)
+                                .font(WP.body(10)).tracking(1.4).opacity(0.6)
                         }
-                        Text(cell.value).font(WP.heading(22)).tnum().lineLimit(1).minimumScaleFactor(0.7)
+                        Text(cell.value).font(WP.statValue(22)).tnum().lineLimit(1).minimumScaleFactor(0.7)
                         Text(cell.sub).font(WP.body(10.5)).opacity(0.55)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -325,7 +325,7 @@ struct StaySection: View {
                     DividedRow(vertical: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text(camp.name).font(WP.heading(17)).multilineTextAlignment(.leading)
+                                Text(camp.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
                                 Spacer(minLength: 0)
                                 Text(camp.av)
                                     .font(WP.body(10))
@@ -348,7 +348,7 @@ struct StaySection: View {
                     DividedRow(vertical: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text(stay.name).font(WP.heading(17)).multilineTextAlignment(.leading)
+                                Text(stay.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
                                 Spacer(minLength: 0)
                                 Text(stay.price).font(WP.body(12.5)).foregroundStyle(WP.accent700)
                             }
@@ -384,7 +384,7 @@ struct PlansSection: View {
             ForEach(Array(park.days.enumerated()), id: \.element.title) { index, plan in
                 VStack(alignment: .leading, spacing: 0) {
                     Kicker(text: "Day \(index + 1) in park")
-                    Text(plan.title).font(WP.heading(19)).padding(.top, 5)
+                    Text(plan.title).font(WP.rowTitle(18)).padding(.top, 5)
                         .multilineTextAlignment(.leading)
                     VStack(spacing: 0) {
                         ForEach(plan.items) { item in
@@ -436,7 +436,7 @@ struct NearbySection: View {
                                 .font(WP.body(12)).foregroundStyle(WP.accent700)
                                 .frame(width: 52, alignment: .leading)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(stamp.name).font(WP.heading(17)).multilineTextAlignment(.leading)
+                                Text(stamp.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
                                 Text("\(stamp.city) · \(stamp.desig)")
                                     .font(WP.bodyItalic(11.5)).opacity(0.6)
                             }

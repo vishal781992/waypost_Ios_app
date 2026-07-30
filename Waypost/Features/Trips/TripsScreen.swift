@@ -23,7 +23,7 @@ struct TripsScreen: View {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("On the books".uppercased())
-                        .font(WP.body(9.5)).tracking(1.5).opacity(0.5)
+                        .font(WP.body(10)).tracking(1.4).opacity(0.5)
                         .padding(.bottom, 10)
 
                     VStack(spacing: 14) {
@@ -33,7 +33,7 @@ struct TripsScreen: View {
                     }
 
                     Text("Behind you".uppercased())
-                        .font(WP.body(9.5)).tracking(1.5).opacity(0.5)
+                        .font(WP.body(10)).tracking(1.4).opacity(0.5)
                         .padding(.top, 26)
                         .padding(.bottom, 4)
 
@@ -44,7 +44,7 @@ struct TripsScreen: View {
                             DividedRow(vertical: 13) {
                                 HStack(spacing: 12) {
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Text(past.title).font(WP.heading(18))
+                                        Text(past.title).font(WP.rowTitle(17))
                                         Text(past.sub).font(WP.body(12)).opacity(0.6)
                                     }
                                     Spacer(minLength: 0)

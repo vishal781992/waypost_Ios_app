@@ -49,7 +49,7 @@ struct DetailSheet: View {
                     .overlay(Capsule().stroke(WP.accent, lineWidth: 1))
                     .foregroundStyle(WP.accent700)
                 Text(park.uppercased())
-                    .font(WP.body(11)).tracking(1.4).opacity(0.45)
+                    .font(WP.body(11)).tracking(1.3).opacity(0.45)
             }
             Text(alert.title).font(WP.heading(24)).padding(.top, 11)
                 .multilineTextAlignment(.leading)
@@ -85,7 +85,7 @@ struct DetailSheet: View {
                     Spacer(minLength: 0)
                     Text("15m before").font(WP.body(11)).opacity(0.55)
                 }
-                Text("Tickets in 15 minutes").font(WP.heading(17)).padding(.top, 8)
+                Text("Tickets in 15 minutes").font(WP.rowTitle(17)).padding(.top, 8)
                 Text("\(drop.what) — tap to open Recreation.gov with your dates filled in.")
                     .font(WP.body(12.5)).opacity(0.78).lineSpacing(2).padding(.top, 3)
             }
@@ -137,7 +137,7 @@ struct DetailSheet: View {
                         Kicker(text: "By air")
                         HStack(alignment: .firstTextBaseline, spacing: 9) {
                             Text(fly.via).font(WP.mono(14)).tracking(2.2).foregroundStyle(WP.accent800)
-                            Text(fly.time).font(WP.heading(16))
+                            Text(fly.time).font(WP.rowTitle(16))
                         }
                         Text(fly.note).font(WP.bodyItalic(12.5)).opacity(0.7).lineSpacing(2)
                     }
@@ -188,8 +188,8 @@ struct DetailSheet: View {
 
     private func legStat(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label.uppercased()).font(WP.body(9.5)).tracking(1.1).opacity(0.55)
-            Text(value).font(WP.heading(19)).tnum()
+            Text(label.uppercased()).font(WP.body(10)).tracking(1.4).opacity(0.55)
+            Text(value).font(WP.statValue(19)).tnum()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 10)

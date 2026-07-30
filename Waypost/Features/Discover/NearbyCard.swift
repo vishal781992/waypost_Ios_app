@@ -116,7 +116,7 @@ struct NearbyCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(candidate.park.name).font(WP.heading(17))
+                            Text(candidate.park.name).font(WP.rowTitle(17))
                             Text(candidate.factLine)
                                 .font(WP.body(11.5)).opacity(0.62).tnum()
                                 .lineLimit(1)

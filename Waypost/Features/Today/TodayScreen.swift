@@ -180,14 +180,20 @@ struct ParkOfTheDayCard: View {
     }
 
     private func statCell(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(label.uppercased())
                 .font(WP.body(11))
                 .tracking(1.3)
-                .foregroundStyle(WP.neutral900)
-            Text(value).font(WP.heading(25)).tnum()
+                .foregroundStyle(WP.neutral900.opacity(0.7))
+                .lineLimit(1)
+            Text(value)
+                .font(WP.statValue(24))
+                .tnum()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.trailing, 8)
         .padding(.vertical, 10)
     }
 }
@@ -281,7 +287,7 @@ struct DrivingDayCard: View {
                 .font(WP.body(9))
                 .tracking(1.1)
                 .foregroundStyle(.white.opacity(0.6))
-            Text(value).font(WP.heading(20)).foregroundStyle(.white).tnum()
+            Text(value).font(WP.statValue(20)).foregroundStyle(.white).tnum()
         }
     }
 }
@@ -378,7 +384,7 @@ struct AlertBanner: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
                     Text(alert.cat.uppercased())
-                        .font(WP.body(9.5))
+                        .font(WP.body(10))
                         .tracking(1.4)
                         .foregroundStyle(Color(oklch: 0.45, 0.16, 27))
                     Spacer(minLength: 0)
@@ -386,7 +392,7 @@ struct AlertBanner: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Color(oklch: 0.45, 0.16, 27))
                 }
-                Text(alert.title).font(WP.heading(18))
+                Text(alert.title).font(WP.rowTitle(17))
                 Text(alert.body).font(WP.body(12.5)).lineSpacing(2).opacity(0.8)
                     .multilineTextAlignment(.leading)
             }
@@ -418,9 +424,9 @@ struct PermitWindowCard: View {
                 }
                 Spacer(minLength: 0)
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text(drop.countdown).font(WP.heading(26)).tnum()
+                    Text(drop.countdown).font(WP.statValue(26)).tnum()
                     Text("to go".uppercased())
-                        .font(WP.body(9.5)).tracking(1).opacity(0.5)
+                        .font(WP.body(10)).tracking(1.4).opacity(0.5)
                 }
             }
             .padding(.top, 6)
@@ -595,7 +601,7 @@ struct StampNudge: View {
                         )
                     VStack(alignment: .leading, spacing: 3) {
                         Kicker(text: "Passport, \(stamp.dist) away")
-                        Text(stamp.name).font(WP.heading(17))
+                        Text(stamp.name).font(WP.rowTitle(17))
                         Text(stamp.city).font(WP.bodyItalic(12)).opacity(0.6)
                     }
                     Spacer(minLength: 0)
@@ -666,7 +672,7 @@ struct TimelineTake: View {
                     }
                     Spacer(minLength: 0)
                     VStack(alignment: .trailing, spacing: 5) {
-                        Text("\(park.wx.hi)°").font(WP.heading(30)).tnum()
+                        Text("\(park.wx.hi)°").font(WP.statValue(30)).tnum()
                         HStack(spacing: 5) {
                             Circle().fill(light.color).frame(width: 7, height: 7)
                             Text("UV \(park.wx.uvIndex)").font(WP.body(11)).opacity(0.6)
@@ -697,7 +703,7 @@ struct TimelineTake: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Hairline().padding(.bottom, 9)
                     Text("Tomorrow after that · \(next.day.date)".uppercased())
-                        .font(WP.body(12)).tracking(1.4).foregroundStyle(WP.accent700)
+                        .font(WP.body(12)).tracking(1.5).foregroundStyle(WP.accent700)
                     Text("\(next.leg.from) → \(next.leg.to)").font(WP.heading(20))
                     Text("\(next.leg.mi) mi · \(next.leg.drive) · \(next.leg.ev.count) charge stops")
                         .font(WP.body(12.5)).opacity(0.68).tnum()
@@ -750,7 +756,7 @@ struct TimelineRail: View {
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(item.time.clockPadded.uppercased())
-                                .font(WP.body(11)).tracking(1.1).foregroundStyle(WP.accent700)
+                                .font(WP.body(11)).tracking(1.3).foregroundStyle(WP.accent700)
                             Text(item.text)
                                 .font(WP.heading(18))
                                 .lineSpacing(2)
@@ -772,7 +778,7 @@ struct TimelineRail: View {
                     Circle().fill(WP.accent200).frame(width: 11, height: 11).padding(.top, 19)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(drop.when.clockPadded.uppercased())
-                            .font(WP.body(11)).tracking(1.1).foregroundStyle(WP.accent700)
+                            .font(WP.body(11)).tracking(1.3).foregroundStyle(WP.accent700)
                         Text("\(drop.what) — \(drop.countdown) from now")
                             .font(WP.heading(18)).lineSpacing(2)
                             .multilineTextAlignment(.leading)
@@ -823,7 +829,7 @@ struct DashboardTake: View {
                  ramp: (park?.wx.hi ?? 74) >= 95 ? .ember : (park?.wx.hi ?? 74) >= 84 ? .brass : .sage,
                  action: { if let park { app.openPark(park.code, segment: .weather) } }),
             Tile(id: "drop", label: "Permit drop", value: drop?.countdown ?? "—",
-                 sub: drop?.when ?? "Nothing pending", dot: WP.accent,
+                 sub: drop?.when.clockPadded ?? "Nothing pending", dot: WP.accent,
                  ramp: drop == nil ? .dust : .brass,
                  action: { if let drop { app.sheet = .permit(drop: drop) } }),
             Tile(id: "leg", label: next.map { "Next leg · \($0.day.date)" } ?? "Next leg",
@@ -865,7 +871,7 @@ struct DashboardTake: View {
                             Text(tile.label.uppercased())
                                 .font(WP.body(9)).tracking(1.1).opacity(0.6).lineLimit(1)
                         }
-                        Text(tile.value).font(WP.heading(25)).tnum().padding(.top, 8)
+                        Text(tile.value).font(WP.statValue(25)).tnum().padding(.top, 8)
                         Spacer(minLength: 6)
                         Text(tile.sub).font(WP.body(11)).opacity(0.82).lineSpacing(1)
                             .multilineTextAlignment(.leading)

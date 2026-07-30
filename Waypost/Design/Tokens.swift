@@ -85,6 +85,22 @@ enum WP {
         .custom("CormorantGaramond-SemiBold", size: size)
     }
 
+    /// A number that carries a label: a temperature, a countdown, a mileage, a stat cell.
+    ///
+    /// These were being set in `heading`, which exists to scale Cormorant's sizes onto
+    /// SF — so every figure in the app came out at 0.86 of its intended size, in regular
+    /// weight, and sat lighter than the label above it. Numbers get their own token:
+    /// true size, semibold, and `.tnum()` at the call site so columns hold still.
+    static func statValue(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .semibold)
+    }
+
+    /// The name at the head of a row — a campground, a stamp, an alert, a park in a list.
+    /// Also previously on `heading`, which made 17pt render at 14.6 and read thin.
+    static func rowTitle(_ size: CGFloat = 17) -> Font {
+        .system(size: size, weight: .semibold)
+    }
+
     /// Airport codes and other fixed-width runs — SF Mono.
     static func mono(_ size: CGFloat, semibold: Bool = true) -> Font {
         .system(size: size, weight: semibold ? .semibold : .regular, design: .monospaced)
@@ -171,7 +187,7 @@ extension View {
     func tnum() -> some View { monospacedDigit() }
 
     /// The design's uppercase kickers: tiny, wide-tracked, accent-coloured.
-    func kickerStyle(size: CGFloat = 9.5, tracking: CGFloat = 1.6, color: Color = WP.accent) -> some View {
+    func kickerStyle(size: CGFloat = 10, tracking: CGFloat = 1.4, color: Color = WP.accent) -> some View {
         font(WP.body(size))
             .tracking(tracking)
             .textCase(.uppercase)

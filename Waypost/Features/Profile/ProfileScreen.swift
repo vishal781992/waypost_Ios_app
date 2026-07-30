@@ -146,7 +146,7 @@ struct ProfileScreen: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(WP.body(9.5)).tracking(1.5).opacity(0.5)
+            .font(WP.body(10)).tracking(1.4).opacity(0.5)
             .padding(.top, 22).padding(.bottom, 8)
     }
 

@@ -101,8 +101,8 @@ struct TripDetailScreen: View {
             ForEach(statRows, id: \.label) { row in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.label.uppercased())
-                        .font(WP.body(9.5)).tracking(1.1).opacity(0.55)
-                    Text(row.value).font(WP.heading(20)).tnum()
+                        .font(WP.body(10)).tracking(1.4).opacity(0.55)
+                    Text(row.value).font(WP.statValue(20)).tnum()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.trailing, 12)
@@ -150,7 +150,7 @@ struct TripDetailScreen: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 9) {
                         Text("Leg \(["I", "II", "III", "IV"][min(index, 3)])".uppercased())
-                            .font(WP.body(9.5)).tracking(1.4).foregroundStyle(WP.accent)
+                            .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent)
                         Rectangle().fill(WP.divider).frame(height: 1)
                         Text(date).font(WP.body(11)).opacity(0.55)
                     }
@@ -191,7 +191,7 @@ struct TripDetailScreen: View {
                     .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(park.name).font(WP.heading(19))
+                        Text(park.name).font(WP.rowTitle(18))
                         Text("\(date) · \(days) day\(days == 1 ? "" : "s") · \(park.wx.hi)°")
                             .font(WP.body(12)).opacity(0.62).tnum()
                     }
@@ -223,8 +223,8 @@ struct TripDetailScreen: View {
                                     .frame(width: 62, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(dayKicker(day).uppercased())
-                                        .font(WP.body(9.5)).tracking(1.2).opacity(0.55)
-                                    Text(dayTitle(day)).font(WP.heading(17))
+                                        .font(WP.body(10)).tracking(1.4).opacity(0.55)
+                                    Text(dayTitle(day)).font(WP.rowTitle(17))
                                         .multilineTextAlignment(.leading)
                                     Text(daySub(day)).font(WP.body(12)).opacity(0.62).lineSpacing(2)
                                         .multilineTextAlignment(.leading)
@@ -276,7 +276,7 @@ struct TripDetailScreen: View {
                         VStack(alignment: .leading, spacing: 5) {
                             HStack(alignment: .firstTextBaseline, spacing: 9) {
                                 Text(park.name.uppercased())
-                                    .font(WP.body(9.5)).tracking(1.2).foregroundStyle(WP.accent)
+                                    .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent)
                                 Spacer(minLength: 0)
                                 Text(camp.av)
                                     .font(WP.body(10))
@@ -285,7 +285,7 @@ struct TripDetailScreen: View {
                                     .foregroundStyle(camp.isOpen ? WP.accent800 : WP.neutral800)
                             }
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text(camp.name).font(WP.heading(17)).multilineTextAlignment(.leading)
+                                Text(camp.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
                                 Spacer(minLength: 0)
                                 Text(camp.price).font(WP.body(12.5)).foregroundStyle(WP.accent700)
                             }

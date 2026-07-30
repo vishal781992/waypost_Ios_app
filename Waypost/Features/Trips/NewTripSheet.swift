@@ -52,7 +52,7 @@ struct NewTripSheet: View {
 
                 Spacer(minLength: 0)
                 Text(builder.stepLabel.uppercased())
-                    .font(WP.body(9.5)).tracking(1.5).opacity(0.55)
+                    .font(WP.body(10)).tracking(1.4).opacity(0.55)
                 Spacer(minLength: 0)
 
                 Button { dismiss() } label: {
@@ -144,12 +144,12 @@ struct NewTripSheet: View {
                                     VStack(alignment: .leading, spacing: 3) {
                                         HStack(spacing: 8) {
                                             Text(park.state.uppercased())
-                                                .font(WP.body(9.5)).tracking(1.2)
+                                                .font(WP.body(10)).tracking(1.4)
                                                 .foregroundStyle(WP.accent)
                                             Text(park.region.uppercased())
-                                                .font(WP.body(9.5)).tracking(1.2).opacity(0.4)
+                                                .font(WP.body(10)).tracking(1.4).opacity(0.4)
                                         }
-                                        Text(park.name).font(WP.heading(19))
+                                        Text(park.name).font(WP.rowTitle(18))
                                         Text(park.tag).font(WP.body(12)).opacity(0.62).lineSpacing(1)
                                             .multilineTextAlignment(.leading)
                                     }
@@ -293,7 +293,7 @@ struct NewTripSheet: View {
 
     private func fieldLabel(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(WP.body(11)).tracking(1.4).opacity(0.6)
+            .font(WP.body(11)).tracking(1.3).opacity(0.6)
     }
 
     // MARK: Step 3 — review
@@ -306,7 +306,7 @@ struct NewTripSheet: View {
                     DividedRow(vertical: 11) {
                         HStack(alignment: .top, spacing: 12) {
                             Text(row.label.uppercased())
-                                .font(WP.body(11)).tracking(0.9).opacity(0.55)
+                                .font(WP.body(11)).tracking(1.3).opacity(0.55)
                                 .frame(width: 110, alignment: .leading)
                             Text(row.value).font(WP.body(13.5)).lineSpacing(2)
                                 .multilineTextAlignment(.leading)

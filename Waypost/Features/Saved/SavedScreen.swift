@@ -57,7 +57,7 @@ struct SavedParksList: View {
 
                             Button { app.openPark(code) } label: {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(park.name).font(WP.heading(18))
+                                    Text(park.name).font(WP.rowTitle(17))
                                     Text("\(park.state) · \(park.fee)")
                                         .font(WP.body(12)).opacity(0.62).lineLimit(1)
                                 }
