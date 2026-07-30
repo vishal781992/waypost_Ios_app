@@ -98,10 +98,15 @@ private struct LiquidGlass: ViewModifier {
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        // A full-bleed surface has no rounded edge to catch light, so the lit border
+        // reads as a stray rule under the status bar rather than as glass. Headers draw
+        // their own hairline at the bottom, which is the only edge that means anything.
+        let wantsEdge = radius > 0
+
         if style == .onPhoto {
             content
                 .background(style.tint, in: shape)
-                .overlay(GlassEdge(style: style, radius: radius))
+                .overlay { if wantsEdge { GlassEdge(style: style, radius: radius) } }
         } else if #available(iOS 26.0, *) {
             content
                 .glassEffect(
@@ -110,12 +115,12 @@ private struct LiquidGlass: ViewModifier {
                         : .regular.tint(style.tint),
                     in: shape
                 )
-                .overlay(GlassEdge(style: style, radius: radius))
+                .overlay { if wantsEdge { GlassEdge(style: style, radius: radius) } }
         } else {
             content
                 .background(style.material, in: shape)
                 .background(style.tint, in: shape)
-                .overlay(GlassEdge(style: style, radius: radius))
+                .overlay { if wantsEdge { GlassEdge(style: style, radius: radius) } }
         }
     }
 }

@@ -116,7 +116,11 @@ struct ScreenHeader<Content: View>: View {
         .padding(.horizontal, WP.gutter)
         .padding(.top, WP.headerTop)
         .padding(.bottom, 11)
-        .liquidGlass(.header, radius: 0)
+        .background {
+            Color.clear
+                .liquidGlass(.header, radius: 0)
+                .ignoresSafeArea(edges: .top)
+        }
         .overlay(alignment: .bottom) {
             Rectangle().fill(Color.black.opacity(0.07)).frame(height: 0.5)
         }
@@ -154,7 +158,11 @@ struct PushHeader: View {
         .padding(.horizontal, 12)
         .padding(.top, WP.headerTop)
         .padding(.bottom, 9)
-        .liquidGlass(.header, radius: 0)
+        .background {
+            Color.clear
+                .liquidGlass(.header, radius: 0)
+                .ignoresSafeArea(edges: .top)
+        }
         .overlay(alignment: .bottom) {
             Rectangle().fill(Color.black.opacity(0.07)).frame(height: 0.5)
         }
