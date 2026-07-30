@@ -325,30 +325,33 @@ struct TheDayList: View {
                 Button {
                     app.toggleDone(item.key)
                 } label: {
-                    DividedRow(vertical: 11) {
+                    DividedRow(vertical: 12) {
                         // Centred, not top-aligned: the text runs to two lines more often
                         // than not, and a tick box pinned to the first line reads as a
                         // misalignment rather than a hanging indent.
-                        HStack(alignment: .center, spacing: 11) {
+                        //
+                        // This is the list you read at a trailhead in the sun, so it sits
+                        // near iOS's own body size rather than the design's web scale.
+                        HStack(alignment: .center, spacing: 12) {
                             ZStack {
                                 Circle()
                                     .strokeBorder(done ? WP.accent : WP.neutral400, lineWidth: 1.5)
                                 Circle().fill(done ? WP.accent : .clear)
                                 if done {
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 9, weight: .bold))
+                                        .font(.system(size: 10, weight: .bold))
                                         .foregroundStyle(.white)
                                 }
                             }
-                            .frame(width: 19, height: 19)
+                            .frame(width: 21, height: 21)
 
                             Text(item.time)
-                                .font(WP.body(13, semibold: true))
+                                .font(WP.body(15, semibold: true))
                                 .foregroundStyle(WP.accent700)
-                                .frame(width: 62, alignment: .leading)
+                                .frame(width: 70, alignment: .leading)
 
                             Text(item.text)
-                                .font(WP.body(13.5))
+                                .font(WP.body(16))
                                 .lineSpacing(2)
                                 .strikethrough(done)
                                 .multilineTextAlignment(.leading)
