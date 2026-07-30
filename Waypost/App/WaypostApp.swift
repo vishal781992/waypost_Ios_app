@@ -2,74 +2,370 @@ import SwiftUI
 
 @main
 struct WaypostApp: App {
-    @State private var store = TripStore()
+    @State private var app = AppState()
+
+    init() { Fonts.register() }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(store)
-                .task { await store.start() }
+            RootShell()
+                .environment(app)
+                // The Classical palette is a light one and commits to it, as on the web.
+                .preferredColorScheme(.light)
+                .tint(WP.accent)
         }
     }
 }
 
-struct RootView: View {
-    @Environment(TripStore.self) private var store
+/// The app shell: five destinations under a floating glass tab bar, a push stack that
+/// slides in over them, sheets over that, and the toast above everything.
+struct RootShell: View {
+    @Environment(AppState.self) private var app
 
     var body: some View {
         ZStack {
             WP.bg.ignoresSafeArea()
-            switch store.view {
-            case .plan: PlanView()
-            case .trip: TripView()
-            }
-        }
-        .tint(WP.accent)
-        .preferredColorScheme(.light)   // the Classical palette is a light one, as on the web
-        .animation(.easeInOut(duration: 0.22), value: store.view)
-    }
-}
 
-/// The version shown in the nav badge. Read from the bundle rather than typed into the
-/// markup — the web repo needs `sync-version.sh` for exactly this reason.
-enum AppVersion {
-    static var short: String {
-        let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        return "v" + (v ?? "0.0.0")
-    }
-}
-
-/// The app bar: the dark plate both screens hang from.
-struct AppBar<Trailing: View, Leading: View>: View {
-    var title: String
-    var subtitle: String?
-    @ViewBuilder var leading: Leading
-    @ViewBuilder var trailing: Trailing
-
-    var body: some View {
-        HStack(spacing: 9) {
-            HStack { leading; Spacer(minLength: 0) }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(spacing: 2) {
-                Text(title)
-                    .font(WP.heading(24, weight: .regular))
-                    .lineLimit(1)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(WP.body(10))
-                        .italic()
-                        .opacity(0.5)
+            // Destinations. Only the selected one is built, as the design does.
+            Group {
+                switch app.tab {
+                case .today: TodayScreen()
+                case .trips: TripsScreen()
+                case .discover: DiscoverScreen()
+                case .saved: SavedScreen()
+                case .me: ProfileScreen()
                 }
             }
-            .fixedSize(horizontal: true, vertical: false)
+            .transition(.opacity)
 
-            HStack { Spacer(minLength: 0); trailing }
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            // Pushed screens, stacked. Each slides in from the trailing edge and carries
+            // its own shadow onto the screen beneath.
+            ForEach(Array(app.stack.enumerated()), id: \.element.id) { index, screen in
+                pushed(screen)
+                    .zIndex(Double(10 + index))
+                    .transition(.move(edge: .trailing))
+            }
+
+            TabBar()
+                .zIndex(50)
+
+            if let toast = app.toast {
+                VStack {
+                    Spacer()
+                    ToastView(text: toast)
+                        .padding(.bottom, WP.tabBarClearance - 8)
+                }
+                .zIndex(80)
+                .allowsHitTesting(false)
+            }
         }
-        .padding(.horizontal, 16)
-        .frame(height: 56)
-        .background(WP.ink)
-        .foregroundStyle(WP.bg)
+        .sheet(item: Binding(get: { app.sheet }, set: { app.sheet = $0 })) { sheet in
+            DetailSheet(sheet: sheet)
+        }
+        .sheet(isPresented: Binding(get: { app.builder != nil }, set: { if !$0 { app.builder = nil } })) {
+            if let builder = app.builder {
+                NewTripSheet(builder: builder)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func pushed(_ screen: PushedScreen) -> some View {
+        switch screen {
+        case .park(let code, let segment):
+            if let park = app.library.park(code) {
+                ParkScreen(park: park, initialSegment: segment)
+            }
+        case .trip(let id):
+            if let trip = app.trip(id) {
+                TripDetailScreen(trip: trip)
+            }
+        }
+    }
+}
+
+// MARK: - Chrome
+
+/// A screen header: the glass plate every destination hangs its title from.
+struct ScreenHeader<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, WP.gutter)
+        .padding(.top, WP.headerTop)
+        .padding(.bottom, 11)
+        .liquidGlass(.header, radius: 0)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.black.opacity(0.07)).frame(height: 0.5)
+        }
+    }
+}
+
+/// The header of a pushed screen: a back button, a centred title, glass behind both.
+struct PushHeader: View {
+    var backLabel: String
+    var title: String
+    var onBack: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: onBack) {
+                HStack(spacing: 3) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(backLabel).font(WP.body(15))
+                }
+                .foregroundStyle(WP.accent700)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 6)
+            }
+            .buttonStyle(PressStyle(scale: 0.94))
+
+            Spacer(minLength: 0)
+            Text(title)
+                .font(WP.headingUI(16))
+                .lineLimit(1)
+            Spacer(minLength: 0)
+
+            Color.clear.frame(width: 64, height: 1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, WP.headerTop)
+        .padding(.bottom, 9)
+        .liquidGlass(.header, radius: 0)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.black.opacity(0.07)).frame(height: 0.5)
+        }
+    }
+}
+
+/// The floating tab bar. One piece of liquid glass with a green wash rising through it,
+/// the selected tab lifted onto its own brighter pane.
+struct TabBar: View {
+    @Environment(AppState.self) private var app
+
+    var body: some View {
+        VStack {
+            Spacer()
+            // The glass is the plate the buttons sit on, not a wrapper around them —
+            // wrapping let the selected pane escape the bar's rounded edge.
+            ZStack {
+                Color.clear
+                    .liquidGlass(.tabBar, radius: 30)
+                    .overlay(wash.clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous)))
+                    .shadow(color: .black.opacity(0.14), radius: 16, y: 12)
+                    .shadow(color: .black.opacity(0.07), radius: 1.5, y: 1)
+
+                HStack(spacing: 2) {
+                    ForEach(AppTab.allCases) { tab in
+                        tabButton(tab)
+                    }
+                }
+                .padding(.horizontal, 6)
+                // The selected pane is clipped to the bar, so it can never ride over the
+                // rounded edge however the glass beneath it is laid out.
+                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+            }
+            .frame(height: 62)
+            .padding(.horizontal, 13)
+            .padding(.bottom, 4)
+        }
+    }
+
+    /// The green light the design floats inside the bar, masked so it only reaches the
+    /// bottom half.
+    private var wash: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            ZStack {
+                Ellipse().fill(Color(oklch: 0.56, 0.15, 152)).opacity(0.34)
+                    .frame(width: 0.62 * w, height: 1.28 * h)
+                    .position(x: 0.21 * w, y: 1.06 * h)
+                Ellipse().fill(Color(oklch: 0.70, 0.14, 142)).opacity(0.30)
+                    .frame(width: 0.56 * w, height: 1.16 * h)
+                    .position(x: 0.5 * w, y: 1.02 * h)
+                Ellipse().fill(Color(oklch: 0.84, 0.11, 128)).opacity(0.26)
+                    .frame(width: 0.58 * w, height: 1.22 * h)
+                    .position(x: 0.82 * w, y: 1.06 * h)
+            }
+            .blur(radius: 20)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black.opacity(0.5), location: 0.40),
+                        .init(color: .clear, location: 0.78),
+                    ],
+                    startPoint: .bottom, endPoint: .top
+                )
+            )
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func tabButton(_ tab: AppTab) -> some View {
+        let active = app.tab == tab
+        return Button {
+            if active, !app.stack.isEmpty {
+                app.stack = []
+            } else {
+                app.go(tab)
+            }
+        } label: {
+            VStack(spacing: 3) {
+                TabIcon(tab: tab)
+                    .frame(width: 24, height: 24)
+                Text(tab.label)
+                    .font(WP.body(9.5))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 5)
+            .background {
+                if active {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(.white.opacity(0.66))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(
+                                    LinearGradient(colors: [.white.opacity(0.85), .white.opacity(0.5)],
+                                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    lineWidth: 1.2
+                                )
+                        )
+                        .shadow(color: .black.opacity(0.07), radius: 1.5, y: 1)
+                }
+            }
+            .foregroundStyle(active ? WP.neutral900 : WP.text.opacity(0.54))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle(scale: 0.92))
+    }
+}
+
+/// The tab glyphs, drawn from the design's SVG paths rather than swapped for SF Symbols —
+/// the compass rose and the milepost are part of the brand.
+struct TabIcon: View {
+    var tab: AppTab
+
+    var body: some View {
+        switch tab {
+        case .today:
+            ZStack {
+                Circle().frame(width: 10, height: 10)
+                ForEach(0..<8, id: \.self) { index in
+                    Capsule()
+                        .frame(width: 2.1, height: 4.6)
+                        .offset(y: -9.4)
+                        .rotationEffect(.degrees(Double(index) * 45))
+                }
+            }
+        case .trips:
+            ZStack {
+                RoundedRectangle(cornerRadius: 1).frame(width: 2.1, height: 17.4)
+                MilepostArrow().frame(width: 8, height: 5).offset(x: 4.6, y: -4.5)
+                MilepostArrow().frame(width: 8, height: 5).scaleEffect(x: -1).offset(x: -4.6, y: 3)
+                RoundedRectangle(cornerRadius: 1).frame(width: 6, height: 2).offset(y: 8.6)
+            }
+        case .discover:
+            ZStack {
+                Circle().frame(width: 14.8, height: 14.8).offset(x: -1.2, y: -1.2)
+                Capsule().frame(width: 6.4, height: 2.6)
+                    .rotationEffect(.degrees(45)).offset(x: 7.5, y: 7.5)
+                NeedleShape()
+                    .fill(WP.bg)
+                    .frame(width: 8, height: 8)
+                    .offset(x: -1.2, y: -1.2)
+            }
+        case .saved:
+            BookmarkShape()
+        case .me:
+            VStack(spacing: 1.4) {
+                Circle().frame(width: 7.8, height: 7.8)
+                PersonBody()
+            }
+            .offset(y: 0.6)
+        }
+    }
+}
+
+private struct MilepostArrow: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: 0, y: 0))
+        p.addLine(to: CGPoint(x: rect.width * 0.72, y: 0))
+        p.addLine(to: CGPoint(x: rect.width, y: rect.midY))
+        p.addLine(to: CGPoint(x: rect.width * 0.72, y: rect.maxY))
+        p.addLine(to: CGPoint(x: 0, y: rect.maxY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+private struct NeedleShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.maxX, y: 0))
+        p.addLine(to: CGPoint(x: rect.midX * 0.9, y: rect.midY))
+        p.addLine(to: CGPoint(x: 0, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.midX * 1.1, y: rect.midY * 1.1))
+        p.closeSubpath()
+        return p
+    }
+}
+
+private struct BookmarkShape: View {
+    var body: some View {
+        Path { p in
+            p.move(to: CGPoint(x: 6.6, y: 3.2))
+            p.addLine(to: CGPoint(x: 17.4, y: 3.2))
+            p.addLine(to: CGPoint(x: 18.5, y: 4.3))
+            p.addLine(to: CGPoint(x: 18.5, y: 21.2))
+            p.addLine(to: CGPoint(x: 12, y: 18.1))
+            p.addLine(to: CGPoint(x: 5.5, y: 21.2))
+            p.addLine(to: CGPoint(x: 5.5, y: 4.3))
+            p.closeSubpath()
+        }
+        .frame(width: 24, height: 24)
+    }
+}
+
+private struct PersonBody: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: 0, y: rect.maxY))
+        p.addCurve(to: CGPoint(x: rect.maxX, y: rect.maxY),
+                   control1: CGPoint(x: rect.width * 0.2, y: 0),
+                   control2: CGPoint(x: rect.width * 0.8, y: 0))
+        p.closeSubpath()
+        return p
+    }
+}
+
+extension Shape {
+    /// The tab glyphs are solid; this keeps their call sites short.
+    func solid() -> some View { fill(Color.primary) }
+}
+
+/// A binding-friendly sheet presentation for the `ActiveSheet` enum.
+private extension View {
+    func sheet<Item: Identifiable, Content: View>(
+        item: Binding<Item?>,
+        @ViewBuilder content: @escaping (Item) -> Content
+    ) -> some View {
+        sheet(isPresented: Binding(get: { item.wrappedValue != nil },
+                                  set: { if !$0 { item.wrappedValue = nil } })) {
+            if let value = item.wrappedValue { content(value) }
+        }
+    }
+}
+
+/// The version badge the Profile screen shows, read from the bundle so it can never drift.
+enum AppVersion {
+    static var short: String {
+        "v" + ((Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.0.0")
     }
 }

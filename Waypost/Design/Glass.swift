@@ -1,0 +1,505 @@
+import SwiftUI
+
+// MARK: - Liquid glass
+
+/// The glass surfaces the design uses. Each case carries the tint, the border and the
+/// inner shine the CSS spells out, so a surface reads the same here as it does there.
+///
+/// On iOS 26 these render through the system Liquid Glass effect — real refraction and
+/// specular response, which no stack of blurs can imitate. Below 26 the same surface is
+/// assembled by hand: a material for the blur, the design's tint on top, a hairline
+/// border and the two inset highlights that give glass its lit edge.
+enum GlassStyle {
+    /// Screen headers — `rgba(243,242,242,0.6)`, blur 22, saturate 185%.
+    case header
+    /// The floating tab bar — `rgba(250,249,248,0.62)`, blur 24, saturate 190%.
+    case tabBar
+    /// Search fields and chips — `rgba(255,255,255,0.5)`, blur 16.
+    case pill
+    /// A caption plate sitting on a photograph — `rgba(255,255,255,0.17)`, blur 17.
+    case onPhoto
+    /// Bottom sheets — `rgba(243,242,242,0.9)`, blur 26.
+    case sheet
+
+    var tint: Color {
+        switch self {
+        case .header: return Color(hex: 0xF3F2F2, opacity: 0.60)
+        case .tabBar: return Color(hex: 0xFAF9F8, opacity: 0.62)
+        case .pill: return Color.white.opacity(0.50)
+        case .onPhoto: return Color.white.opacity(0.17)
+        case .sheet: return Color(hex: 0xF3F2F2, opacity: 0.90)
+        }
+    }
+
+    var border: Color {
+        switch self {
+        case .onPhoto: return Color.white.opacity(0.42)
+        case .sheet: return Color.white.opacity(0.70)
+        default: return Color.black.opacity(0.07)
+        }
+    }
+
+    /// The two inset highlights: a bright top-left edge and a softer bottom-right one.
+    var shine: (top: Color, bottom: Color) {
+        switch self {
+        case .onPhoto: return (Color.white.opacity(0.55), Color.white.opacity(0.25))
+        case .tabBar: return (Color.white.opacity(0.72), Color.white.opacity(0.42))
+        default: return (Color.white.opacity(0.80), Color.white.opacity(0.40))
+        }
+    }
+
+    var material: Material {
+        switch self {
+        case .onPhoto: return .ultraThinMaterial
+        case .sheet: return .thickMaterial
+        default: return .thinMaterial
+        }
+    }
+}
+
+/// The lit edge of a glass surface: a hairline border plus the inset highlights. Drawn on
+/// both the iOS 26 path and the fallback, because the system effect does not know about
+/// the design's specific edge treatment.
+private struct GlassEdge: View {
+    var style: GlassStyle
+    var radius: CGFloat
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        ZStack {
+            shape.stroke(style.border, lineWidth: 0.5)
+            shape
+                .stroke(
+                    LinearGradient(
+                        colors: [style.shine.top, .clear, style.shine.bottom],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.4
+                )
+                .blendMode(.plusLighter)
+                .opacity(0.9)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+extension View {
+    /// Puts the view on a liquid-glass surface.
+    func liquidGlass(_ style: GlassStyle = .pill, radius: CGFloat = 999, interactive: Bool = false) -> some View {
+        modifier(LiquidGlass(style: style, radius: radius, interactive: interactive))
+    }
+}
+
+private struct LiquidGlass: ViewModifier {
+    var style: GlassStyle
+    var radius: CGFloat
+    var interactive: Bool
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        if style == .onPhoto {
+            content
+                .background(style.tint, in: shape)
+                .overlay(GlassEdge(style: style, radius: radius))
+        } else if #available(iOS 26.0, *) {
+            content
+                .glassEffect(
+                    interactive
+                        ? .regular.tint(style.tint).interactive()
+                        : .regular.tint(style.tint),
+                    in: shape
+                )
+                .overlay(GlassEdge(style: style, radius: radius))
+        } else {
+            content
+                .background(style.material, in: shape)
+                .background(style.tint, in: shape)
+                .overlay(GlassEdge(style: style, radius: radius))
+        }
+    }
+}
+
+/// The tab bar and other clusters of glass want to be one piece of glass, not several —
+/// `GlassEffectContainer` is what merges them on iOS 26.
+struct GlassCluster<Content: View>: View {
+    var spacing: CGFloat = 2
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) { content }
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - Colour fields
+
+/// A park's identity, rendered as the design renders it: three blurred organic blobs in
+/// the park's own OKLCH triple, a diagonal specular sweep, and a scrim so white type
+/// stays legible over the top.
+struct BlobField: View {
+    var colors: [Color]
+    var scrim: Bool = true
+    /// A hairline of light along the top edge, as on the design's hero cards.
+    var topLight: Bool = true
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            ZStack {
+                (colors.first ?? WP.accent600)
+
+                ZStack {
+                    blob(colors.first ?? WP.accent600, x: 0.16 * w, y: 0.18 * h, w: 0.66 * w, h: 0.92 * h)
+                    blob(colors.count > 2 ? colors[2] : WP.accent300, x: 0.88 * w, y: 0.12 * h, w: 0.56 * w, h: 0.86 * h)
+                    blob(colors.count > 1 ? colors[1] : WP.accent400, x: 0.52 * w, y: 0.96 * h, w: 0.78 * w, h: 0.86 * h)
+                }
+                .blur(radius: 24)
+                .opacity(0.95)
+
+                // specular sweep — `linear-gradient(115deg, …)`
+                LinearGradient(
+                    stops: [
+                        .init(color: .white.opacity(0.34), location: 0),
+                        .init(color: .white.opacity(0.06), location: 0.34),
+                        .init(color: .clear, location: 0.52),
+                        .init(color: .white.opacity(0.14), location: 1),
+                    ],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+
+                if scrim {
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color(hex: 0x181008, opacity: 0.58), location: 0),
+                            .init(color: Color(hex: 0x181008, opacity: 0.22), location: 0.5),
+                            .init(color: .clear, location: 1),
+                        ],
+                        startPoint: .bottom, endPoint: .top
+                    )
+                }
+
+                if topLight {
+                    VStack {
+                        LinearGradient(colors: [.clear, .white.opacity(0.85), .clear],
+                                       startPoint: .leading, endPoint: .trailing)
+                            .frame(height: 1)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func blob(_ color: Color, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) -> some View {
+        Ellipse().fill(color).frame(width: w, height: h).position(x: x, y: y)
+    }
+}
+
+/// The corner ramp behind a dashboard tile — masked so it only lights the bottom-right.
+struct RampCorner: View {
+    var ramp: Ramp
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            ZStack {
+                ForEach(Array(ramp.colors.indices), id: \.self) { index in
+                    Ellipse()
+                        .fill(ramp.colors[index])
+                        .opacity(ramp.opacities[min(index, ramp.opacities.count - 1)])
+                        .frame(width: (0.62 - CGFloat(index) * 0.11) * w,
+                               height: (1.12 - CGFloat(index) * 0.23) * h)
+                        .position(x: (0.92 - CGFloat(index) * 0.18) * w,
+                                  y: (1.02 - CGFloat(index) * 0.1) * h)
+                }
+            }
+            .blur(radius: 19)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black.opacity(0.45), location: 0.40),
+                        .init(color: .clear, location: 0.64),
+                    ],
+                    startPoint: .bottomTrailing, endPoint: .topLeading
+                )
+            )
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// The brass-and-dusk glow the design puts behind its primary buttons.
+struct ButtonGlow: View {
+    var strong: Bool = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            ZStack {
+                Ellipse().fill(WP.accent500)
+                    .frame(width: 0.44 * w, height: 1.68 * h)
+                    .position(x: 0.24 * w, y: 0.42 * h)
+                Ellipse().fill(Color(oklch: 0.55, 0.10, 250))
+                    .frame(width: 0.42 * w, height: 1.58 * h)
+                    .position(x: 0.82 * w, y: 0.66 * h)
+            }
+            .blur(radius: 20)
+            .opacity(strong ? 0.85 : 0.5)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Shapes
+
+/// The stamp's scalloped edge — the design's `starClip(spikes, inner)`.
+struct StampShape: Shape {
+    var spikes: Int = 26
+    /// Inner radius as a percentage of the outer, matching the CSS.
+    var inner: CGFloat = 44
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let count = spikes * 2
+        let cx = rect.midX, cy = rect.midY
+        let outer = min(rect.width, rect.height) / 2
+        let innerR = outer * (inner / 50)
+        for i in 0..<count {
+            let r = i % 2 == 0 ? outer : innerR
+            let a = (.pi * 2 * CGFloat(i)) / CGFloat(count) - .pi / 2
+            let p = CGPoint(x: cx + r * cos(a), y: cy + r * sin(a))
+            if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - Components
+
+/// `.card-kicker` and the design's section kickers.
+struct Kicker: View {
+    var text: String
+    var color: Color = WP.accent
+    var size: CGFloat = 9.5
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(WP.body(size))
+            .tracking(size * 0.17)
+            .foregroundStyle(color)
+    }
+}
+
+/// A section heading with a rule running to the right and an optional trailing note —
+/// the pattern used all down the Today screen.
+struct RuledHeading<Trailing: View>: View {
+    var title: String
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 9) {
+            Text(title.uppercased())
+                .font(WP.body(12))
+                .tracking(1.5)
+                .foregroundStyle(WP.accent700)
+            Rectangle().fill(WP.divider).frame(height: 1)
+            trailing
+        }
+    }
+}
+
+extension RuledHeading where Trailing == EmptyView {
+    init(title: String) {
+        self.init(title: title) { EmptyView() }
+    }
+}
+
+/// The design's inset segmented control: a neutral trough, the active option lifted onto
+/// the page colour with a hairline and a soft shadow.
+struct SegmentedTrough<T: Hashable>: View {
+    var options: [(value: T, label: String)]
+    @Binding var selection: T
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(options, id: \.value) { option in
+                let active = option.value == selection
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) { selection = option.value }
+                } label: {
+                    Text(option.label)
+                        .font(WP.body(13))
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 34)
+                        .background(active ? WP.bg : .clear, in: Capsule())
+                        .overlay {
+                            if active { Capsule().stroke(WP.divider, lineWidth: 1) }
+                        }
+                        .foregroundStyle(active ? WP.accent800 : WP.text.opacity(0.62))
+                        .shadow(color: active ? WP.neutral900.opacity(0.14) : .clear, radius: 1, y: 1)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(WP.neutral200, in: Capsule())
+    }
+}
+
+/// A horizontally scrolling rail of segment pills — the park screen's five sections.
+struct SegmentRail<T: Hashable>: View {
+    var options: [(value: T, label: String)]
+    @Binding var selection: T
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 6) {
+                ForEach(options, id: \.value) { option in
+                    let active = option.value == selection
+                    Button {
+                        withAnimation(.snappy(duration: 0.2)) { selection = option.value }
+                    } label: {
+                        Text(option.label)
+                            .font(WP.body(12.5))
+                            .padding(.horizontal, 15)
+                            .frame(minHeight: 34)
+                            .background(active ? WP.bg : .clear, in: Capsule())
+                            .overlay { if active { Capsule().stroke(WP.divider, lineWidth: 1) } }
+                            .foregroundStyle(active ? WP.accent800 : WP.text.opacity(0.62))
+                            .shadow(color: active ? WP.neutral900.opacity(0.12) : .clear, radius: 1, y: 1)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, WP.gutter)
+        }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize)
+    }
+}
+
+/// The design's primary action: ink plate, brass-and-dusk glow bleeding through a frosted
+/// pane. Used for Compose, Share, Understood.
+struct GlowButton: View {
+    var title: String
+    var filled: Bool = true
+    var strongGlow: Bool = false
+    var minHeight: CGFloat = 48
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(WP.headingUI(filled ? 17 : 15))
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: minHeight)
+                .background {
+                    ZStack {
+                        if filled { WP.ink } else { Color.clear }
+                        ButtonGlow(strong: strongGlow)
+                        if !filled {
+                            Rectangle().fill(Color(hex: 0xFCFBFA, opacity: 0.44))
+                        }
+                    }
+                }
+                .foregroundStyle(filled ? WP.bg : WP.neutral900)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(Color.white.opacity(filled ? 0 : 0.55), lineWidth: 0.5))
+                .shadow(color: WP.neutral900.opacity(0.14), radius: 8, y: 6)
+        }
+        .buttonStyle(PressStyle())
+    }
+}
+
+/// `style-active="transform:scale(0.96)"` — every tappable surface in the design responds.
+struct PressStyle: ButtonStyle {
+    var scale: CGFloat = 0.97
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .animation(.snappy(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+/// A thin progress track — pack downloads, the passport bar, the composing step.
+struct ProgressTrack: View {
+    var fraction: Double
+    var tint: Color = WP.accent
+    var height: CGFloat = 4
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(WP.neutral200)
+                Capsule().fill(tint)
+                    .frame(width: max(0, min(1, fraction)) * geo.size.width)
+                    .animation(.easeOut(duration: 0.26), value: fraction)
+            }
+        }
+        .frame(height: height)
+    }
+}
+
+/// The iOS switch, in the design's accent.
+struct WPSwitch: View {
+    var isOn: Bool
+
+    var body: some View {
+        Capsule()
+            .fill(isOn ? WP.accent : WP.neutral300)
+            .frame(width: 40, height: 24)
+            .overlay(alignment: isOn ? .trailing : .leading) {
+                Circle()
+                    .fill(.white)
+                    .frame(width: 20, height: 20)
+                    .shadow(color: .black.opacity(0.25), radius: 1, y: 1)
+                    .padding(2)
+            }
+            .animation(.snappy(duration: 0.2), value: isOn)
+    }
+}
+
+/// The hairline the design draws between rows.
+struct Hairline: View {
+    var body: some View { Rectangle().fill(WP.divider).frame(height: 1) }
+}
+
+/// A row that fills to the trailing edge and carries a hairline underneath.
+struct DividedRow<Content: View>: View {
+    var vertical: CGFloat = 12
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, vertical)
+            Hairline()
+        }
+    }
+}
+
+/// The pill the design floats above the tab bar when something happens.
+struct ToastView: View {
+    var text: String
+
+    var body: some View {
+        Text(text)
+            .font(WP.body(12.5))
+            .lineLimit(1)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 9)
+            .background(WP.ink, in: Capsule())
+            .foregroundStyle(WP.bg)
+            .shadow(color: WP.neutral900.opacity(0.22), radius: 16, y: 8)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}

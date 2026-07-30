@@ -12,6 +12,49 @@ cannot be reached or publishes nothing, the interface says so rather than substi
 plausible-looking number.
 
 
+## 2.0.0 — The native app
+
+A second design round arrived (Claude Design project `2a11fe09`), and it is not a phone
+version of the website: it is an iPhone app. Five destinations instead of one long scroll,
+the day you are living in given a home of its own, and Liquid Glass throughout. This
+release rebuilds the interface on it.
+
+**Five destinations.** Today, Trips, Discover, Saved and Profile, under a floating glass
+tab bar. The plan-then-itinerary pair the web app has becomes: Trips → `+` opens a
+three-step modal; the itinerary becomes a trip screen with Route / Days / Stays; the six
+in-park tabs become one park screen with a scrolling segment rail; "print field sheets"
+becomes an offline pack; the proxy field moves to Profile.
+
+**Today** is the new front door, and it takes one of three shapes — a field card, a
+timeline, or a dashboard of tiles. It knows whether you are in a park or driving, ticks
+off the day's plan with a haptic, counts down the next permit window, previews the next
+leg with its Live Activity, offers the offline pack for the park you are heading to, and
+nudges you toward the nearest passport stamp.
+
+**Liquid Glass, properly.** On iOS 26 the headers, tab bar, chips and photo plates render
+through the system `glassEffect`; below 26 the same surfaces are assembled by hand from a
+material, the design's tint, and the two inset highlights that give glass a lit edge.
+Plates that sit over a park's colour field always use the hand-built recipe — the system
+effect brightens until white type stops reading.
+
+**The real typefaces ship.** Cormorant Garamond, Lora and JetBrains Mono (all OFL) are
+bundled as static instances generated from the variable originals. Two rounds of failure
+are recorded in the tooling: Google's WOFF files converted by hand produced fonts CoreText
+would open and iOS would reject (`GSFont: invalid font file`), and the variable fonts
+default to Light. Cormorant also sets old-style figures by default — 11 read as two small
+capital I's — so every heading now carries lining, tabular figures.
+
+**Colour is computed, not eyeballed.** The design writes park identities, traffic lights
+and dashboard ramps in OKLCH. Those numbers are kept as written and converted through
+OKLab at runtime, so Arches is the red the designer chose.
+
+**The field library.** `tools/extract-curated.mjs` lifts the design's own dataset — eight
+parks with colours, August normals, gates, campgrounds, day plans and nearby stamps; the
+four legs and ten days of the seed trip; the passport book — into `curated.json`. Panels
+say it is curated. The live services from 1.9.x are still in the repo and are re-wired
+onto these screens next; until then no panel claims to be today's measurement.
+
+
 ## 1.9.1 — First native pass
 
 A SwiftUI port of the mobile design (`Waypost Mobile.dc.html` in the Claude Design
