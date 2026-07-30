@@ -1,3 +1,4 @@
+import MapKit
 import SwiftUI
 
 /// Trips — what is on the books, and what is behind you.
@@ -104,7 +105,40 @@ struct TripCard: View {
             + parks.map { (lat: $0.lat, lon: $0.lon) }
     }
 
+    @State private var confirmingDelete = false
+
     var body: some View {
+        // The delete control sits over the card rather than inside its button, so the
+        // tap target is its own and does not open the trip on the way past.
+        ZStack(alignment: .topTrailing) {
+            cardButton
+            deleteButton.padding(10)
+        }
+        .confirmationDialog("Remove this trip?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Remove trip", role: .destructive) { app.deleteTrip(trip.id) }
+            Button("Keep it", role: .cancel) { }
+        } message: {
+            Text("\(trip.title) and its day plans come off this iPhone. This cannot be undone.")
+        }
+    }
+
+    /// A liquid-glass disc, so it reads as chrome floating over the card rather than
+    /// another row of content.
+    private var deleteButton: some View {
+        Button {
+            confirmingDelete = true
+        } label: {
+            Image(systemName: "trash")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(WP.danger)
+                .frame(width: 34, height: 34)
+                .liquidGlass(.pill, radius: 999, interactive: true)
+        }
+        .buttonStyle(PressStyle(scale: 0.9))
+        .accessibilityLabel("Remove \(trip.title)")
+    }
+
+    private var cardButton: some View {
         Button {
             app.push(.trip(id: trip.id))
         } label: {
@@ -118,6 +152,7 @@ struct TripCard: View {
                         .foregroundStyle(trip.live ? WP.accent800 : WP.neutral800)
                     Spacer(minLength: 0)
                     Text(trip.dates).font(WP.body(11.5)).opacity(0.6)
+                        .padding(.trailing, 38)
                 }
 
                 Text(trip.title).font(WP.heading(23)).padding(.top, 9)
@@ -125,8 +160,8 @@ struct TripCard: View {
                 Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.65).padding(.top, 4)
                     .multilineTextAlignment(.leading)
 
-                RouteSpark(points: points)
-                    .frame(height: 52)
+                RouteMapPlate(points: points)
+                    .frame(height: 132)
                     .padding(.top, 11)
 
                 Hairline().padding(.top, 9)
@@ -154,42 +189,83 @@ struct TripCard: View {
     }
 }
 
-/// The little route sketch on a trip card: a dashed line through the stops, the origin a
-/// filled dot and each park a hollow one.
-struct RouteSpark: View {
+/// The route on a real map.
+///
+/// MapKit has no monochrome style, so the map is rendered normally and desaturated in
+/// the view: `saturation(0)` with a touch of contrast to hold the coastlines. The result
+/// is a grey basemap that sits inside the Classical palette instead of fighting it, and
+/// leaves the brass route line as the only colour on the plate.
+///
+/// It is a picture, not a map to explore — no interaction modes, so a drag over it
+/// scrolls the list underneath.
+struct RouteMapPlate: View {
     var points: [(lat: Double, lon: Double)]
 
-    var body: some View {
-        GeometryReader { geo in
-            let placed = place(in: geo.size)
-            ZStack {
-                Path { path in
-                    guard let first = placed.first else { return }
-                    path.move(to: first)
-                    placed.dropFirst().forEach { path.addLine(to: $0) }
-                }
-                .stroke(WP.accent, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [5, 4]))
+    private var coordinates: [CLLocationCoordinate2D] {
+        points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
+    }
 
-                ForEach(Array(placed.enumerated()), id: \.offset) { index, point in
+    var body: some View {
+        // The basemap is desaturated, the route is not — so the filter is applied to the
+        // map alone and the line is drawn over it, projected through MapReader.
+        MapReader { proxy in
+            Map(initialPosition: .region(region), interactionModes: [])
+                .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
+                .saturation(0)
+                .contrast(1.04)
+                .overlay {
+                    RouteOverlay(coordinates: coordinates, proxy: proxy)
+                }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .stroke(WP.divider, lineWidth: 1))
+        .allowsHitTesting(false)
+    }
+
+    /// Framed on every stop with a margin, so the whole route reads at a glance.
+    private var region: MKCoordinateRegion {
+        let lats = points.map(\.lat), lons = points.map(\.lon)
+        guard let minLat = lats.min(), let maxLat = lats.max(),
+              let minLon = lons.min(), let maxLon = lons.max() else {
+            return MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 39, longitude: -105),
+                span: MKCoordinateSpan(latitudeDelta: 10, longitudeDelta: 10)
+            )
+        }
+        return MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2,
+                                           longitude: (minLon + maxLon) / 2),
+            span: MKCoordinateSpan(latitudeDelta: max(1.2, (maxLat - minLat) * 1.7),
+                                   longitudeDelta: max(1.2, (maxLon - minLon) * 1.7))
+        )
+    }
+}
+
+/// The route, drawn over the map rather than inside it: the map carries a greyscale
+/// filter, and anything drawn as map content would be greyed with it.
+struct RouteOverlay: View {
+    var coordinates: [CLLocationCoordinate2D]
+    var proxy: MapProxy
+
+    var body: some View {
+        GeometryReader { _ in
+            let points = coordinates.compactMap { proxy.convert($0, to: .local) }
+            if points.count == coordinates.count, points.count > 1 {
+                Path { path in
+                    path.move(to: points[0])
+                    points.dropFirst().forEach { path.addLine(to: $0) }
+                }
+                .stroke(WP.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 4]))
+
+                ForEach(Array(points.enumerated()), id: \.offset) { index, point in
                     Circle()
                         .fill(index == 0 ? WP.accent700 : WP.bg)
                         .overlay(Circle().stroke(WP.accent700, lineWidth: 1.5))
-                        .frame(width: index == 0 ? 5.2 : 7.2, height: index == 0 ? 5.2 : 7.2)
+                        .frame(width: index == 0 ? 6 : 8, height: index == 0 ? 6 : 8)
                         .position(point)
                 }
             }
-        }
-    }
-
-    private func place(in size: CGSize) -> [CGPoint] {
-        guard !points.isEmpty else { return [] }
-        let lons = points.map(\.lon), lats = points.map(\.lat)
-        let minLon = lons.min() ?? 0, maxLon = lons.max() ?? 1
-        let minLat = lats.min() ?? 0, maxLat = lats.max() ?? 1
-        return points.map { point in
-            let x = 6 + ((point.lon - minLon) / max(0.001, maxLon - minLon)) * (size.width - 12)
-            let y = size.height - 8 - ((point.lat - minLat) / max(0.001, maxLat - minLat)) * (size.height - 16)
-            return CGPoint(x: x, y: y)
         }
     }
 }
