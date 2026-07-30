@@ -12,6 +12,22 @@ cannot be reached or publishes nothing, the interface says so rather than substi
 plausible-looking number.
 
 
+## 2.1.2 — The serif, in one place
+
+A national park's name is the one line in this app worth setting in the design system's
+serif, so `WP.parkDisplay` brings Cormorant Garamond SemiBold back for exactly that: the
+Today hero card, the park screen hero, a Discover card, and the Timeline and Dashboard
+takes. Five headlines, each a park name alone over its own colour, at the sizes the design
+drew them — no SF scaling, because those sizes were drawn in this face.
+
+Everywhere else stays San Francisco, including park names in lists, the pushed-screen
+title bar, trip names, and every label and number. That is the split that made 2.1.1
+readable, and a separate token keeps it: which face a line gets is decided by which
+function the view calls, so it cannot drift back.
+
+One font file ships instead of eight.
+
+
 ## 2.1.1 — San Francisco
 
 The bundled serifs are gone. Cormorant Garamond and Lora are the design system's voice on

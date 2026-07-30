@@ -75,6 +75,16 @@ enum WP {
         .system(size: size).italic()
     }
 
+    /// Cormorant Garamond SemiBold — the one place the design system's serif survives:
+    /// a national park's name, standing alone as a headline over its own colour field.
+    ///
+    /// Nowhere else. In a list row or a title bar the serif thins out and the app gets
+    /// the uneven texture this release removed, so those stay on `heading`. The design's
+    /// sizes are used as drawn, with no SF scaling — these were drawn in this face.
+    static func parkDisplay(_ size: CGFloat) -> Font {
+        .custom("CormorantGaramond-SemiBold", size: size)
+    }
+
     /// Airport codes and other fixed-width runs — SF Mono.
     static func mono(_ size: CGFloat, semibold: Bool = true) -> Font {
         .system(size: size, weight: semibold ? .semibold : .regular, design: .monospaced)

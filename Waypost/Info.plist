@@ -24,6 +24,10 @@
 	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Waypost opens on the parks nearest you. Location is used once, for that shelf and to suggest an origin city — it is never stored or sent anywhere.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>CormorantGaramond-SemiBold.ttf</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

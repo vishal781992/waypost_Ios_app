@@ -127,7 +127,7 @@ struct DiscoverCard: View {
                             .font(WP.body(9)).tracking(1.5)
                             .foregroundStyle(.white.opacity(0.88))
                         Text(park.name)
-                            .font(WP.heading(28))
+                            .font(WP.parkDisplay(28))
                             .foregroundStyle(.white)
                             .shadow(color: Color(hex: 0x181008, opacity: 0.26), radius: 9, y: 1)
                     }

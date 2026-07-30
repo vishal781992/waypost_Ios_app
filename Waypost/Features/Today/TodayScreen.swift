@@ -128,7 +128,7 @@ struct ParkOfTheDayCard: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Kicker(text: "Where you are", color: .white.opacity(0.88), size: 9.5)
                         Text(park.name)
-                            .font(WP.heading(34))
+                            .font(WP.parkDisplay(34))
                             .foregroundStyle(.white)
                             .shadow(color: Color(hex: 0x181008, opacity: 0.28), radius: 10, y: 1)
                         Text("Day \(app.today.n ?? 1) of \(app.today.of ?? 1) in park · \(park.gw)")
@@ -655,7 +655,7 @@ struct TimelineTake: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Where you are".uppercased())
                             .font(WP.body(12)).tracking(1.5).foregroundStyle(WP.accent700)
-                        Text(park.name).font(WP.heading(29))
+                        Text(park.name).font(WP.parkDisplay(29))
                         Text("Day \(app.today.n ?? 1) of \(app.today.of ?? 1) in park · \(park.gw)")
                             .font(WP.bodyItalic(12)).opacity(0.68)
                     }
@@ -844,7 +844,7 @@ struct DashboardTake: View {
     var body: some View {
         if let park = app.todayPark {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(park.name).font(WP.heading(26))
+                Text(park.name).font(WP.parkDisplay(26))
                 Spacer(minLength: 0)
                 Text("Day \(app.today.n ?? 1) of \(app.today.of ?? 1) · \(park.gw)")
                     .font(WP.bodyItalic(11.5)).opacity(0.6)

@@ -155,6 +155,18 @@ not, so `WP.heading` scales heading sizes by 0.86 — a line that filled its spa
 design still fills it here. Everything routes through `WP.heading` / `WP.body` /
 `WP.mono` in `Design/Tokens.swift`, so the face is one edit away if it ever changes again.
 
+**One exception: `WP.parkDisplay`.** A national park's name, standing alone as a headline
+over its own colour field, is set in Cormorant Garamond SemiBold — the design system's
+serif, in the one role big enough to carry it. Five places use it: the Today hero card
+(34), the park screen hero (38), a Discover card (28), and the Timeline (29) and Dashboard
+(26) takes. Those sizes are the design's own, with no SF scaling, because they were drawn
+in this face.
+
+It is a separate token rather than a flag on `WP.heading` so the rule is enforced by which
+function a view calls. Park names in *lists* — Saved rows, trip routes, the near-you
+shortlist, the title bar — stay on SF: at 16–19pt the serif thins out, which is the
+unevenness 2.1.1 removed. One font file ships (`CormorantGaramond-SemiBold.ttf`).
+
 ## Versioning
 
 `VERSION` holds semver and is kept in step with the web repo, so a shared release carries
