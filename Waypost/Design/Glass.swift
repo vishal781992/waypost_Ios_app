@@ -254,8 +254,8 @@ struct ButtonGlow: View {
                     .frame(width: 0.42 * w, height: 1.58 * h)
                     .position(x: 0.82 * w, y: 0.66 * h)
             }
-            .blur(radius: 22)
-            .opacity(strong ? 0.6 : 0.38)
+            .blur(radius: 20)
+            .opacity(strong ? 0.85 : 0.5)
         }
         .allowsHitTesting(false)
     }
