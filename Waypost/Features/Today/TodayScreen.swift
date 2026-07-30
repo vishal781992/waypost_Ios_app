@@ -165,7 +165,7 @@ struct ParkOfTheDayCard: View {
                 statCell("High", "\(park.wx.hi)°")
                 statCell("Low", "\(park.wx.lo)°")
                 statCell("UV", park.wx.uvIndex)
-                statCell("Sunset", park.wx.ss.replacingOccurrences(of: " pm", with: ""))
+                statCell("Sunset", park.wx.ss.replacingOccurrences(of: " pm", with: "").clockPadded)
             }
             .padding(.top, 14)
             .overlay(alignment: .top) { Hairline() }
@@ -345,7 +345,7 @@ struct TheDayList: View {
                             }
                             .frame(width: 21, height: 21)
 
-                            Text(item.time)
+                            Text(item.time.clockPadded)
                                 .font(WP.body(15, semibold: true))
                                 .foregroundStyle(WP.accent700)
                                 .frame(width: 70, alignment: .leading)
@@ -414,7 +414,7 @@ struct PermitWindowCard: View {
             HStack(alignment: .bottom, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(drop.what).font(WP.body(13.5)).lineSpacing(1)
-                    Text(drop.when).font(WP.bodyItalic(12)).opacity(0.65)
+                    Text(drop.when.clockPadded).font(WP.bodyItalic(12)).opacity(0.65)
                 }
                 Spacer(minLength: 0)
                 VStack(alignment: .trailing, spacing: 3) {
@@ -508,7 +508,7 @@ struct LockScreenPreview: View {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(leg.to).font(WP.body(12.5)).opacity(0.75)
-                    Text("arrive 3:20 pm").font(WP.heading(23))
+                    Text("arrive 3:20 pm".clockPadded).font(WP.heading(23))
                 }
                 Spacer(minLength: 0)
                 VStack(alignment: .trailing, spacing: 2) {
@@ -749,7 +749,7 @@ struct TimelineRail: View {
                         .frame(width: 11)
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(item.time.uppercased())
+                            Text(item.time.clockPadded.uppercased())
                                 .font(WP.body(11)).tracking(1.1).foregroundStyle(WP.accent700)
                             Text(item.text)
                                 .font(WP.heading(18))
@@ -771,7 +771,7 @@ struct TimelineRail: View {
                 HStack(alignment: .top, spacing: 0) {
                     Circle().fill(WP.accent200).frame(width: 11, height: 11).padding(.top, 19)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(drop.when.uppercased())
+                        Text(drop.when.clockPadded.uppercased())
                             .font(WP.body(11)).tracking(1.1).foregroundStyle(WP.accent700)
                         Text("\(drop.what) — \(drop.countdown) from now")
                             .font(WP.heading(18)).lineSpacing(2)

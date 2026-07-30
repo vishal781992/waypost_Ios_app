@@ -70,7 +70,7 @@ struct DetailSheet: View {
                 .font(WP.body(12)).tracking(1.5).foregroundStyle(WP.accent700)
             Text(drop.what).font(WP.heading(23)).padding(.top, 9)
                 .multilineTextAlignment(.leading)
-            Text("They \(drop.when) and are gone in minutes. Waypost can put a notification on your lock screen fifteen minutes before, with the booking link.")
+            Text("They \(drop.when.clockPadded) and are gone in minutes. Waypost can put a notification on your lock screen fifteen minutes before, with the booking link.")
                 .font(WP.body(13.5)).lineSpacing(3).opacity(0.8).padding(.top, 6)
 
             // What that notification looks like.
@@ -124,7 +124,7 @@ struct DetailSheet: View {
                 HStack(spacing: 0) {
                     legStat("Distance", "\(leg.mi) mi")
                     legStat("Wheel time", leg.drive)
-                    legStat("Arrive", "3:20 pm")
+                    legStat("Arrive", "3:20 pm".clockPadded)
                 }
                 .padding(.top, 10)
                 .overlay(alignment: .top) { Hairline() }

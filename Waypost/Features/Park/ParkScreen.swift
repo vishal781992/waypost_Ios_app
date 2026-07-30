@@ -254,8 +254,8 @@ struct WeatherSection: View {
             ("Low", "\(park.wx.lo)°", "overnight", park.wx.lo <= 32 ? Color(oklch: 0.66, 0.13, 70) : Color(oklch: 0.60, 0.13, 150)),
             ("UV index", park.wx.uvIndex, park.wx.uvWord, uvColor),
             ("Wind", park.wx.wind, "max sustained", windColor),
-            ("Sunrise", park.wx.sr, "first light", Color(oklch: 0.60, 0.13, 150)),
-            ("Sunset", park.wx.ss, "last light", Color(oklch: 0.60, 0.13, 150)),
+            ("Sunrise", park.wx.sr.clockPadded, "first light", Color(oklch: 0.60, 0.13, 150)),
+            ("Sunset", park.wx.ss.clockPadded, "last light", Color(oklch: 0.60, 0.13, 150)),
         ]
     }
 
@@ -389,7 +389,7 @@ struct PlansSection: View {
                     VStack(spacing: 0) {
                         ForEach(plan.items) { item in
                             HStack(alignment: .top, spacing: 10) {
-                                Text(item.time)
+                                Text(item.time.clockPadded)
                                     .font(WP.body(11.5))
                                     .foregroundStyle(WP.accent700)
                                     .frame(width: 52, alignment: .leading)
