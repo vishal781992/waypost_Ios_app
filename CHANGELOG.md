@@ -12,6 +12,33 @@ cannot be reached or publishes nothing, the interface says so rather than substi
 plausible-looking number.
 
 
+## 2.1.0 — A brief written on the phone
+
+Discover opens with **Near you**: the parks actually within reach, ranked by real
+distance from your location, and a short brief about them written by Apple's on-device
+model. Nothing leaves the iPhone — no network call, no account, no server.
+
+**The model is never the source of a fact.** Distances are measured from coordinates in
+`NearbyBriefing.rank`; conditions, fees, reservations and alerts come from the field
+library. Those are what the prompt contains, and the ranked list renders whether the
+model answers, refuses, or is missing from the device.
+
+**Why the guard is as strict as it is.** Given two parks and their real distances, the
+first thing the model wrote was that the farther one was *"175 miles closer"*, and that a
+park with timed entry *"does not require a permit"*. Confident, fluent, wrong. In an app
+whose one rule is never to show an invented value, that cannot reach the screen. So:
+
+- the model is forbidden to write a number at all — the figures are printed beside its
+  words by the app — and any sentence containing a digit is dropped rather than shown;
+- unquantified comparisons are allowed but checked against the measured ranking, so a
+  note calling the second-nearest park "the closest" is dropped;
+- every park it names is matched back to the shortlist, so an invented park cannot appear;
+- if the headline fails any check, the app substitutes one written from the arithmetic.
+
+**When it cannot run** — no Apple Intelligence, not enabled, model still downloading, or
+an older iOS — the card says which of those it is and shows the ranked list anyway.
+
+
 ## 2.0.0 — The native app
 
 A second design round arrived (Claude Design project `2a11fe09`), and it is not a phone

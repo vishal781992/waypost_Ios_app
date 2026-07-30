@@ -82,6 +82,9 @@ struct DiscoverScreen: View {
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 20) {
+                    // What is actually within reach today, before the catalogue.
+                    NearbyCard()
+
                     Text(note).font(WP.bodyItalic(12)).opacity(0.6)
 
                     ForEach(results) { park in
