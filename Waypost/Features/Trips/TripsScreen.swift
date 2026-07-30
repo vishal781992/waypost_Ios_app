@@ -13,7 +13,7 @@ struct TripsScreen: View {
                              ? "One trip on the books, one in the field."
                              : "\(app.trips.count) trips on the books.")
                             .kickerStyle()
-                        Text("Trips").font(WP.heading(31))
+                        Text("Trips").font(WP.display(31))
                     }
                     Spacer(minLength: 0)
                     newTripButton

@@ -10,7 +10,7 @@ struct SavedScreen: View {
         VStack(spacing: 0) {
             ScreenHeader {
                 Text("\(app.stamps.count) of 63 stamps").kickerStyle()
-                Text("Saved").font(WP.heading(31)).padding(.top, 4).padding(.bottom, 11)
+                Text("Saved").font(WP.display(31)).padding(.top, 4).padding(.bottom, 11)
                 SegmentedTrough(
                     options: [(false, "Parks"), (true, "Passport")],
                     selection: $app.savedShowsPassport

@@ -10,7 +10,7 @@ struct ProfileScreen: View {
         VStack(spacing: 0) {
             ScreenHeader {
                 Text("Waypost \(AppVersion.short) · a field planner").kickerStyle()
-                Text("Profile").font(WP.heading(31)).padding(.top, 4)
+                Text("Profile").font(WP.display(31)).padding(.top, 4)
             }
 
             ScrollView(.vertical) {

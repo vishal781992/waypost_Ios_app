@@ -75,13 +75,14 @@ enum WP {
         .system(size: size).italic()
     }
 
-    /// Cormorant Garamond SemiBold — the one place the design system's serif survives:
-    /// a national park's name, standing alone as a headline over its own colour field.
+    /// Cormorant Garamond SemiBold — the design system's serif, in the two roles big
+    /// enough to carry it: a national park's name standing alone over its own colour
+    /// field, and the title at the head of a screen.
     ///
-    /// Nowhere else. In a list row or a title bar the serif thins out and the app gets
-    /// the uneven texture this release removed, so those stay on `heading`. The design's
-    /// sizes are used as drawn, with no SF scaling — these were drawn in this face.
-    static func parkDisplay(_ size: CGFloat) -> Font {
+    /// Nowhere smaller. In a list row or a nav bar the serif thins out and the app gets
+    /// back the uneven texture 2.1.1 removed, so those stay on `heading`. Sizes are the
+    /// design's own, with no SF scaling — they were drawn in this face.
+    static func display(_ size: CGFloat) -> Font {
         .custom("CormorantGaramond-SemiBold", size: size)
     }
 

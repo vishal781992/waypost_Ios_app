@@ -39,7 +39,7 @@ struct DiscoverScreen: View {
         VStack(spacing: 0) {
             ScreenHeader {
                 Text("Sixty-three parks, one at a time").kickerStyle()
-                Text("Discover").font(WP.heading(31)).padding(.top, 4).padding(.bottom, 10)
+                Text("Discover").font(WP.display(31)).padding(.top, 4).padding(.bottom, 10)
 
                 TextField("Park or state…", text: $app.discoverQuery)
                     .textFieldStyle(.plain)
@@ -127,7 +127,7 @@ struct DiscoverCard: View {
                             .font(WP.body(9)).tracking(1.5)
                             .foregroundStyle(.white.opacity(0.88))
                         Text(park.name)
-                            .font(WP.parkDisplay(28))
+                            .font(WP.display(28))
                             .foregroundStyle(.white)
                             .shadow(color: Color(hex: 0x181008, opacity: 0.26), radius: 9, y: 1)
                     }

@@ -68,7 +68,7 @@ struct ParkScreen: View {
                     .font(WP.body(10)).tracking(1.4)
                     .foregroundStyle(.white.opacity(0.82))
                 Text(park.name)
-                    .font(WP.parkDisplay(38))
+                    .font(WP.display(38))
                     .foregroundStyle(.white)
                 Text(park.tag)
                     .font(WP.bodyItalic(12.5))
