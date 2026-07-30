@@ -138,6 +138,9 @@ final class AppState {
     // Trip building
     var builder: TripBuilder?
     var myTrips: [SavedTrip] = []
+    /// The seed trip ships with the app rather than living in `myTrips`, so removing it
+    /// is remembered as a flag.
+    var seedTripHidden = false
 
     // Transient
     var toast: String?
@@ -311,7 +314,21 @@ final class AppState {
     // MARK: Trips
 
     var trips: [SavedTrip] {
-        myTrips + [SavedTrip.seed(dayNumber: today.d)]
+        myTrips + (seedTripHidden ? [] : [SavedTrip.seed(dayNumber: today.d)])
+    }
+
+    /// Removing a trip is not undoable, so the card asks first.
+    func deleteTrip(_ id: String) {
+        if id == "seed" {
+            seedTripHidden = true
+        } else {
+            myTrips.removeAll { $0.id == id }
+        }
+        stack.removeAll { $0.id == "trip:" + id }
+        tripSegment[id] = nil
+        Haptics.tap()
+        show("Trip removed")
+        persist()
     }
 
     func trip(_ id: String) -> SavedTrip? { trips.first { $0.id == id } }
@@ -349,6 +366,7 @@ final class AppState {
         /// Reopening on the destination you left is what every other app does.
         var tab: String?
         var passport: Bool?
+        var seedHidden: Bool?
     }
 
     private static let key = "waypost-app"
@@ -369,7 +387,8 @@ final class AppState {
             take: take.rawValue,
             trips: myTrips,
             tab: tab.rawValue,
-            passport: savedShowsPassport
+            passport: savedShowsPassport,
+            seedHidden: seedTripHidden
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             UserDefaults.standard.set(data, forKey: Self.key)
@@ -394,6 +413,7 @@ final class AppState {
         myTrips = snapshot.trips
         tab = snapshot.tab.flatMap(AppTab.init(rawValue:)) ?? .today
         savedShowsPassport = snapshot.passport ?? false
+        seedTripHidden = snapshot.seedHidden ?? false
     }
 }
 

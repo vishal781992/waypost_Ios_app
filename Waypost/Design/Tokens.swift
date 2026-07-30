@@ -43,6 +43,8 @@ enum WP {
     static let divider = text.opacity(0.16)
     /// `color-mix(in srgb, var(--color-neutral-900) 94%, black)` — the ink plate.
     static let ink = Color(hex: 0x2A2829)
+    /// Destructive actions — the design's `oklch(0.55 0.21 27)`.
+    static let danger = Color(oklch: 0.55, 0.21, 27)
     /// The live-feed dot: `oklch(0.62 0.14 150)`
     static let live = Color(oklch: 0.62, 0.14, 150)
 
