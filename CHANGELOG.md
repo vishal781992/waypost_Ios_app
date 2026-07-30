@@ -12,6 +12,20 @@ cannot be reached or publishes nothing, the interface says so rather than substi
 plausible-looking number.
 
 
+## 2.1.1 — San Francisco
+
+The bundled serifs are gone. Cormorant Garamond and Lora are the design system's voice on
+a wide screen, but on a phone they read unevenly — the serif thins out at the small sizes
+this layout leans on, and Cormorant's old-style figures never sat right beside their
+labels even after lining figures were forced on. The app now uses San Francisco
+everywhere, including SF Mono for airport codes.
+
+The design's sizes are kept. SF has the larger x-height, so headings are scaled by 0.86
+and the layout is unchanged. The font files and their `UIAppFonts` declaration are
+removed with the code that registered them; every size still routes through `WP.heading`,
+`WP.body` and `WP.mono`.
+
+
 ## 2.1.0 — A brief written on the phone
 
 Discover opens with **Near you**: the parks actually within reach, ranked by real

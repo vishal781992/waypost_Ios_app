@@ -48,32 +48,36 @@ enum WP {
 
     // MARK: Type
     //
-    // The real faces ship with the app: Cormorant Garamond for headings, Lora for body,
-    // JetBrains Mono for airport codes. All three are OFL.
+    // San Francisco throughout — Apple's own face, and the one iOS renders best at these
+    // sizes. The Classical design system pairs Cormorant Garamond with Lora, and those
+    // shipped in 2.0; on a phone they read unevenly, the numerals fight the labels and
+    // the small sizes lose legibility. The design's *sizes* are kept, scaled for SF's
+    // larger x-height, so the layout is unchanged — only the voice of the type is.
 
-    /// Cormorant sets old-style figures by default — 97° comes out as tiny humped
-    /// glyphs and 11 reads as two small capital I's. Every heading here can carry a
-    /// number, so lining, tabular figures are switched on for the whole face.
+    /// Cormorant runs small for its point size; SF does not. Headings are scaled so a
+    /// line that filled its space in the design still fills it here.
+    private static let headingScale: CGFloat = 0.86
+
     static func heading(_ size: CGFloat, semibold: Bool = false) -> Font {
-        Font(FontFeatures.liningTabular(semibold ? "CormorantGaramond-SemiBold" : "CormorantGaramond-Regular", size))
+        .system(size: size * headingScale, weight: semibold ? .semibold : .regular)
     }
 
-    /// Interface headings take the semibold cut — the design system's note is that
-    /// semibold is the ceiling for headings because they need the weight at small sizes.
+    /// Interface headings — the small, working titles — take the semibold cut.
     static func headingUI(_ size: CGFloat) -> Font {
-        Font(FontFeatures.liningTabular("CormorantGaramond-SemiBold", size))
+        .system(size: size * headingScale, weight: .semibold)
     }
 
     static func body(_ size: CGFloat, semibold: Bool = false) -> Font {
-        .custom(semibold ? "Lora-SemiBold" : "Lora-Regular", size: size)
+        .system(size: size, weight: semibold ? .semibold : .regular)
     }
 
     static func bodyItalic(_ size: CGFloat) -> Font {
-        .custom("Lora-Italic", size: size)
+        .system(size: size).italic()
     }
 
+    /// Airport codes and other fixed-width runs — SF Mono.
     static func mono(_ size: CGFloat, semibold: Bool = true) -> Font {
-        .custom(semibold ? "JetBrainsMono-SemiBold" : "JetBrainsMono-Regular", size: size)
+        .system(size: size, weight: semibold ? .semibold : .regular, design: .monospaced)
     }
 
     // MARK: Metrics

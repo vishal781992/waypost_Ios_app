@@ -143,12 +143,17 @@ is filled in with estimates in the meantime.
 
 ## Typography
 
-The design system pairs Cormorant Garamond with Lora. Neither ships with iOS, and bundling
-webfont binaries is a licensing question rather than a design one, so both roles use the
-platform serif (New York). Swapping the real faces in is a change to `WP.heading` /
-`WP.body` in `Design/Theme.swift` and nowhere else.
+San Francisco, app-wide — Apple's own face, and the one iOS renders best at these sizes.
 
----
+The Classical design system pairs Cormorant Garamond with Lora, and 2.0 shipped both as
+bundled OFL faces. On a phone they read unevenly: the serif loses legibility at the small
+sizes the layout leans on, and Cormorant's old-style figures make numerals fight the
+labels beside them. 2.1.1 moved to the system face and removed the font files.
+
+The design's *sizes* are unchanged. Cormorant runs small for its point size and SF does
+not, so `WP.heading` scales heading sizes by 0.86 — a line that filled its space in the
+design still fills it here. Everything routes through `WP.heading` / `WP.body` /
+`WP.mono` in `Design/Tokens.swift`, so the face is one edit away if it ever changes again.
 
 ## Versioning
 

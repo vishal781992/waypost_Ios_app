@@ -4,8 +4,6 @@ import SwiftUI
 struct WaypostApp: App {
     @State private var app = AppState()
 
-    init() { Fonts.register() }
-
     var body: some Scene {
         WindowGroup {
             RootShell()
