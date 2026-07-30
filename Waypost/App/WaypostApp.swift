@@ -22,41 +22,36 @@ struct WaypostApp: App {
 struct RootShell: View {
     @Environment(AppState.self) private var app
 
+    /// Selection is routed through `AppState` so the dashboard tiles and the passport
+    /// nudge can still change tabs, and so the last one is remembered across launches.
+    private var selection: Binding<AppTab> {
+        Binding(get: { app.tab }, set: { app.go($0) })
+    }
+
     var body: some View {
-        ZStack {
-            WP.bg.ignoresSafeArea()
-
-            // Destinations. Only the selected one is built, as the design does.
-            Group {
-                switch app.tab {
-                case .today: TodayScreen()
-                case .trips: TripsScreen()
-                case .discover: DiscoverScreen()
-                case .saved: SavedScreen()
-                case .me: ProfileScreen()
-                }
+        // A real TabView, so the tab bar is the system's: Liquid Glass with its own
+        // scroll-edge response, the selection morphing between items, and the bar
+        // shrinking out of the way as you read down a screen. Hand-drawing that bar got
+        // the look but none of the behaviour.
+        TabView(selection: selection) {
+            ForEach(AppTab.allCases) { tab in
+                destination(tab)
+                    .tag(tab)
+                    .tabItem {
+                        Label {
+                            Text(tab.label)
+                        } icon: {
+                            TabIconImage.image(for: tab)
+                        }
+                    }
             }
-            .transition(.opacity)
-
-            // Pushed screens, stacked. Each slides in from the trailing edge and carries
-            // its own shadow onto the screen beneath.
-            ForEach(Array(app.stack.enumerated()), id: \.element.id) { index, screen in
-                pushed(screen)
-                    .zIndex(Double(10 + index))
-                    .transition(.move(edge: .trailing))
-            }
-
-            TabBar()
-                .zIndex(50)
-
+        }
+        .modifier(NativeTabBarBehaviour())
+        .overlay(alignment: .bottom) {
             if let toast = app.toast {
-                VStack {
-                    Spacer()
-                    ToastView(text: toast)
-                        .padding(.bottom, WP.tabBarClearance - 8)
-                }
-                .zIndex(80)
-                .allowsHitTesting(false)
+                ToastView(text: toast)
+                    .padding(.bottom, 12)
+                    .allowsHitTesting(false)
             }
         }
         .sheet(item: Binding(get: { app.sheet }, set: { app.sheet = $0 })) { sheet in
@@ -65,6 +60,31 @@ struct RootShell: View {
         .sheet(isPresented: Binding(get: { app.builder != nil }, set: { if !$0 { app.builder = nil } })) {
             if let builder = app.builder {
                 NewTripSheet(builder: builder)
+            }
+        }
+    }
+
+    /// One destination, with its own push stack laid over it — a park opened from Today
+    /// keeps Today underneath, and the tab bar stays put, as the design has it.
+    @ViewBuilder
+    private func destination(_ tab: AppTab) -> some View {
+        ZStack {
+            WP.bg.ignoresSafeArea()
+
+            switch tab {
+            case .today: TodayScreen()
+            case .trips: TripsScreen()
+            case .discover: DiscoverScreen()
+            case .saved: SavedScreen()
+            case .me: ProfileScreen()
+            }
+
+            if app.tab == tab {
+                ForEach(Array(app.stack.enumerated()), id: \.element.id) { index, screen in
+                    pushed(screen)
+                        .zIndex(Double(10 + index))
+                        .transition(.move(edge: .trailing))
+                }
             }
         }
     }
@@ -143,106 +163,46 @@ struct PushHeader: View {
     }
 }
 
-/// The floating tab bar. One piece of liquid glass with a green wash rising through it,
-/// the selected tab lifted onto its own brighter pane.
-struct TabBar: View {
-    @Environment(AppState.self) private var app
-
-    var body: some View {
-        VStack {
-            Spacer()
-            // The glass is the plate the buttons sit on, not a wrapper around them —
-            // wrapping let the selected pane escape the bar's rounded edge.
-            ZStack {
-                Color.clear
-                    .liquidGlass(.tabBar, radius: 30)
-                    .overlay(wash.clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous)))
-                    .shadow(color: .black.opacity(0.14), radius: 16, y: 12)
-                    .shadow(color: .black.opacity(0.07), radius: 1.5, y: 1)
-
-                HStack(spacing: 2) {
-                    ForEach(AppTab.allCases) { tab in
-                        tabButton(tab)
-                    }
-                }
-                .padding(.horizontal, 6)
-                // The selected pane is clipped to the bar, so it can never ride over the
-                // rounded edge however the glass beneath it is laid out.
-                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-            }
-            .frame(height: 62)
-            .padding(.horizontal, 13)
-            .padding(.bottom, 4)
+/// The behaviours the system tab bar gains on iOS 26: the bar minimises as you read
+/// down a screen and expands again when you scroll back up, and the whole thing is
+/// Liquid Glass with its own scroll-edge response.
+///
+/// The item titles stay in the system face. The new bar styles them itself and ignores
+/// `UITabBarItem.appearance()`, and fighting it would mean giving up the native bar —
+/// which is the thing worth having. The glyphs are still the design's own.
+struct NativeTabBarBehaviour: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .tabBarMinimizeBehavior(.onScrollDown)
+                .tint(WP.neutral900)
+        } else {
+            content.tint(WP.neutral900)
         }
     }
+}
 
-    /// The green light the design floats inside the bar, masked so it only reaches the
-    /// bottom half.
-    private var wash: some View {
-        GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
-            ZStack {
-                Ellipse().fill(Color(oklch: 0.56, 0.15, 152)).opacity(0.34)
-                    .frame(width: 0.62 * w, height: 1.28 * h)
-                    .position(x: 0.21 * w, y: 1.06 * h)
-                Ellipse().fill(Color(oklch: 0.70, 0.14, 142)).opacity(0.30)
-                    .frame(width: 0.56 * w, height: 1.16 * h)
-                    .position(x: 0.5 * w, y: 1.02 * h)
-                Ellipse().fill(Color(oklch: 0.84, 0.11, 128)).opacity(0.26)
-                    .frame(width: 0.58 * w, height: 1.22 * h)
-                    .position(x: 0.82 * w, y: 1.06 * h)
-            }
-            .blur(radius: 20)
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0),
-                        .init(color: .black.opacity(0.5), location: 0.40),
-                        .init(color: .clear, location: 0.78),
-                    ],
-                    startPoint: .bottom, endPoint: .top
-                )
-            )
-        }
-        .allowsHitTesting(false)
-    }
+/// The design's own glyphs, rendered once into template images so the system tab bar can
+/// carry them. Tab items take an `Image`; drawing the shapes inline would have meant
+/// giving up the native bar, and the compass rose and milepost are part of the brand.
+@MainActor
+enum TabIconImage {
+    private static var cache: [AppTab: Image] = [:]
 
-    private func tabButton(_ tab: AppTab) -> some View {
-        let active = app.tab == tab
-        return Button {
-            if active, !app.stack.isEmpty {
-                app.stack = []
-            } else {
-                app.go(tab)
-            }
-        } label: {
-            VStack(spacing: 3) {
-                TabIcon(tab: tab)
-                    .frame(width: 24, height: 24)
-                Text(tab.label)
-                    .font(WP.body(9.5))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 5)
-            .background {
-                if active {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(.white.opacity(0.66))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(
-                                    LinearGradient(colors: [.white.opacity(0.85), .white.opacity(0.5)],
-                                                   startPoint: .topLeading, endPoint: .bottomTrailing),
-                                    lineWidth: 1.2
-                                )
-                        )
-                        .shadow(color: .black.opacity(0.07), radius: 1.5, y: 1)
-                }
-            }
-            .foregroundStyle(active ? WP.neutral900 : WP.text.opacity(0.54))
-            .contentShape(Rectangle())
+    static func image(for tab: AppTab) -> Image {
+        if let hit = cache[tab] { return hit }
+        let renderer = ImageRenderer(
+            content: TabIcon(tab: tab)
+                .frame(width: 26, height: 26)
+                .foregroundStyle(.black)
+        )
+        renderer.scale = 3
+        guard let rendered = renderer.uiImage?.withRenderingMode(.alwaysTemplate) else {
+            return Image(systemName: "circle")
         }
-        .buttonStyle(PressStyle(scale: 0.92))
+        let image = Image(uiImage: rendered)
+        cache[tab] = image
+        return image
     }
 }
 

@@ -82,8 +82,9 @@ enum WP {
     static let gutter: CGFloat = 20
     /// Status-bar clearance the design bakes into each header (`padding-top: 57px`).
     static let headerTop: CGFloat = 14
-    /// Room the floating tab bar needs at the bottom of every scroll view.
-    static let tabBarClearance: CGFloat = 112
+    /// Breathing room at the end of a scroll. The system tab bar insets content itself,
+    /// so this is just the design's trailing margin.
+    static let tabBarClearance: CGFloat = 28
 }
 
 // MARK: - Colour conversion
