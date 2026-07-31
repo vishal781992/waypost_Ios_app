@@ -134,8 +134,25 @@ final class AppState {
     var discoverQuery = "" {
         didSet {
             guard discoverQuery != oldValue else { return }
+            suggestions.knownParks = directory.hits.map { ($0.park.name, $0.park.state) }
+            suggestions.update(discoverQuery)
             directory.search(discoverQuery)
         }
+    }
+
+    /// What you might mean, offered while you are still typing it.
+    let suggestions = SearchSuggestions()
+
+    /// Set when the app is opened straight into a search, so the field takes the caret
+    /// and the suggestions are visible without a tap.
+    var focusSearchOnAppear = false
+
+    /// Picking one searches for the term the sources will recognise, not the two letters
+    /// that were typed.
+    func takeSuggestion(_ suggestion: SearchSuggestions.Suggestion) {
+        discoverQuery = suggestion.query
+        suggestions.clear()
+        Haptics.tap()
     }
     var discoverChip = "all"
     /// Which catalogue Discover is showing: the NPS registry, or the state-park table
@@ -261,6 +278,7 @@ final class AppState {
             if let id = value("wpTrip") { self.tab = .trips; self.push(.trip(id: id)) }
             if let term = value("wpSearch") {
                 self.tab = .discover
+                self.focusSearchOnAppear = true
                 // Nothing else: setting the query is what starts a search, exactly as
                 // typing into the field does.
                 self.discoverQuery = term

@@ -3,6 +3,7 @@ import SwiftUI
 /// Discover — the catalogue, one park at a time, each carrying its own colour.
 struct DiscoverScreen: View {
     @Environment(AppState.self) private var app
+    @FocusState private var searchFocused: Bool
 
     private let chips: [(id: String, label: String)] = [
         ("all", "Everything"), ("Desert", "Desert"), ("Alpine", "Alpine"),
@@ -91,6 +92,19 @@ struct DiscoverScreen: View {
                     .padding(.horizontal, 16)
                     .frame(minHeight: 42)
                     .liquidGlass(.pill, radius: 999)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                    .onSubmit { app.suggestions.clear() }
+
+                // What you might mean, while you are still typing it. Two letters is
+                // enough — "te" offers Tennessee and Texas before any search has run.
+                if searchFocused, !app.suggestions.items.isEmpty {
+                    SuggestionList(items: app.suggestions.items) { suggestion in
+                        app.takeSuggestion(suggestion)
+                        searchFocused = false
+                    }
+                    .padding(.top, 6)
+                }
 
                 if !app.discoverShowsState {
                 ScrollView(.horizontal) {
@@ -142,6 +156,12 @@ struct DiscoverScreen: View {
                 .padding(.bottom, WP.tabBarClearance)
             }
             .scrollIndicators(.hidden)
+        }
+        .onAppear {
+            if app.focusSearchOnAppear {
+                app.focusSearchOnAppear = false
+                searchFocused = true
+            }
         }
     }
 }
@@ -381,5 +401,49 @@ struct StateParkList: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 16)
         }
+    }
+}
+
+
+/// The suggestion drop-down under the search field.
+///
+/// Deliberately small: a glyph for what kind of thing it is, the name, and where it is.
+/// Picking one is a search, so the rows read as actions rather than as results.
+struct SuggestionList: View {
+    var items: [SearchSuggestions.Suggestion]
+    var onPick: (SearchSuggestions.Suggestion) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(items.prefix(8).enumerated()), id: \.element.id) { index, item in
+                Button { onPick(item) } label: {
+                    HStack(spacing: 11) {
+                        Image(systemName: item.kind.glyph)
+                            .font(.system(size: 13))
+                            .foregroundStyle(WP.accent700)
+                            .frame(width: 18)
+                        Text(item.title)
+                            .font(WP.body(15))
+                            .foregroundStyle(WP.text)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text(item.subtitle)
+                            .font(WP.body(11.5))
+                            .opacity(0.55)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 15)
+                    .padding(.vertical, 11)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressStyle(scale: 0.995))
+
+                if index < min(items.count, 8) - 1 { Hairline() }
+            }
+        }
+        .liquidGlass(.pill, radius: 18)
+        .shadow(color: Color(hex: 0x181008, opacity: 0.13), radius: 12, y: 7)
+        .transition(.opacity.combined(with: .offset(y: -6)))
+        .animation(Motion.panel, value: items)
     }
 }
