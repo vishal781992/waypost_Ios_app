@@ -53,7 +53,7 @@ struct ParkScreen: View {
 
     private var hero: some View {
         ZStack(alignment: .bottomLeading) {
-            BlobField(colors: park.c.map { Color(css: $0) }, topLight: false)
+            ParkImage(park: park, topLight: false)
             LinearGradient(
                 stops: [
                     .init(color: Color(hex: 0x16100A, opacity: 0.7), location: 0),

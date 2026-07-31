@@ -115,10 +115,8 @@ struct NearbyCard: View {
                     app.openPark(candidate.park.code)
                 } label: {
                     HStack(spacing: 12) {
-                        ZStack {
-                            BlobField(colors: candidate.park.c.map { Color(css: $0) },
-                                      scrim: false, topLight: false)
-                        }
+                        ParkImage(park: candidate.park, blur: 7, saturation: 1.15,
+                                  showsScrim: false, topLight: false)
                         .frame(width: 40, height: 40)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 

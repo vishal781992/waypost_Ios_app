@@ -47,9 +47,8 @@ struct SavedParksList: View {
                     VStack(spacing: 0) {
                         HStack(spacing: 13) {
                             Button { app.openPark(code) } label: {
-                                ZStack {
-                                    BlobField(colors: park.c.map { Color(css: $0) }, scrim: false, topLight: false)
-                                }
+                                ParkImage(park: park, blur: 7, saturation: 1.15,
+                                          showsScrim: false, topLight: false)
                                 .frame(width: 52, height: 52)
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             }

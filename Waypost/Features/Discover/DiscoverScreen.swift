@@ -133,7 +133,7 @@ struct DiscoverCard: View {
                 app.openPark(park.code)
             } label: {
                 ZStack(alignment: .bottomLeading) {
-                    BlobField(colors: park.c.map { Color(css: $0) })
+                    ParkImage(park: park)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(park.state) · \(park.region)".uppercased())

@@ -88,7 +88,7 @@ struct WhereYouAreCard: View {
             app.openPark(park.code)
         } label: {
             ZStack(alignment: .bottomLeading) {
-                BlobField(colors: park.c.map { Color(css: $0) })
+                ParkImage(park: park)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Where you are".uppercased())
@@ -213,8 +213,9 @@ struct NearbyTile: View {
                 app.openPark(park.code)
             } label: {
                 ZStack {
-                    BlobField(colors: park.c.map { Color(css: $0) }, topLight: false)
-                        .blur(radius: 6)
+                    // Blurred, as the design has it: the photograph is texture behind the
+                    // name, not something you are meant to read.
+                    ParkImage(park: park, blur: 6, saturation: 1.15, topLight: false)
                     // The design's specular sweep, so the tile reads as glass over colour.
                     LinearGradient(
                         stops: [

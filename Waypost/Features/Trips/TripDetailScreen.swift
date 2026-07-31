@@ -180,7 +180,8 @@ struct TripDetailScreen: View {
             DividedRow(vertical: 14) {
                 HStack(spacing: 13) {
                     ZStack {
-                        BlobField(colors: park.c.map { Color(css: $0) }, scrim: false, topLight: false)
+                        ParkImage(park: park, blur: 7, saturation: 1.15,
+                                  showsScrim: false, topLight: false)
                         Text(numeral)
                             .font(WP.headingUI(17))
                             .foregroundStyle(.white)
