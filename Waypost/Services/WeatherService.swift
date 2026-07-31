@@ -31,6 +31,12 @@ struct WeatherService {
         return day
     }
 
+    /// One source, one call. The park screen wants the blended forecast; the recommender
+    /// wants six of them at once and a number good enough to sort by.
+    func quickForecast(lat: Double, lon: Double, iso: String) async -> WeatherDay? {
+        await openMeteo(lat: lat, lon: lon, iso: iso)
+    }
+
     // MARK: Open-Meteo forecast
 
     private func openMeteo(lat: Double, lon: Double, iso: String) async -> WeatherDay? {

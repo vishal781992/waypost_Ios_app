@@ -15,7 +15,7 @@ struct TodayScreen: View {
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 22) {
-                    if let park = app.todayPark {
+                    if let park = app.featuredPark {
                         WhereYouAreCard(park: park)
                         NearbyRail(park: park)
                     }
@@ -31,6 +31,7 @@ struct TodayScreen: View {
             }
             .scrollIndicators(.hidden)
         }
+        .task { app.refreshRecommendation() }
     }
 
     /// The masthead: the app's name at display size, and one glass control that starts a
@@ -91,7 +92,9 @@ struct WhereYouAreCard: View {
                 ParkImage(park: park)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Where you are".uppercased())
+                    // "Where you are" was true when this was day five of a fixed trip.
+                    // It is a recommendation now, so it says so.
+                    Text((app.recommender.pick == nil ? "Where you are" : "Worth the drive today").uppercased())
                         .font(.system(size: 9.5))
                         .tracking(1.7)
                         .foregroundStyle(.white.opacity(0.88))
@@ -99,7 +102,10 @@ struct WhereYouAreCard: View {
                         .font(WP.display(34))
                         .foregroundStyle(.white)
                         .shadow(color: Color(hex: 0x181008, opacity: 0.28), radius: 10, y: 1)
-                    Text("Day \(app.today.n ?? 1) of \(app.today.of ?? 1) in park · \(park.gw)")
+                    // Why this park, in the line the trip's day count used to hold:
+                    // today's temperature there, how far it is from you, and whether you
+                    // have already been.
+                    Text(app.featuredReason)
                         .font(WP.bodyItalic(12))
                         .foregroundStyle(.white.opacity(0.9))
                 }

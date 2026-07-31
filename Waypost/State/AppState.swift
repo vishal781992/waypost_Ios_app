@@ -299,6 +299,41 @@ final class AppState {
     /// Real distances and wheel times for the trips the app composed.
     let routing = TripRouting()
 
+    /// Which park leads the home screen today.
+    let recommender = Recommender()
+
+    /// Parks you have already been to, one way or another: stamped, saved for later, or
+    /// already written into a trip.
+    var visitedCodes: Set<String> {
+        var codes = Set(saved)
+        codes.formUnion(myTrips.flatMap(\.codes))
+        codes.formUnion(library.orderedParks.filter { stamps.contains(stampKey(forName: $0.name)) }.map(\.code))
+        return codes
+    }
+
+    /// The park the home screen leads with — the recommendation once it has been worked
+    /// out, and the trip's own park until then, so the hero is never empty.
+    var featuredPark: CuratedPark? { recommender.pick?.park ?? todayPark }
+
+    /// The line under its name: why this park, or where you are in the trip.
+    var featuredReason: String {
+        if let pick = recommender.pick { return pick.reason }
+        guard let park = todayPark else { return "" }
+        return "Day \(today.n ?? 1) of \(today.of ?? 1) in park · \(park.gw)"
+    }
+
+    /// Asks for a fresh recommendation. Called every time the home screen appears, and
+    /// the recommender itself holds back the last two so it lands somewhere new.
+    func refreshRecommendation() {
+        var candidates = library.orderedParks
+        // Anything the directory has found is a candidate too, so the screen widens as
+        // the app is used rather than circling the same eight.
+        candidates += directory.hits.map(\.park).filter { park in
+            !candidates.contains { $0.code == park.code }
+        }
+        recommender.choose(from: candidates, visited: visitedCodes)
+    }
+
     /// A park by code, wherever it came from. The curated library first, because those
     /// records carry more; then whatever the last search found.
     func park(_ code: String) -> CuratedPark? {
