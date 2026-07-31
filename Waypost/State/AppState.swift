@@ -233,7 +233,8 @@ final class AppState {
         }
         let wantedTab = value("wpTab").flatMap(AppTab.init(rawValue:))
         let wantedPark = value("wpPark")
-        guard wantedTab != nil || wantedPark != nil else { return }
+        guard wantedTab != nil || wantedPark != nil
+                || value("wpSearch") != nil || value("wpTrip") != nil else { return }
 
         // Applied after the scene has settled. SwiftUI restores the tab view's own
         // selection on launch and writes it back through the binding, and `go` clears
@@ -242,7 +243,26 @@ final class AppState {
             try? await Task.sleep(for: .milliseconds(900))
             if let wantedTab { self.tab = wantedTab }
             if let wantedPark { self.openPark(wantedPark) }
+            if let id = value("wpTrip") { self.tab = .trips; self.push(.trip(id: id)) }
+            if let term = value("wpSearch") {
+                self.tab = .discover
+                self.discoverQuery = term
+                self.directory.search(term)
+            }
         }
+    }
+
+    /// The live catalogue. The eight curated parks are still the ones with day plans and
+    /// campgrounds; everything else in the country comes through here.
+    let directory = ParkDirectory()
+
+    /// Real distances and wheel times for the trips the app composed.
+    let routing = TripRouting()
+
+    /// A park by code, wherever it came from. The curated library first, because those
+    /// records carry more; then whatever the last search found.
+    func park(_ code: String) -> CuratedPark? {
+        library.park(code) ?? directory.hits.first { $0.park.code == code }?.park
     }
 
     func openPark(_ code: String, segment: ParkSegment = .overview) {

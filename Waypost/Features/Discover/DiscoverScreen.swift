@@ -9,7 +9,8 @@ struct DiscoverScreen: View {
         ("Coast", "Coast"), ("Geothermal", "Geothermal"), ("quiet", "Quieter"),
     ]
 
-    private var results: [CuratedPark] {
+    /// The eight parks that ship with the app, filtered the way they always were.
+    private var curated: [CuratedPark] {
         var list = app.library.orderedParks
         if app.discoverChip == "quiet" {
             list = list.filter { $0.crowd.contains("Quiet") || $0.crowd.contains("Moderate") }
@@ -18,19 +19,51 @@ struct DiscoverScreen: View {
         }
         let q = app.discoverQuery.trimmingCharacters(in: .whitespaces).lowercased()
         if !q.isEmpty {
-            list = list.filter { ($0.name + " " + $0.state + " " + $0.tag).lowercased().contains(q) }
+            list = list.filter { ($0.name + " " + $0.state + " " + $0.full).lowercased().contains(q) }
         }
         return list
     }
 
+    /// Everything else in the country, from NPS and OpenStreetMap. Only while a search is
+    /// running — with an empty field the screen still opens on the curated shelf.
+    private var live: [CuratedPark] {
+        guard !app.discoverQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+        let already = Set(curated.map { $0.name.lowercased() })
+        var list = app.directory.hits.map(\.park).filter { !already.contains($0.name.lowercased()) }
+        // A live record does not publish crowding, so it cannot answer "quieter".
+        if app.discoverChip == "quiet" {
+            list = []
+        } else if app.discoverChip != "all" {
+            list = list.filter { $0.region == app.discoverChip }
+        }
+        return list
+    }
+
+    private var results: [CuratedPark] { curated + live }
+
+    /// The line under the chips now has to say where the parks came from: a search only
+    /// OpenStreetMap answered is a different thing from one NPS answered, and neither is
+    /// the shelf that ships with the app.
     private var note: String {
         let count = results.count
         let q = app.discoverQuery.trimmingCharacters(in: .whitespaces)
-        let tail: String
-        if !q.isEmpty { tail = "matching “\(q)”" }
-        else if app.discoverChip == "all" { tail = "all of them, alphabetical by nothing in particular" }
-        else { tail = app.discoverChip.lowercased() + " country" }
-        return "\(count) \(count == 1 ? "park" : "parks") · \(tail)"
+        let plural = count == 1 ? "park" : "parks"
+        if q.isEmpty {
+            let tail = app.discoverChip == "all"
+                ? "the field library on this iPhone"
+                : app.discoverChip.lowercased() + " country"
+            return "\(count) \(plural) · \(tail)"
+        }
+        switch app.directory.phase {
+        case .searching:
+            return "Searching NPS and OpenStreetMap for “\(q)”…"
+        case .unanswered(let why):
+            return why
+        case .idle, .ready:
+            let sources = app.directory.answered.map(\.rawValue).sorted().joined(separator: " · ")
+            let from = sources.isEmpty ? "the field library on this iPhone" : sources
+            return "\(count) \(plural) matching “\(q)” · \(from)"
+        }
     }
 
     var body: some View {
@@ -110,6 +143,7 @@ struct DiscoverScreen: View {
             }
             .scrollIndicators(.hidden)
         }
+        .onChange(of: app.discoverQuery) { _, query in app.directory.search(query) }
     }
 }
 

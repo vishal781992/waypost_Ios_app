@@ -81,7 +81,7 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     let c: [String]
     /// Offline pack size, e.g. "112 MB".
     let pack: String
-    let wx: CuratedWeather
+    var wx: CuratedWeather
     let gates: [String]
     let parking: String
     let airports: [CuratedAirport]
@@ -91,8 +91,13 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     let alerts: [CuratedAlert]
     let days: [CuratedDayPlan]
     let stamps: [CuratedStamp]
+    /// Which catalogue this park came out of. Absent in `curated.json`, which is the
+    /// curated library by definition.
+    var source: CatalogueSource? = nil
 
     var id: String { code }
+    /// Named wherever the park is shown, so a live record is never read as a curated one.
+    var sourceName: String { (source ?? .curated).rawValue }
 
     /// Megabytes, for the storage total on the Profile screen.
     var packMB: Int { Int(pack.split(separator: " ").first.flatMap { Int($0) } ?? 0) }
@@ -108,6 +113,8 @@ struct CuratedWeather: Decodable, Hashable {
     let sr: String
     let ss: String
     let note: String
+    /// Which service answered. Nil until one has.
+    var source: String? = nil
 
     var uvIndex: String { uv.split(separator: " ").first.map(String.init) ?? uv }
     var uvWord: String { uv.components(separatedBy: "— ").last ?? "" }
@@ -161,6 +168,13 @@ struct CuratedFuel: Decodable, Hashable {
     let gas: [String]
     let fast: [String]
     let slow: [String]
+}
+
+/// Where a park record came from.
+enum CatalogueSource: String, Decodable, Hashable {
+    case nps = "NPS"
+    case openStreetMap = "OpenStreetMap"
+    case curated = "the curated library"
 }
 
 struct CuratedAlert: Decodable, Hashable, Identifiable {

@@ -104,7 +104,7 @@ struct RootShell: View {
     private func pushed(_ screen: PushedScreen) -> some View {
         switch screen {
         case .park(let code, let segment):
-            if let park = app.library.park(code) {
+            if let park = app.park(code) {
                 ParkScreen(park: park, initialSegment: segment)
             }
         case .trip(let id):

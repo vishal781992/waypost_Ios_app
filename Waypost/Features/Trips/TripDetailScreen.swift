@@ -8,7 +8,7 @@ struct TripDetailScreen: View {
 
     @State private var segment: TripSegment = .route
 
-    private var parks: [CuratedPark] { trip.codes.compactMap { app.library.park($0) } }
+    private var parks: [CuratedPark] { trip.codes.compactMap { app.park($0) } }
     private var isSeed: Bool { trip.id == "seed" }
 
     var body: some View {
@@ -53,14 +53,42 @@ struct TripDetailScreen: View {
             .scrollIndicators(.hidden)
         }
         .background(WP.bg)
-        .onAppear { segment = app.tripSegment[trip.id] ?? .route }
+        .onAppear {
+            segment = app.tripSegment[trip.id] ?? .route
+            if let first = parks.first {
+                app.routing.routeApproach(trip, to: first)
+            }
+            if !isSeed {
+                app.routing.route(trip, parks: parks, originCity: app.library.city(trip.origin))
+            }
+        }
         .onChange(of: segment) { _, new in app.tripSegment[trip.id] = new }
     }
 
     // MARK: Stats
 
     private var totalMiles: Int {
-        isSeed ? app.library.legs.reduce(0) { $0 + $1.mi } : estimatedMiles
+        if isSeed { return app.library.legs.reduce(0) { $0 + $1.mi } }
+        let routed = app.routing.legs(for: trip)
+        return routed.isEmpty ? estimatedMiles : routed.reduce(0) { $0 + $1.miles }
+    }
+
+    /// Whether the miles on this screen were driven by a router or guessed from a great
+    /// circle. The stat row says which, because the two are not the same number.
+    private var milesAreRouted: Bool { isSeed || !app.routing.legs(for: trip).isEmpty }
+
+    /// What the app is prepared to say about the legs it just drew.
+    private var routingNote: String {
+        switch app.routing.phase(for: trip) {
+        case .idle, .routing:
+            return "Routing the legs from where you are…"
+        case .routed(let origin, let precise):
+            return precise
+                ? "Legs routed by OSRM from your location — \(origin) — through the parks in visiting order."
+                : "Legs routed by OSRM from \(origin). This iPhone did not give a precise location, so the first leg starts from there."
+        case .unrouted(let why):
+            return why
+        }
     }
 
     /// For a trip the app composed, the legs are estimated from coordinates — and the
@@ -89,7 +117,7 @@ struct TripDetailScreen: View {
         return [
             ("Parks", "\(parks.count)"),
             ("Days", "\(days)"),
-            (isSeed ? "Miles by road" : "Miles, est.", totalMiles.formatted(.number)),
+            (milesAreRouted ? "Miles by road" : "Miles, est.", totalMiles.formatted(.number)),
             ("Vehicle", app.vehicleIsElectric ? "Electric" : "Gasoline"),
             ("Packs", "\(parks.filter { app.packState($0.code) == .ready }.count) of \(parks.count) ready"),
         ]
@@ -116,6 +144,18 @@ struct TripDetailScreen: View {
 
     private var routeList: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Getting there from where you actually are — the leg no itinerary ever
+            // includes, and the first one anybody actually drives.
+            if let approach = app.routing.approach(for: trip) {
+                legRow(approach.curated, date: "", index: 0, opensSheet: false, label: "Getting there")
+            } else if case .routing = app.routing.approachPhase(for: trip) {
+                Text("Measuring the drive from where you are to \(parks.first?.name ?? "the first park")…")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55).padding(.vertical, 12)
+            } else if case .unrouted(let why) = app.routing.approachPhase(for: trip) {
+                Text(why)
+                    .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.vertical, 12)
+            }
+
             if isSeed {
                 ForEach(Array(app.library.days.enumerated()), id: \.element.d) { _, day in
                     if day.isLeg, let index = day.leg, app.library.legs.indices.contains(index) {
@@ -127,10 +167,21 @@ struct TripDetailScreen: View {
                     }
                 }
             } else {
+                // Drive, park, drive, park — the order they are travelled in, with the
+                // first leg starting from wherever the traveller actually is.
+                let routed = app.routing.legs(for: trip)
                 ForEach(Array(parks.enumerated()), id: \.element.code) { index, park in
+                    if index < routed.count {
+                        legRow(routed[index].curated, date: "", index: index, opensSheet: false)
+                    }
                     parkRow(park, date: trip.dates, days: 2, numeral: ["I", "II", "III", "IV", "V"][min(index, 4)])
                 }
-                Text("Legs are routed when the trip is opened online — this pass shows the parks in visiting order.")
+                // The drive home, when there is one.
+                if routed.count > parks.count {
+                    legRow(routed[parks.count].curated, date: "", index: parks.count, opensSheet: false)
+                }
+
+                Text(routingNote)
                     .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.top, 14)
             }
         }
@@ -141,17 +192,22 @@ struct TripDetailScreen: View {
         return ["I", "II", "III", "IV", "V"][min(index, 4)]
     }
 
-    private func legRow(_ leg: CuratedLeg, date: String, index: Int) -> some View {
+    private func legRow(_ leg: CuratedLeg, date: String, index: Int,
+                        opensSheet: Bool = true, label: String? = nil) -> some View {
         Button {
-            app.sheet = .leg(index: index, date: date)
+            // Only the seed trip's legs have a sheet behind them; a routed leg carries
+            // everything it knows on the row itself.
+            if opensSheet { app.sheet = .leg(index: index, date: date) }
         } label: {
             DividedRow(vertical: 13) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 9) {
-                        Text("Leg \(["I", "II", "III", "IV"][min(index, 3)])".uppercased())
+                        Text((label ?? "Leg \(["I", "II", "III", "IV"][min(index, 3)])").uppercased())
                             .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent)
                         Rectangle().fill(WP.divider).frame(height: 1)
-                        Text(date).font(WP.body(11)).opacity(0.55)
+                        if !date.isEmpty {
+                            Text(date).font(WP.body(11)).opacity(0.55)
+                        }
                     }
                     HStack(spacing: 6) {
                         Text(leg.from)

@@ -117,6 +117,18 @@ enum HTTP {
         try await any(URLRequest(url: url))
     }
 
+    /// Nominatim and a few others answer with a bare array rather than an object.
+    static func array(_ request: URLRequest) async throws -> [[String: Any]] {
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw HTTPError.status(http.statusCode)
+        }
+        guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            throw HTTPError.badPayload
+        }
+        return rows
+    }
+
     static func any(_ request: URLRequest) async throws -> [String: Any] {
         let (data, response) = try await session.data(for: request)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {

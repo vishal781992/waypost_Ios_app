@@ -269,28 +269,48 @@ struct OverviewSection: View {
 struct WeatherSection: View {
     var park: CuratedPark
 
-    private var light: WeatherLight { WeatherLight(high: park.wx.hi) }
+    /// Live weather for a park the curated library has never heard of — and, once it has
+    /// come back, for the eight it has. Open-Meteo needs no key, so this works on any
+    /// phone with a network; blended with the National Weather Service where it covers.
+    @State private var live: WeatherDay?
+    @State private var asked = false
+
+    /// What the panel is actually reading: the live forecast if one arrived, otherwise
+    /// the curated normals — and if the park has neither, nothing at all.
+    private var wx: CuratedWeather {
+        if let live { return park.withWeather(live).wx }
+        return park.wx
+    }
+
+    private var hasNumbers: Bool { live != nil || park.wx.isPublished || park.source == nil }
+
+    private var light: WeatherLight { WeatherLight(high: wx.hi) }
+
+    /// A dash, not a zero. A park whose forecast has not arrived is not a park at 0°.
+    private func value(_ text: @autoclosure () -> String) -> String {
+        hasNumbers ? text() : "—"
+    }
 
     private var cells: [(label: String, value: String, sub: String, dot: Color)] {
         [
-            ("High", "\(park.wx.hi)°", "August normal", light.color),
-            ("Low", "\(park.wx.lo)°", "overnight", park.wx.lo <= 32 ? Color(oklch: 0.66, 0.13, 70) : Color(oklch: 0.60, 0.13, 150)),
-            ("UV index", park.wx.uvIndex, park.wx.uvWord, uvColor),
-            ("Wind", park.wx.wind, "max sustained", windColor),
-            ("Sunrise", park.wx.sr.clockPadded, "first light", Color(oklch: 0.60, 0.13, 150)),
-            ("Sunset", park.wx.ss.clockPadded, "last light", Color(oklch: 0.60, 0.13, 150)),
+            ("High", value("\(wx.hi)°"), live == nil ? "August normal" : "today", light.color),
+            ("Low", value("\(wx.lo)°"), "overnight", wx.lo <= 32 ? Color(oklch: 0.66, 0.13, 70) : Color(oklch: 0.60, 0.13, 150)),
+            ("UV index", value(wx.uvIndex), wx.uvWord, uvColor),
+            ("Wind", value(wx.wind), "max sustained", windColor),
+            ("Sunrise", value(wx.sr.clockPadded), "first light", Color(oklch: 0.60, 0.13, 150)),
+            ("Sunset", value(wx.ss.clockPadded), "last light", Color(oklch: 0.60, 0.13, 150)),
         ]
     }
 
     private var uvColor: Color {
-        let uv = Int(park.wx.uvIndex) ?? 0
+        let uv = Int(wx.uvIndex) ?? 0
         if uv >= 11 { return Color(oklch: 0.55, 0.16, 30) }
         if uv >= 8 { return Color(oklch: 0.66, 0.13, 70) }
         return Color(oklch: 0.55, 0.09, 150)
     }
 
     private var windColor: Color {
-        let numbers = park.wx.wind.components(separatedBy: CharacterSet.decimalDigits.inverted)
+        let numbers = wx.wind.components(separatedBy: CharacterSet.decimalDigits.inverted)
             .compactMap { Int($0) }
         let peak = numbers.max() ?? 0
         if peak >= 35 { return Color(oklch: 0.55, 0.16, 30) }
@@ -325,13 +345,29 @@ struct WeatherSection: View {
             .padding(.top, 14)
             .overlay(alignment: .top) { Hairline() }
 
-            Text(park.wx.note)
+            Text(hasNumbers ? wx.note : "No forecast has come back for this park yet.")
                 .font(WP.bodyItalic(13)).lineSpacing(3).opacity(0.8)
                 .padding(.top, 14)
 
-            SourceLine("August normals from the curated library. Online, the seven-day forecast is blended in and the panel says which you are reading.")
+            SourceLine(sourceLine)
                 .padding(.top, 16)
         }
+        .task(id: park.code) {
+            guard !asked else { return }
+            asked = true
+            let service = WeatherService(failures: FailureLog())
+            live = await service.forecast(lat: park.lat, lon: park.lon, iso: WPDate.iso(Date()))
+        }
+    }
+
+    private var sourceLine: String {
+        if let live {
+            return "Today at this park, from \(live.source). The curated August normals are underneath it for the eight parks that ship with the app."
+        }
+        if park.wx.isPublished || park.source == nil {
+            return "August normals from the curated library. The live forecast is being fetched; when it answers, this panel says so."
+        }
+        return "\(park.sourceName) does not publish weather. Open-Meteo is being asked for this park's forecast — until it answers there is nothing here to read."
     }
 }
 
