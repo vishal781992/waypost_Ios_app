@@ -182,9 +182,10 @@ struct DiscoverCard: View {
                     ParkImage(park: park)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        // A live record often has no state; "· PROTECTED AREA" with a
-                        // leading dot reads as a missing word rather than a missing field.
-                        Text([park.state, park.region].filter { !$0.isEmpty }
+                        // State, then what kind of unit it is. The designation is the
+                        // thing that tells a national park from a state park from a
+                        // wildlife area, so it goes here rather than in a subtitle.
+                        Text([park.state, park.designationLabel].filter { !$0.isEmpty }
                                 .joined(separator: " · ").uppercased())
                             .font(WP.body(9)).tracking(1.5)
                             .foregroundStyle(.white.opacity(0.88))
@@ -228,7 +229,11 @@ struct DiscoverCard: View {
             }
             .sensoryFeedback(.selection, trigger: isSaved)
 
-            Text(park.tag)
+            // "Protected area" is the terrain rail's catch-all, not a description of the
+            // landscape — it says nothing, so it does not get printed as though it did.
+            Text(park.source == nil || park.region == "Protected area"
+                 ? park.tag
+                 : "\(park.region) · \(park.tag)")
                 .font(WP.body(13))
                 .lineSpacing(2)
                 .opacity(0.82)
@@ -379,7 +384,7 @@ struct StateParkList: View {
                                     Text(park.name)
                                         .font(WP.rowTitle(17))
                                         .multilineTextAlignment(.leading)
-                                    Text("\(park.state.isEmpty ? "—" : park.state) · \(park.crowd.lowercased())")
+                                    Text("\(park.state.isEmpty ? "—" : park.state) · \(park.designationLabel)")
                                         .font(WP.body(12)).opacity(0.6)
                                 }
                                 Spacer(minLength: 0)

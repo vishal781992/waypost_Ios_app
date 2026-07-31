@@ -80,7 +80,9 @@ struct ParkScreen: View {
     /// The name, on the page, under the photograph.
     private var masthead: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("\(park.state) · \(park.region) · \(park.crowd)".uppercased())
+            Text([park.state, park.designationLabel, park.source == nil ? park.crowd : park.region]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " · ").uppercased())
                 .font(WP.body(10)).tracking(1.4)
                 .foregroundStyle(WP.accent800)
             Text(park.name)

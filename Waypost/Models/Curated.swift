@@ -94,8 +94,20 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     /// Which catalogue this park came out of. Absent in `curated.json`, which is the
     /// curated library by definition.
     var source: CatalogueSource? = nil
+    /// What kind of unit this is — National Park, National Monument, State Park. Absent
+    /// in `curated.json`, where every entry is a national park, so it is read off the
+    /// full name for those.
+    var designation: String? = nil
 
     var id: String { code }
+
+    /// The designation, always in words. Never "Protected area" for something whose own
+    /// name says National Park, and never "National Park" for something that isn't one.
+    var designationLabel: String {
+        if let designation, !designation.isEmpty { return ParkDesignation.tidy(designation) }
+        if let inName = ParkDesignation.inName(full) { return inName }
+        return source == nil ? "National Park" : "Protected area"
+    }
     /// Named wherever the park is shown, so a live record is never read as a curated one.
     var sourceName: String { (source ?? .curated).rawValue }
 
@@ -168,6 +180,33 @@ struct CuratedFuel: Decodable, Hashable {
     let gas: [String]
     let fast: [String]
     let slow: [String]
+}
+
+/// Reading a unit's designation out of its own name — "Petrified Forest National Park"
+/// says what it is. Kept here rather than in the OSM bridge because the curated library
+/// needs it too: those eight records carry no designation field at all.
+enum ParkDesignation {
+    static let titles = [
+        "National Park and Preserve", "National Park", "National Monument",
+        "National Preserve", "National Seashore", "National Lakeshore",
+        "National Recreation Area", "National Historical Park", "National Historic Site",
+        "National Battlefield", "National Forest", "National Wildlife Refuge",
+        "State Park", "State Recreation Area", "State Forest",
+        "Wildlife Management Area", "Wilderness",
+    ]
+
+    static func inName(_ name: String) -> String? {
+        titles.first { name.localizedCaseInsensitiveContains($0) }
+    }
+
+    /// Mappers type "state park" as often as "State Park". Same designation, and it
+    /// should not look like two.
+    static func tidy(_ raw: String) -> String {
+        if let known = titles.first(where: { $0.caseInsensitiveCompare(raw) == .orderedSame }) {
+            return known
+        }
+        return raw.capitalized(with: .current)
+    }
 }
 
 /// Where a park record came from.

@@ -45,7 +45,8 @@ extension CuratedPark {
             alerts: park.alerts.map { CuratedAlert(cat: $0.cat, title: $0.title, body: $0.body) },
             days: [],
             stamps: [],
-            source: .nps
+            source: .nps,
+            designation: park.designation ?? ParkDesignation.inName(park.full)
         )
     }
 
@@ -59,7 +60,9 @@ extension CuratedPark {
             state: place.state,
             lat: place.lat,
             lon: place.lon,
-            tag: place.designation ?? "Protected area",
+            // The tagline is a sentence about the park, which OSM does not carry. The
+            // designation goes in the kicker instead, so this says what is actually known.
+            tag: "Mapped in OpenStreetMap. Fees, hours and closures come from the park.",
             gw: "",
             region: CuratedPark.region(for: place.name + " " + (place.designation ?? "")),
             crowd: place.designation ?? "Protected area",
@@ -79,7 +82,8 @@ extension CuratedPark {
             alerts: [],
             days: [],
             stamps: [],
-            source: .openStreetMap
+            source: .openStreetMap,
+            designation: place.designation ?? ParkDesignation.inName(place.name)
         )
     }
 

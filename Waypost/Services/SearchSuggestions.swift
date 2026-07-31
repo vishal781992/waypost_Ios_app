@@ -98,7 +98,9 @@ final class SearchSuggestions {
         // Parks the app already holds, then parks the last search turned up.
         var parks: [Suggestion] = library.orderedParks
             .filter { $0.name.lowercased().contains(needle) || $0.full.lowercased().contains(needle) }
-            .map { Suggestion(kind: .park, title: $0.name, subtitle: "Park · \($0.state)", query: $0.name) }
+            .map { Suggestion(kind: .park, title: $0.name,
+                              subtitle: "\($0.designationLabel) · \($0.state)",
+                              query: $0.name) }
 
         let already = Set(parks.map { $0.title.lowercased() })
         parks += knownParks
