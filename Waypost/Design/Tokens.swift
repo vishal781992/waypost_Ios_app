@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The Classical design-system tokens, transcribed from `_ds/classical/styles.css`, plus
 /// the values the mobile design layers on top of them.
@@ -70,11 +71,11 @@ enum WP {
     }
 
     static func body(_ size: CGFloat, semibold: Bool = false) -> Font {
-        .system(size: size, weight: semibold ? .semibold : .regular)
+        system(size, weight: semibold ? .semibold : .regular, style: .body, cap: 1.6)
     }
 
     static func bodyItalic(_ size: CGFloat) -> Font {
-        .system(size: size).italic()
+        Font.system(size: scaledSize(size, style: .body, cap: 1.6)).italic()
     }
 
     /// Cormorant Garamond SemiBold — the design system's serif, in the two roles big
@@ -85,7 +86,9 @@ enum WP {
     /// back the uneven texture 2.1.1 removed, so those stay on `heading`. Sizes are the
     /// design's own, with no SF scaling — they were drawn in this face.
     static func display(_ size: CGFloat) -> Font {
-        .custom("CormorantGaramond-SemiBold", size: size)
+        scaled(.custom("CormorantGaramond-SemiBold", size: size),
+               uiFont: UIFont(name: "CormorantGaramond-SemiBold", size: size),
+               style: .largeTitle, size: size, cap: 1.4)
     }
 
     /// A number that carries a label: a temperature, a countdown, a mileage, a stat cell.
@@ -95,18 +98,43 @@ enum WP {
     /// weight, and sat lighter than the label above it. Numbers get their own token:
     /// true size, semibold, and `.tnum()` at the call site so columns hold still.
     static func statValue(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .semibold)
+        system(size, weight: .semibold, style: .title2, cap: 1.5)
     }
 
     /// The name at the head of a row — a campground, a stamp, an alert, a park in a list.
-    /// Also previously on `heading`, which made 17pt render at 14.6 and read thin.
     static func rowTitle(_ size: CGFloat = 17) -> Font {
-        .system(size: size, weight: .semibold)
+        system(size, weight: .semibold, style: .headline, cap: 1.6)
     }
 
     /// Airport codes and other fixed-width runs — SF Mono.
     static func mono(_ size: CGFloat, semibold: Bool = true) -> Font {
-        .system(size: size, weight: semibold ? .semibold : .regular, design: .monospaced)
+        Font.system(size: scaledSize(size, style: .footnote, cap: 1.5),
+                    weight: semibold ? .semibold : .regular,
+                    design: .monospaced)
+    }
+
+    // MARK: Dynamic Type
+    //
+    // Every size here is the design's, and every size here also grows with the reader's
+    // text setting. Fixed points would have been simpler and would have made the app
+    // unusable for anyone who has turned text up — so sizes are run through
+    // `UIFontMetrics` with a cap, tight enough that a stat row still fits its column and
+    // loose enough to matter.
+
+    private static func scaledSize(_ size: CGFloat, style: UIFont.TextStyle, cap: CGFloat) -> CGFloat {
+        UIFontMetrics(forTextStyle: style).scaledValue(for: size).clamped(to: size...(size * cap))
+    }
+
+    private static func system(_ size: CGFloat, weight: Font.Weight,
+                               style: UIFont.TextStyle, cap: CGFloat) -> Font {
+        .system(size: scaledSize(size, style: style, cap: cap), weight: weight)
+    }
+
+    /// The serif has no system metrics of its own, so it is scaled by the same rule.
+    private static func scaled(_ fallback: Font, uiFont: UIFont?,
+                               style: UIFont.TextStyle, size: CGFloat, cap: CGFloat) -> Font {
+        guard uiFont != nil else { return fallback }
+        return .custom("CormorantGaramond-SemiBold", size: scaledSize(size, style: style, cap: cap))
     }
 
     // MARK: Metrics
@@ -243,5 +271,12 @@ enum Ramp: String {
 
     var opacities: [Double] {
         self == .dust ? [0.34, 0.28, 0.22] : [0.62, 0.5, 0.42]
+    }
+}
+
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }

@@ -188,6 +188,23 @@ struct TripCard: View {
             .zoomSource("trip:" + trip.id, in: zoom)
         }
         .buttonStyle(PressStyle(scale: 0.99))
+        .contextMenu {
+            Button {
+                app.push(.trip(id: trip.id))
+            } label: {
+                Label("Open the itinerary", systemImage: "arrow.up.forward.square")
+            }
+            Button {
+                app.show("Sharing sends a read-only copy")
+            } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+            Button(role: .destructive) {
+                confirmingDelete = true
+            } label: {
+                Label("Remove trip", systemImage: "trash")
+            }
+        }
     }
 }
 

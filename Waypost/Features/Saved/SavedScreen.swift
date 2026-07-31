@@ -75,9 +75,22 @@ struct SavedParksList: View {
                             }
                             .buttonStyle(PressStyle(scale: 0.9))
                         }
+                        .contextMenu {
+                            Button {
+                                app.openPark(code)
+                            } label: {
+                                Label("Open \(park.name)", systemImage: "arrow.up.forward.square")
+                            }
+                            Button(role: .destructive) {
+                                app.toggleSaved(code)
+                            } label: {
+                                Label("Remove from saved", systemImage: "bookmark.slash")
+                            }
+                        }
                     }
                 }
             }
+            .animation(Motion.panel, value: app.saved)
 
             if app.saved.isEmpty {
                 Text("Nothing saved yet. Bookmark a park from Discover and it waits here for the next trip.")
@@ -154,6 +167,7 @@ struct StampTile: View {
             .animation(Motion.stamp, value: collected)
         }
         .buttonStyle(PressStyle(scale: 0.94))
+        .sensoryFeedback(.success, trigger: collected)
     }
 }
 

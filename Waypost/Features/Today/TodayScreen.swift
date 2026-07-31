@@ -374,6 +374,7 @@ struct TheDayList: View {
                     }
                 }
                 .buttonStyle(PressStyle(scale: 0.995))
+                .sensoryFeedback(.impact(weight: .light), trigger: done)
             }
         }
     }

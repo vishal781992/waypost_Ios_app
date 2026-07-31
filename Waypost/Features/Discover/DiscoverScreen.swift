@@ -147,6 +147,25 @@ struct DiscoverCard: View {
                 .zoomSource("park:" + park.code, in: zoom)
             }
             .buttonStyle(PressStyle(scale: 0.995))
+            .contextMenu {
+                Button {
+                    app.openPark(park.code)
+                } label: {
+                    Label("Open \(park.name)", systemImage: "arrow.up.forward.square")
+                }
+                Button {
+                    app.toggleSaved(park.code)
+                } label: {
+                    Label(isSaved ? "Remove from saved" : "Save this park",
+                          systemImage: isSaved ? "bookmark.slash" : "bookmark")
+                }
+                Button {
+                    app.startPack(park.code)
+                } label: {
+                    Label("Download the offline pack · \(park.pack)", systemImage: "arrow.down.circle")
+                }
+            }
+            .sensoryFeedback(.selection, trigger: isSaved)
 
             Text(park.tag)
                 .font(WP.body(13))

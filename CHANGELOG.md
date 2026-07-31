@@ -12,6 +12,23 @@ cannot be reached or publishes nothing, the interface says so rather than substi
 plausible-looking number.
 
 
+## 2.3.0 — Reachable
+
+**The type scales now.** Every size in the app was fixed, which meant a reader who had
+turned text up got the same 11pt labels as everyone else — the one genuinely un-Apple
+thing left in it. All eight tokens run through `UIFontMetrics`, each mapped to the text
+style it behaves like, each capped (1.4× for display, 1.6× for body) so a stat row still
+fits its column at the largest setting. The design's sizes remain the baseline.
+
+**Long-press does what it should.** Context menus on the Discover cards (open, save,
+download the pack), the trip cards (open, share, remove) and the saved rows (open,
+remove) — so the small × on a card is no longer the only way to act on it.
+
+**Feedback moves to `sensoryFeedback`**: a light impact when a day's item is ticked,
+selection when a park is saved, success when a stamp lands. The system decides what that
+means on the device rather than the app hard-coding a generator.
+
+
 ## 2.2.0 — Motion
 
 The screens were right and the movement between them was mine. This release hands the
