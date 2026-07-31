@@ -245,24 +245,29 @@ struct OverviewSection: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 SectionTitle("Fuel & charging")
-                fuelGroup("Gasoline", park.fuel.gas)
-                fuelGroup("DC fast", park.fuel.fast)
-                fuelGroup("Level 2", park.fuel.slow)
+                // Apple Maps knows every charger and pump in the country; the curated
+                // lists covered four parks. Tapping a row opens directions to it.
+                PlaceRows(park: park, kind: .charger, title: "Charging")
+                PlaceRows(park: park, kind: .fuel, title: "Gasoline")
+
+                // The reason a camper looks at this screen at all: the last shop before
+                // the gate.
+                PlaceRows(park: park, kind: .store, title: "Shops & supplies")
             }
 
-            SourceLine("Overview — curated field library. Live NPS records are being re-wired onto this screen.")
+            SourceLine(overviewSource)
         }
     }
 
-    private func fuelGroup(_ title: String, _ rows: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(WP.body(11.5)).foregroundStyle(WP.accent700)
-            ForEach(rows, id: \.self) { row in
-                Text(row).font(WP.body(12.5)).lineSpacing(2).padding(.vertical, 2)
-            }
-        }
+    /// Which of the two catalogues this park's overview is being read out of, and which
+    /// of the live services filled in the rest.
+    private var overviewSource: String {
+        let base = park.source == nil
+            ? "Overview from the curated field library."
+            : "Overview from \(park.sourceName) — fees, hours and closures come from the park itself."
+        return base + " Charging, fuel and shops from Apple Maps, measured from the park's own coordinates."
     }
 }
 
@@ -420,8 +425,34 @@ struct StaySection: View {
                 }
             }
 
-            SourceLine("Campgrounds and stays — curated. Recreation.gov availability for your dates lands when the trip is live.")
+            // The curated lists cover the campgrounds inside four parks. Everything
+            // around every other park in the country comes from Apple Maps.
+            VStack(alignment: .leading, spacing: 12) {
+                SectionTitle("Camping & RV around the park")
+                PlaceRows(park: park, kind: .campground, limit: 6)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                SectionTitle("Beds nearby")
+                PlaceRows(park: park, kind: .lodging, limit: 5)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                SectionTitle("Eating")
+                PlaceRows(park: park, kind: .food, limit: 5)
+            }
+
+            SourceLine(staySource)
         }
+    }
+
+    /// Two catalogues, named separately: what is inside the park, and what is around it.
+    private var staySource: String {
+        (park.camping.isEmpty
+            ? "No in-park campground list ships for this park."
+            : "In-park campgrounds and lodges from the curated field library.")
+        + " Everything under them is Apple Maps, within thirty miles of the park, nearest first."
+        + " Recreation.gov availability for your own dates is not wired in — it blocks callers that are not a browser, and a guess is worse than a gap."
     }
 
     private func chipBackground(_ camp: CuratedCamp) -> Color {

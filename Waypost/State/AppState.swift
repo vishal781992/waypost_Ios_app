@@ -273,7 +273,13 @@ final class AppState {
             if let wantedTab { self.tab = wantedTab }
             if let wantedPark {
                 let segment = value("wpSeg").flatMap(ParkSegment.init(rawValue:)) ?? .overview
-                self.openPark(wantedPark, segment: segment)
+                // The tab view writes its restored selection back through the binding at
+                // an unpredictable moment after launch, and `go` clears the stack — so
+                // the push is repeated until it sticks.
+                for _ in 0..<5 where self.stack.isEmpty {
+                    self.openPark(wantedPark, segment: segment)
+                    try? await Task.sleep(for: .milliseconds(500))
+                }
             }
             if let id = value("wpTrip") { self.tab = .trips; self.push(.trip(id: id)) }
             if let term = value("wpSearch") {
