@@ -23,13 +23,17 @@ struct TripsScreen: View {
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("On the books".uppercased())
-                        .font(WP.body(10)).tracking(1.4).opacity(0.5)
-                        .padding(.bottom, 10)
+                    if app.trips.isEmpty {
+                        NoTripsYet()
+                    } else {
+                        Text("On the books".uppercased())
+                            .font(WP.body(10)).tracking(1.4).opacity(0.5)
+                            .padding(.bottom, 10)
 
-                    VStack(spacing: 14) {
-                        ForEach(app.trips) { trip in
-                            TripCard(trip: trip).liftOnScroll()
+                        VStack(spacing: 14) {
+                            ForEach(app.trips) { trip in
+                                TripCard(trip: trip).liftOnScroll()
+                            }
                         }
                     }
 
@@ -92,6 +96,37 @@ struct TripsScreen: View {
     }
 }
 
+/// Nothing planned at all — the design gives this its own screen rather than an empty
+/// list, because the first trip is the whole point of the app.
+struct NoTripsYet: View {
+    @Environment(AppState.self) private var app
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("I")
+                .font(WP.display(25))
+                .foregroundStyle(WP.accent700)
+                .frame(width: 64, height: 64)
+                .overlay(
+                    Circle().strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                        .foregroundStyle(WP.accent400)
+                )
+
+            Text("No trips yet.").font(WP.display(27)).padding(.top, 17)
+            Text("Pick the parks and say when. ParkHop works out the order, the mileage and which permit windows you have to be awake for — and leaves blank whatever it cannot measure.")
+                .font(WP.body(13.5)).lineSpacing(3).opacity(0.78).padding(.top, 9)
+                .fixedSize(horizontal: false, vertical: true)
+
+            GlowButton(title: "Plan the first one", minHeight: 50) { app.startBuilder() }
+                .padding(.top, 20)
+
+            Text("Saved parks are the usual place to start — Discover keeps them for you.")
+                .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.top, 14)
+        }
+        .padding(.top, 30)
+    }
+}
+
 /// A trip on the shelf: its tag, dates, the route drawn as a dotted polyline from real
 /// coordinates, and the parks in visiting order.
 struct TripCard: View {
@@ -111,10 +146,7 @@ struct TripCard: View {
     var body: some View {
         // The delete control sits over the card rather than inside its button, so the
         // tap target is its own and does not open the trip on the way past.
-        ZStack(alignment: .topTrailing) {
-            cardButton
-            deleteButton.padding(10)
-        }
+        cardButton
         .confirmationDialog("Remove this trip?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Remove trip", role: .destructive) { app.deleteTrip(trip.id) }
             Button("Keep it", role: .cancel) { }
@@ -130,10 +162,11 @@ struct TripCard: View {
             confirmingDelete = true
         } label: {
             Image(systemName: "trash")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(WP.danger)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(WP.bg)
                 .frame(width: 34, height: 34)
-                .liquidGlass(.pill, radius: 999, interactive: true)
+                .background(.white.opacity(0.12), in: Circle())
+                .overlay(Circle().stroke(.white.opacity(0.24), lineWidth: 0.5))
         }
         .buttonStyle(PressStyle(scale: 0.9))
         .accessibilityLabel("Remove \(trip.title)")
@@ -149,42 +182,67 @@ struct TripCard: View {
                         .font(WP.body(11))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 3)
-                        .background(trip.live ? WP.accent100 : WP.neutral100, in: Capsule())
-                        .foregroundStyle(trip.live ? WP.accent800 : WP.neutral800)
+                        .background(.white.opacity(0.16), in: Capsule())
+                        .overlay(Capsule().stroke(.white.opacity(0.28), lineWidth: 0.5))
                     Spacer(minLength: 0)
-                    Text(trip.dates).font(WP.body(11.5)).opacity(0.6)
-                        .padding(.trailing, 38)
+                    Text(trip.dates).font(WP.body(11.5)).opacity(0.62)
                 }
 
-                Text(trip.title).font(WP.heading(23)).padding(.top, 9)
+                Text(trip.title).font(WP.display(23)).padding(.top, 9)
                     .multilineTextAlignment(.leading)
-                Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.65).padding(.top, 4)
+                Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.68).padding(.top, 4)
                     .multilineTextAlignment(.leading)
 
                 RouteMapPlate(points: points)
                     .frame(height: 132)
                     .padding(.top, 11)
 
-                Hairline().padding(.top, 9)
+                Rectangle().fill(.white.opacity(0.18)).frame(height: 1).padding(.top, 9)
 
-                FlowRow(spacing: 14, rowSpacing: 5) {
-                    ForEach(Array(trip.codes.enumerated()), id: \.element) { index, code in
-                        HStack(spacing: 5) {
-                            Text(["I", "II", "III", "IV", "V"][min(index, 4)])
-                                .font(WP.headingUI(12))
-                                .foregroundStyle(WP.accent700)
-                            Text(app.library.park(code)?.name ?? code).font(WP.body(12))
+                HStack(alignment: .center, spacing: 10) {
+                    FlowRow(spacing: 14, rowSpacing: 5) {
+                        ForEach(Array(trip.codes.enumerated()), id: \.element) { index, code in
+                            HStack(spacing: 5) {
+                                Text(["I", "II", "III", "IV", "V"][min(index, 4)])
+                                    .font(WP.display(13))
+                                    .foregroundStyle(WP.accent400)
+                                Text(app.library.park(code)?.name ?? code)
+                                    .font(WP.body(12)).opacity(0.92)
+                            }
                         }
                     }
+                    Spacer(minLength: 8)
+                    deleteButton
                 }
-                .padding(.top, 9)
+                .padding(.top, 10)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 15)
             .padding(.top, 15)
             .padding(.bottom, 13)
-            .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(WP.divider, lineWidth: 1))
+            .background {
+                // Round 2 puts the trip on an ink plate with its own weather inside it:
+                // a dusk bloom top-left, a brass one bottom-right, a lit top edge.
+                ZStack {
+                    Color(hex: 0x231F1D)
+                    Ellipse().fill(Color(oklch: 0.55, 0.10, 250)).opacity(0.34)
+                        .frame(width: 240, height: 190).offset(x: -110, y: -80).blur(radius: 26)
+                    Ellipse().fill(WP.accent700).opacity(0.3)
+                        .frame(width: 230, height: 200).offset(x: 120, y: 120).blur(radius: 26)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(alignment: .top) {
+                    LinearGradient(colors: [.clear, .white.opacity(0.55), .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(height: 1)
+                        .padding(.horizontal, 18)
+                }
+            }
+            .foregroundStyle(WP.bg)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 0.5))
+            .shadow(color: Color(hex: 0x181008, opacity: 0.3), radius: 15, y: 12)
             .zoomSource("trip:" + trip.id, in: zoom)
         }
         .buttonStyle(PressStyle(scale: 0.99))

@@ -126,6 +126,9 @@ final class AppState {
     // Discover
     var discoverQuery = ""
     var discoverChip = "all"
+    /// Which catalogue Discover is showing: the NPS registry, or the state-park table
+    /// that ships on the phone.
+    var discoverShowsState = false
 
     // Preferences
     var vehicleIsElectric = true

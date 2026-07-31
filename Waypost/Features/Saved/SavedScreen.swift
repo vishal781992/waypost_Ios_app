@@ -44,7 +44,7 @@ struct SavedParksList: View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(app.saved, id: \.self) { code in
                 if let park = app.library.park(code) {
-                    DividedRow(vertical: 13) {
+                    VStack(spacing: 0) {
                         HStack(spacing: 13) {
                             Button { app.openPark(code) } label: {
                                 ZStack {
@@ -75,6 +75,17 @@ struct SavedParksList: View {
                             }
                             .buttonStyle(PressStyle(scale: 0.9))
                         }
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 12)
+                        .liquidGlass(.pill, radius: 18)
+                        .overlay(alignment: .top) {
+                            LinearGradient(colors: [.clear, .white.opacity(0.9), .clear],
+                                           startPoint: .leading, endPoint: .trailing)
+                                .frame(height: 1)
+                                .padding(.horizontal, 14)
+                        }
+                        .shadow(color: Color(hex: 0x181008, opacity: 0.1), radius: 7, y: 4)
+                        .padding(.bottom, 11)
                         .contextMenu {
                             Button {
                                 app.openPark(code)
