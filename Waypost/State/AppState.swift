@@ -216,6 +216,21 @@ final class AppState {
         _ = stack.popLast()
     }
 
+    /// A door for screenshots: `-tab discover`, `-open-park arch`.
+    ///
+    /// Synthetic taps are not available on this simulator, so a pushed screen cannot be
+    /// reached any other way when capturing one.
+    func applyLaunchArguments() {
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-tab"), i + 1 < args.count,
+           let tab = AppTab(rawValue: args[i + 1]) {
+            self.tab = tab
+        }
+        if let i = args.firstIndex(of: "-open-park"), i + 1 < args.count {
+            openPark(args[i + 1])
+        }
+    }
+
     func openPark(_ code: String, segment: ParkSegment = .overview) {
         parkSegment[code] = segment
         push(.park(code: code, segment: segment))

@@ -13,12 +13,15 @@ struct ParkScreen: View {
     private var isSaved: Bool { app.saved.contains(park.code) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            PushHeader(backLabel: "Back", title: park.name) { app.pop() }
-
+        // The photograph runs to the very top of the display — under the status bar and
+        // around the island — so opening a park feels like arriving at it rather than
+        // reading a page about it. Only the scroll view ignores the safe area; the back
+        // control sits inside it, floating over the picture.
+        ZStack(alignment: .topLeading) {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
                     hero
+                    masthead
                     actions
                     SegmentRail(options: ParkSegment.allCases.map { ($0, $0.label) }, selection: $segment)
                         .padding(.top, 14)
@@ -45,40 +48,69 @@ struct ParkScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollIndicators(.hidden)
+            .ignoresSafeArea(edges: .top)
+
+            backControl
         }
         .background(WP.bg)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear { segment = app.parkSegment[park.code] ?? initialSegment }
         .onChange(of: segment) { _, new in app.parkSegment[park.code] = new }
     }
 
+    /// The photograph, full-bleed, dissolving into the page rather than stopping at an
+    /// edge — so the name below it reads as being written on the same sheet.
     private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            ParkImage(park: park, topLight: false)
-            LinearGradient(
-                stops: [
-                    .init(color: Color(hex: 0x16100A, opacity: 0.7), location: 0),
-                    .init(color: Color(hex: 0x16100A, opacity: 0.16), location: 0.6),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .bottom, endPoint: .top
-            )
-            VStack(alignment: .leading, spacing: 5) {
-                Text("\(park.state) · \(park.region) · \(park.crowd)".uppercased())
-                    .font(WP.body(10)).tracking(1.4)
-                    .foregroundStyle(.white.opacity(0.82))
-                Text(park.name)
-                    .font(WP.display(38))
-                    .foregroundStyle(.white)
-                Text(park.tag)
-                    .font(WP.bodyItalic(12.5))
-                    .foregroundStyle(.white.opacity(0.88))
-                    .multilineTextAlignment(.leading)
+        ParkImage(park: park, showsScrim: false, topLight: false)
+            .frame(height: 372)
+            .overlay(alignment: .bottom) {
+                LinearGradient(
+                    stops: [
+                        .init(color: WP.bg, location: 0),
+                        .init(color: WP.bg.opacity(0.72), location: 0.38),
+                        .init(color: WP.bg.opacity(0), location: 1),
+                    ],
+                    startPoint: .bottom, endPoint: .top
+                )
+                .frame(height: 150)
+                .allowsHitTesting(false)
             }
-            .padding(.horizontal, WP.gutter)
-            .padding(.bottom, 15)
+    }
+
+    /// The name, on the page, under the photograph.
+    private var masthead: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("\(park.state) · \(park.region) · \(park.crowd)".uppercased())
+                .font(WP.body(10)).tracking(1.4)
+                .foregroundStyle(WP.accent800)
+            Text(park.name)
+                .font(WP.display(38))
+            Text(park.tag)
+                .font(WP.bodyItalic(12.5))
+                .opacity(0.7)
+                .multilineTextAlignment(.leading)
         }
-        .frame(height: 196)
-        .clipped()
+        .padding(.horizontal, WP.gutter)
+        .padding(.top, 2)
+    }
+
+    /// Back, floating on glass over the photograph — the only chrome above the fold.
+    private var backControl: some View {
+        Button { app.pop() } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("Back").font(WP.body(15))
+            }
+            .foregroundStyle(WP.accent700)
+            .padding(.vertical, 9)
+            .padding(.horizontal, 15)
+            .liquidGlass(.pill, radius: 999, interactive: true)
+            .shadow(color: Color(hex: 0x181008, opacity: 0.18), radius: 9, y: 4)
+        }
+        .buttonStyle(PressStyle(scale: 0.94))
+        .padding(.leading, WP.gutter)
+        .padding(.top, 6)
     }
 
     private var actions: some View {
