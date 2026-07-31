@@ -23,6 +23,7 @@ struct NearbyCard: View {
                 status("Writing the brief on this iPhone…")
             case .ready(let brief):
                 briefBody(brief)
+                    .transition(Motion.panelTransition)
                 shortlist
                 footnote("Written on this iPhone by Apple Intelligence, from the figures above. It is not allowed to state a figure of its own — every number here is measured by Waypost — and nothing leaves the phone.")
             case .unavailable(let reason):
@@ -35,6 +36,7 @@ struct NearbyCard: View {
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 14)
+        .animation(Motion.panel, value: briefing.candidates.count)
         .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(WP.divider, lineWidth: 1))
     }
@@ -88,13 +90,18 @@ struct NearbyCard: View {
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            ForEach(brief.notes, id: \.park) { note in
+            ForEach(Array(brief.notes.enumerated()), id: \.element.park) { index, note in
                 HStack(alignment: .top, spacing: 9) {
                     Text("·").foregroundStyle(WP.accent)
                     Text(note.why)
                         .font(WP.body(12.5)).lineSpacing(2).opacity(0.85)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // Staggered, so the brief reads as it is written rather than appearing.
+                .transition(
+                    .opacity.combined(with: .offset(y: 6))
+                        .animation(Motion.panel.delay(Double(index) * 0.07))
+                )
             }
         }
         .padding(.bottom, 12)

@@ -26,14 +26,19 @@ struct RootShell: View {
         Binding(get: { app.tab }, set: { app.go($0) })
     }
 
+    /// Shared by every card that can be opened and every screen it opens into, so the
+    /// zoom transition knows which pair belongs together.
+    @Namespace private var zoom
+
     var body: some View {
+        @Bindable var app = app
+
         // A real TabView, so the tab bar is the system's: Liquid Glass with its own
         // scroll-edge response, the selection morphing between items, and the bar
-        // shrinking out of the way as you read down a screen. Hand-drawing that bar got
-        // the look but none of the behaviour.
+        // shrinking out of the way as you read down a screen.
         TabView(selection: selection) {
             ForEach(AppTab.allCases) { tab in
-                destination(tab)
+                tabStack(tab, path: $app.stack)
                     .tag(tab)
                     .tabItem {
                         Label {
@@ -44,6 +49,7 @@ struct RootShell: View {
                     }
             }
         }
+        .environment(\.zoomNamespace, zoom)
         .modifier(NativeTabBarBehaviour())
         .overlay(alignment: .bottom) {
             if let toast = app.toast {
@@ -62,8 +68,23 @@ struct RootShell: View {
         }
     }
 
-    /// One destination, with its own push stack laid over it — a park opened from Today
-    /// keeps Today underneath, and the tab bar stays put, as the design has it.
+    /// One tab, with its own navigation stack. Split out because the whole TabView body
+    /// was more than the type-checker would take in one expression.
+    private func tabStack(_ tab: AppTab, path: Binding<[PushedScreen]>) -> some View {
+        NavigationStack(path: path) {
+            destination(tab)
+                .navigationBarHidden(true)
+                .navigationDestination(for: PushedScreen.self) { screen in
+                    pushed(screen)
+                        .navigationBarHidden(true)
+                        .zoomDestination(screen.id, in: zoom)
+                        .toolbar(.hidden, for: .tabBar)
+                }
+        }
+    }
+
+    /// One destination. The push stack is the system's now, so the interactive back-swipe
+    /// and the zoom come with it.
     @ViewBuilder
     private func destination(_ tab: AppTab) -> some View {
         ZStack {
@@ -75,14 +96,6 @@ struct RootShell: View {
             case .discover: DiscoverScreen()
             case .saved: SavedScreen()
             case .me: ProfileScreen()
-            }
-
-            if app.tab == tab {
-                ForEach(Array(app.stack.enumerated()), id: \.element.id) { index, screen in
-                    pushed(screen)
-                        .zIndex(Double(10 + index))
-                        .transition(.move(edge: .trailing))
-                }
             }
         }
     }

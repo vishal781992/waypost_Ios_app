@@ -235,12 +235,13 @@ struct DetailSheet: View {
                                 Circle().strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
                                     .foregroundStyle(WP.neutral400)
                             )
+                            .pulseRing()
                     }
                 }
                 Spacer(minLength: 0)
             }
             .padding(.vertical, 20)
-            .animation(.spring(response: 0.45, dampingFraction: 0.55), value: collected)
+            .animation(Motion.stamp, value: collected)
 
             GlowButton(
                 title: collected ? "Collected" : "Collect the stamp",

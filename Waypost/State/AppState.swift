@@ -206,15 +206,11 @@ final class AppState {
     }
 
     func push(_ screen: PushedScreen) {
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
-            stack.append(screen)
-        }
+        stack.append(screen)
     }
 
     func pop() {
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.9)) {
-            _ = stack.popLast()
-        }
+        _ = stack.popLast()
     }
 
     func openPark(_ code: String, segment: ParkSegment = .overview) {

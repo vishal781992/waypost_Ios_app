@@ -12,6 +12,33 @@ cannot be reached or publishes nothing, the interface says so rather than substi
 plausible-looking number.
 
 
+## 2.2.0 — Motion
+
+The screens were right and the movement between them was mine. This release hands the
+navigation to the system and builds the design's own keyframes on top.
+
+**Screens push on a real NavigationStack**, one per tab, so the interactive back-swipe,
+the depth and the timing are iOS's. On top of that, a card now *becomes* the screen it
+opens: `matchedTransitionSource` on the Today hero, the Discover cards and the trip cards,
+`navigationTransition(.zoom:)` on the destination. A park's colour field is its identity,
+so growing it into the header reads as the same object rather than a new page. Below iOS
+18 the push slides, exactly as `wp-push` does.
+
+**The design's keyframes, where the platform has no opinion.** `Design/Motion.swift`
+holds them: `wp-panel` as a snappy spring with an 8pt rise, applied to every segment swap
+— Today's three takes, the park's five sections, the trip's three; `wp-stamp` as the
+spring its `cubic-bezier(0.3, 1.4, 0.5, 1)` overshoot always was; `wp-pulse` as a ring
+that swells out of an uncollected stamp and fades, marking the one thing still to do.
+
+**Numbers roll rather than cross-fade.** `contentTransition(.numericText())` on the day
+heading, the tick count, the permit countdown and the passport total — they were already
+tabular, so nothing shifts as the digits change.
+
+**Cards lift as they scroll in**, through `scrollTransition` against real scroll position
+rather than on appearance, so the effect holds when you scroll back up. The near-you brief
+staggers its lines, and a landing tick uses SF Symbols' own bounce.
+
+
 ## 2.1.2 — The serif, in one place
 
 A national park's name is the one line in this app worth setting in the design system's

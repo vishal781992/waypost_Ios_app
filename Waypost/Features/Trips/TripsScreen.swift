@@ -29,7 +29,7 @@ struct TripsScreen: View {
 
                     VStack(spacing: 14) {
                         ForEach(app.trips) { trip in
-                            TripCard(trip: trip)
+                            TripCard(trip: trip).liftOnScroll()
                         }
                     }
 
@@ -96,6 +96,7 @@ struct TripsScreen: View {
 /// coordinates, and the parks in visiting order.
 struct TripCard: View {
     @Environment(AppState.self) private var app
+    @Environment(\.zoomNamespace) private var zoom
     var trip: SavedTrip
 
     private var points: [(lat: Double, lon: Double)] {
@@ -184,6 +185,7 @@ struct TripCard: View {
             .padding(.bottom, 13)
             .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(WP.divider, lineWidth: 1))
+            .zoomSource("trip:" + trip.id, in: zoom)
         }
         .buttonStyle(PressStyle(scale: 0.99))
     }

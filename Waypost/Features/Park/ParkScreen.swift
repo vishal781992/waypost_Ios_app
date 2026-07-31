@@ -40,8 +40,7 @@ struct ParkScreen: View {
                     .padding(.horizontal, WP.gutter)
                     .padding(.top, 18)
                     .padding(.bottom, WP.tabBarClearance)
-                    .id(segment)
-                    .transition(.opacity.combined(with: .offset(y: 8)))
+                    .panelTransition(id: segment)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

@@ -88,7 +88,7 @@ struct DiscoverScreen: View {
                     Text(note).font(WP.bodyItalic(12)).opacity(0.6)
 
                     ForEach(results) { park in
-                        DiscoverCard(park: park)
+                        DiscoverCard(park: park).liftOnScroll()
                     }
 
                     if results.isEmpty {
@@ -110,6 +110,7 @@ struct DiscoverScreen: View {
 
 struct DiscoverCard: View {
     @Environment(AppState.self) private var app
+    @Environment(\.zoomNamespace) private var zoom
     var park: CuratedPark
 
     private var isSaved: Bool { app.saved.contains(park.code) }
@@ -142,6 +143,8 @@ struct DiscoverCard: View {
                 .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .stroke(.white.opacity(0.42), lineWidth: 0.5))
                 .shadow(color: Color(hex: 0x1E1208, opacity: 0.18), radius: 15, y: 12)
+                // The card grows into the park screen it opens.
+                .zoomSource("park:" + park.code, in: zoom)
             }
             .buttonStyle(PressStyle(scale: 0.995))
 

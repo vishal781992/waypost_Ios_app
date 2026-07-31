@@ -10,6 +10,7 @@ struct SavedScreen: View {
         VStack(spacing: 0) {
             ScreenHeader {
                 Text("\(app.stamps.count) of 63 stamps").kickerStyle()
+                    .rollingNumber(app.stamps.count)
                 Text("Saved").font(WP.display(31)).padding(.top, 4).padding(.bottom, 11)
                 SegmentedTrough(
                     options: [(false, "Parks"), (true, "Passport")],
@@ -29,8 +30,7 @@ struct SavedScreen: View {
                 .padding(.horizontal, WP.gutter)
                 .padding(.top, 16)
                 .padding(.bottom, WP.tabBarClearance)
-                .id(app.savedShowsPassport)
-                .transition(.opacity.combined(with: .offset(y: 8)))
+                .panelTransition(id: app.savedShowsPassport)
             }
             .scrollIndicators(.hidden)
         }
@@ -101,6 +101,7 @@ struct PassportBook: View {
                 .padding(.bottom, 12)
 
             ProgressTrack(fraction: Double(app.stamps.count) / 63)
+                .animation(Motion.counter, value: app.stamps.count)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 11), count: 3), spacing: 11) {
                 ForEach(app.library.passport) { unit in
@@ -146,10 +147,11 @@ struct StampTile: View {
                             .foregroundStyle(WP.neutral400)
                     )
                     .foregroundStyle(WP.neutral600)
+                    .pulseRing()
                 }
             }
             .aspectRatio(1, contentMode: .fit)
-            .animation(.spring(response: 0.4, dampingFraction: 0.55), value: collected)
+            .animation(Motion.stamp, value: collected)
         }
         .buttonStyle(PressStyle(scale: 0.94))
     }

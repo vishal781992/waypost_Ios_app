@@ -35,8 +35,7 @@ struct TripDetailScreen: View {
                         }
                     }
                     .padding(.top, 20)
-                    .id(segment)
-                    .transition(.opacity.combined(with: .offset(y: 8)))
+                    .panelTransition(id: segment)
 
                     GlowButton(title: "Share this itinerary") {
                         app.show("Sharing sends a read-only copy")

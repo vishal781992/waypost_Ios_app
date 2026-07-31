@@ -21,8 +21,7 @@ struct TodayScreen: View {
                 .padding(.horizontal, WP.gutter)
                 .padding(.top, 16)
                 .padding(.bottom, WP.tabBarClearance)
-                .id(app.take)
-                .transition(.opacity.combined(with: .offset(y: 8)))
+                .panelTransition(id: app.take)
             }
             .scrollIndicators(.hidden)
         }
@@ -35,10 +34,12 @@ struct TodayScreen: View {
                     Text("Day \(app.today.d) of \(app.library.days.count) · Denver → Zion loop")
                         .kickerStyle()
                         .lineLimit(1)
+                        .rollingNumber(app.today.d)
                     Text(app.today.long)
                         .font(WP.display(31))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
+                        .rollingNumber(app.today.d)
                 }
                 Spacer(minLength: 0)
                 dayStepper
@@ -113,6 +114,7 @@ struct FieldTake: View {
 /// The hero: where you are, in the park's own colours, with the day's numbers beneath.
 struct ParkOfTheDayCard: View {
     @Environment(AppState.self) private var app
+    @Environment(\.zoomNamespace) private var zoom
     var park: CuratedPark
 
     private var light: WeatherLight { WeatherLight(high: park.wx.hi) }
@@ -157,6 +159,7 @@ struct ParkOfTheDayCard: View {
                 .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .stroke(.white.opacity(0.42), lineWidth: 0.5))
                 .shadow(color: Color(hex: 0x1E1208, opacity: 0.2), radius: 17, y: 14)
+                .zoomSource("park:" + park.code, in: zoom)
             }
             .buttonStyle(PressStyle(scale: 0.995))
 
@@ -323,6 +326,7 @@ struct TheDayList: View {
                 Text("\(items.filter { app.doneItems.contains($0.key) }.count) of \(items.count) done")
                     .font(WP.body(11))
                     .opacity(0.55)
+                    .rollingNumber(app.doneItems.count)
             }
             .padding(.bottom, 5)
 
@@ -347,9 +351,12 @@ struct TheDayList: View {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 10, weight: .bold))
                                         .foregroundStyle(.white)
+                                        .transition(.scale.combined(with: .opacity))
+                                        .symbolEffect(.bounce, value: done)
                                 }
                             }
                             .frame(width: 21, height: 21)
+                            .animation(Motion.stamp, value: done)
 
                             Text(item.time.clockPadded)
                                 .font(WP.body(15, semibold: true))
@@ -425,6 +432,7 @@ struct PermitWindowCard: View {
                 Spacer(minLength: 0)
                 VStack(alignment: .trailing, spacing: 3) {
                     Text(drop.countdown).font(WP.statValue(26)).tnum()
+                        .rollingNumber(drop.countdown)
                     Text("to go".uppercased())
                         .font(WP.body(10)).tracking(1.4).opacity(0.5)
                 }
