@@ -143,7 +143,6 @@ struct DiscoverScreen: View {
             }
             .scrollIndicators(.hidden)
         }
-        .onChange(of: app.discoverQuery) { _, query in app.directory.search(query) }
     }
 }
 
@@ -163,7 +162,10 @@ struct DiscoverCard: View {
                     ParkImage(park: park)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(park.state) · \(park.region)".uppercased())
+                        // A live record often has no state; "· PROTECTED AREA" with a
+                        // leading dot reads as a missing word rather than a missing field.
+                        Text([park.state, park.region].filter { !$0.isEmpty }
+                                .joined(separator: " · ").uppercased())
                             .font(WP.body(9)).tracking(1.5)
                             .foregroundStyle(.white.opacity(0.88))
                         Text(park.name)
@@ -214,7 +216,11 @@ struct DiscoverCard: View {
                 .padding(.top, 9)
 
             HStack(spacing: 10) {
-                Text("\(park.fee) · \(park.wx.hi)° in August")
+                // A live record publishes neither a fee nor a temperature; saying so is
+                // the whole point, and "0° in August" is the failure this app refuses.
+                Text(park.wx.isPublished || park.source == nil
+                     ? "\(park.fee) · \(park.wx.hi)° in August"
+                     : park.fee)
                     .font(WP.body(11.5)).opacity(0.6).lineLimit(1)
                 Spacer(minLength: 0)
                 Button {
@@ -267,6 +273,17 @@ struct NothingByThatName: View {
 struct StateParkList: View {
     @Environment(AppState.self) private var app
 
+    /// What the live directory found for the same words, minus anything the shipped
+    /// table already lists.
+    private var liveRows: [CuratedPark] {
+        guard !app.discoverQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+        let already = Set(rows.map { $0.n.lowercased() })
+        return app.directory.hits.map(\.park)
+            .filter { !already.contains($0.full.lowercased()) }
+            .prefix(30)
+            .map { $0 }
+    }
+
     private var rows: [StateParkRow] {
         let q = app.discoverQuery.trimmingCharacters(in: .whitespaces).lowercased()
         let all = Datasets.shared.stateParks
@@ -314,6 +331,49 @@ struct StateParkList: View {
                     }
                 }
                 .buttonStyle(PressStyle(scale: 0.99))
+            }
+
+            // The shipped table can only match a park's own name or its state, so it has
+            // no answer for a city. These are the ones OpenStreetMap found around the
+            // place that was typed — and unlike the table's rows, they open.
+            if !liveRows.isEmpty {
+                HStack(spacing: 7) {
+                    Circle().fill(WP.accent).frame(width: 6, height: 6)
+                    Text("Found around this place".uppercased())
+                        .font(WP.body(10)).tracking(1.3)
+                        .foregroundStyle(WP.accent800)
+                    Rectangle().fill(WP.divider).frame(height: 1)
+                    Text("OpenStreetMap")
+                        .font(WP.bodyItalic(10.5)).opacity(0.5)
+                }
+                .padding(.top, 20)
+                .padding(.bottom, 12)
+
+                ForEach(liveRows) { park in
+                    Button {
+                        app.openPark(park.code)
+                    } label: {
+                        DividedRow(vertical: 13) {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(park.name)
+                                        .font(WP.rowTitle(17))
+                                        .multilineTextAlignment(.leading)
+                                    Text("\(park.state.isEmpty ? "—" : park.state) · \(park.crowd.lowercased())")
+                                        .font(WP.body(12)).opacity(0.6)
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(WP.accent700)
+                            }
+                        }
+                    }
+                    .buttonStyle(PressStyle(scale: 0.99))
+                }
+            } else if case .searching = app.directory.phase {
+                Text("Asking OpenStreetMap about \u{201C}\(app.discoverQuery)\u{201D}\u{2026}")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55).padding(.top, 18)
             }
 
             Text("ParkHop holds a name and a location for every state-park unit, and nothing else. Hours, fees and campsites come from the park's own site — so those are a link, not a number.")

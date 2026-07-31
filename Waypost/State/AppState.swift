@@ -124,7 +124,15 @@ final class AppState {
     var savedShowsPassport = false
 
     // Discover
-    var discoverQuery = ""
+    /// Typing here searches the live directory. The trigger lives on the property rather
+    /// than in an `onChange` on one screen, so it cannot be missed by whichever view
+    /// happens to be on screen — including the state-park side of the toggle.
+    var discoverQuery = "" {
+        didSet {
+            guard discoverQuery != oldValue else { return }
+            directory.search(discoverQuery)
+        }
+    }
     var discoverChip = "all"
     /// Which catalogue Discover is showing: the NPS registry, or the state-park table
     /// that ships on the phone.
@@ -246,8 +254,9 @@ final class AppState {
             if let id = value("wpTrip") { self.tab = .trips; self.push(.trip(id: id)) }
             if let term = value("wpSearch") {
                 self.tab = .discover
+                // Nothing else: setting the query is what starts a search, exactly as
+                // typing into the field does.
                 self.discoverQuery = term
-                self.directory.search(term)
             }
         }
     }

@@ -25,7 +25,7 @@ extension CuratedPark {
             lon: park.lon,
             tag: park.tagline,
             gw: park.gateway,
-            region: CuratedPark.region(for: park.designation ?? park.tagline),
+            region: CuratedPark.region(for: park.full + " " + (park.designation ?? "")),
             crowd: park.designation ?? "National Park Service unit",
             fee: park.fee,
             hours: park.hours,
@@ -61,7 +61,7 @@ extension CuratedPark {
             lon: place.lon,
             tag: place.designation ?? "Protected area",
             gw: "",
-            region: CuratedPark.region(for: place.designation ?? place.name),
+            region: CuratedPark.region(for: place.name + " " + (place.designation ?? "")),
             crowd: place.designation ?? "Protected area",
             fee: "Not published by OpenStreetMap",
             hours: "Not published by OpenStreetMap",
@@ -130,6 +130,11 @@ extension CuratedPark {
     /// "Arches National Park" reads as "Arches" on a card; the full name stays in `full`.
     static func shortName(_ full: String) -> String {
         var name = full
+        // OpenStreetMap names the polygon, not the park: "Wupatki National Monument
+        // Boundary" is one relation, and the word is the mapper's, not the park's.
+        for tail in [" Boundary", " boundary", " (boundary)"] where name.hasSuffix(tail) {
+            name = String(name.dropLast(tail.count))
+        }
         for suffix in [" National Park and Preserve", " National Park", " National Monument",
                        " National Recreation Area", " National Seashore", " National Forest",
                        " State Park", " Wilderness"] {

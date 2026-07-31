@@ -142,6 +142,8 @@ final class ParkDirectory {
             }
             deduped.append(hit)
         }
+        // Overpass truncates arbitrarily, so the cap is high and the ranking is done
+        // here where the whole set is in hand.
         // National parks first, then monuments, then everything else — and within a rank,
         // nearest first when the search had somewhere to measure from. A search for Utah
         // that opens on a wildlife management area has technically answered and
@@ -237,17 +239,27 @@ final class ParkDirectory {
         }
     }
 
+    /// What counts as a park, in OpenStreetMap's own vocabulary.
+    ///
+    /// `protect_class` looked like the right filter and is the wrong one: Grand Canyon
+    /// National Park does not carry it, so a class filter drops precisely the parks
+    /// anybody is searching for. `protection_title` is the tag mappers actually fill in,
+    /// and it holds the designation verbatim.
+    private static let designations =
+        "National Park|National Monument|National Preserve|National Seashore" +
+        "|National Lakeshore|National Recreation Area|National Historical Park" +
+        "|State Park|State Recreation Area|Wilderness"
+
     /// The protected areas inside one state.
     private func overpassInState(_ abbreviation: String) async -> [Hit] {
         let query = """
-        [out:json][timeout:40];
+        [out:json][timeout:60];
         area["ISO3166-2"="US-\(abbreviation)"][admin_level=4]->.a;
         (
-          nwr["boundary"="national_park"](area.a);
-          nwr["leisure"="nature_reserve"]["name"](area.a);
-          nwr["boundary"="protected_area"]["protect_class"~"^(1a|1b|2|3|5)$"](area.a);
+          nwr["boundary"="national_park"]["name"](area.a);
+          nwr["boundary"="protected_area"]["protection_title"~"\(Self.designations)",i](area.a);
         );
-        out tags center 80;
+        out tags center 200;
         """
         return await overpass(query, state: abbreviation)
     }
@@ -255,12 +267,12 @@ final class ParkDirectory {
     private func overpass(lat: Double, lon: Double, radiusMiles: Int) async -> [Hit] {
         let metres = Int(Double(radiusMiles) * 1609.34)
         let query = """
-        [out:json][timeout:40];
+        [out:json][timeout:60];
         (
-          nwr["boundary"="national_park"](around:\(metres),\(lat),\(lon));
-          nwr["boundary"="protected_area"]["protect_class"~"^(1a|1b|2|3|5)$"](around:\(metres),\(lat),\(lon));
+          nwr["boundary"="national_park"]["name"](around:\(metres),\(lat),\(lon));
+          nwr["boundary"="protected_area"]["protection_title"~"\(Self.designations)",i](around:\(metres),\(lat),\(lon));
         );
-        out tags center 60;
+        out tags center 200;
         """
         return await overpass(query, state: nil)
     }
@@ -346,7 +358,8 @@ struct OSMPlace: Hashable {
         self.lat = lat
         self.lon = lon
         self.state = OSMPlace.stateCode(address["state"] as? String)
-        self.designation = (extra["protection_title"] as? String) ?? (type == "national_park" ? "National Park" : nil)
+        self.designation = (extra["protection_title"] as? String)
+            ?? OSMPlace.designation(inName: name)
         self.isPark = type == "national_park" || type == "protected_area" || type == "nature_reserve"
             || (category == "leisure" && type == "park")
             || (extra["protect_class"] != nil)
@@ -367,9 +380,25 @@ struct OSMPlace: Hashable {
         self.lat = lat
         self.lon = lon
         self.state = state ?? OSMPlace.stateCode(tags["addr:state"] as? String)
-        self.designation = (tags["protection_title"] as? String) ?? (tags["boundary"] as? String == "national_park" ? "National Park" : nil)
+        // `boundary=national_park` is used for monuments, preserves and forests alike, so
+        // it is not evidence that this is a national park. The title tag is; failing that,
+        // the park's own name is; failing both, it stays a protected area.
+        self.designation = (tags["protection_title"] as? String)
+            ?? OSMPlace.designation(inName: name)
         self.isPark = true
         self.website = tags["website"] as? String
+    }
+
+    /// "Petrified Forest National Park" says what it is in its own name.
+    static func designation(inName name: String) -> String? {
+        for title in ["National Park and Preserve", "National Park", "National Monument",
+                      "National Preserve", "National Seashore", "National Lakeshore",
+                      "National Recreation Area", "National Historical Park",
+                      "National Forest", "State Park", "State Recreation Area", "Wilderness"]
+        where name.localizedCaseInsensitiveContains(title) {
+            return title
+        }
+        return nil
     }
 
     private static func stateCode(_ name: String?) -> String {
