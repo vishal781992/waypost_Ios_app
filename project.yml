@@ -11,7 +11,7 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: 2.6.1
+    MARKETING_VERSION: 2.7.0
     CURRENT_PROJECT_VERSION: 1
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
@@ -28,6 +28,7 @@ targets:
         PRODUCT_NAME: Waypost
         INFOPLIST_FILE: Waypost/Info.plist
         GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Waypost/Waypost.entitlements
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
         ENABLE_USER_SCRIPT_SANDBOXING: YES

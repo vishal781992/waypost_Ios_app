@@ -147,7 +147,9 @@ struct TripDetailScreen: View {
             // Getting there from where you actually are — the leg no itinerary ever
             // includes, and the first one anybody actually drives.
             if let approach = app.routing.approach(for: trip) {
-                legRow(approach.curated, date: "", index: 0, opensSheet: false, label: "Getting there")
+                legRow(approach.curated, date: "", index: 0, label: "Getting there") {
+                    app.sheet = .routedLeg(approach, label: "Getting there")
+                }
             } else if case .routing = app.routing.approachPhase(for: trip) {
                 Text("Measuring the drive from where you are to \(parks.first?.name ?? "the first park")…")
                     .font(WP.bodyItalic(11.5)).opacity(0.55).padding(.vertical, 12)
@@ -172,13 +174,19 @@ struct TripDetailScreen: View {
                 let routed = app.routing.legs(for: trip)
                 ForEach(Array(parks.enumerated()), id: \.element.code) { index, park in
                     if index < routed.count {
-                        legRow(routed[index].curated, date: "", index: index, opensSheet: false)
+                        let leg = routed[index]
+                        legRow(leg.curated, date: "", index: index) {
+                            app.sheet = .routedLeg(leg, label: "Driving day")
+                        }
                     }
                     parkRow(park, date: trip.dates, days: 2, numeral: ["I", "II", "III", "IV", "V"][min(index, 4)])
                 }
                 // The drive home, when there is one.
                 if routed.count > parks.count {
-                    legRow(routed[parks.count].curated, date: "", index: parks.count, opensSheet: false)
+                    let home = routed[parks.count]
+                    legRow(home.curated, date: "", index: parks.count, label: "The drive home") {
+                        app.sheet = .routedLeg(home, label: "The drive home")
+                    }
                 }
 
                 Text(routingNote)
@@ -193,11 +201,12 @@ struct TripDetailScreen: View {
     }
 
     private func legRow(_ leg: CuratedLeg, date: String, index: Int,
-                        opensSheet: Bool = true, label: String? = nil) -> some View {
+                        label: String? = nil,
+                        onTap: (() -> Void)? = nil) -> some View {
         Button {
-            // Only the seed trip's legs have a sheet behind them; a routed leg carries
-            // everything it knows on the row itself.
-            if opensSheet { app.sheet = .leg(index: index, date: date) }
+            // A seed leg opens the sheet the library built; a routed one opens the sheet
+            // built from what the router returned. Both open.
+            if let onTap { onTap() } else { app.sheet = .leg(index: index, date: date) }
         } label: {
             DividedRow(vertical: 13) {
                 VStack(alignment: .leading, spacing: 3) {

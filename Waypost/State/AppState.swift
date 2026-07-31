@@ -71,6 +71,9 @@ enum ActiveSheet: Identifiable {
     case alert(park: String, alert: CuratedAlert)
     case permit(drop: PermitDrop)
     case leg(index: Int, date: String)
+    /// A leg the app routed rather than one the seed trip carries — the drive from
+    /// where you are, and the drives between the parks of a composed trip.
+    case routedLeg(TripRouting.Leg, label: String)
     case stamp(name: String, city: String, dist: String)
 
     var id: String {
@@ -78,6 +81,7 @@ enum ActiveSheet: Identifiable {
         case .alert(let park, let alert): return "alert:\(park):\(alert.title)"
         case .permit(let drop): return "permit:\(drop.what)"
         case .leg(let index, _): return "leg:\(index)"
+        case .routedLeg(let leg, _): return "routed:" + leg.id
         case .stamp(let name, _, _): return "stamp:\(name)"
         }
     }
@@ -250,7 +254,10 @@ final class AppState {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(900))
             if let wantedTab { self.tab = wantedTab }
-            if let wantedPark { self.openPark(wantedPark) }
+            if let wantedPark {
+                let segment = value("wpSeg").flatMap(ParkSegment.init(rawValue:)) ?? .overview
+                self.openPark(wantedPark, segment: segment)
+            }
             if let id = value("wpTrip") { self.tab = .trips; self.push(.trip(id: id)) }
             if let term = value("wpSearch") {
                 self.tab = .discover

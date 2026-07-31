@@ -13,6 +13,7 @@ struct DetailSheet: View {
                 case .alert(let park, let alert): alertBody(park: park, alert: alert)
                 case .permit(let drop): permitBody(drop)
                 case .leg(let index, let date): legBody(index: index, date: date)
+                case .routedLeg(let leg, let label): routedLegBody(leg, label: label)
                 case .stamp(let name, let city, let dist): stampBody(name: name, city: city, dist: dist)
                 }
             }
@@ -33,7 +34,7 @@ struct DetailSheet: View {
         switch sheet {
         case .alert: return [.medium]
         case .permit: return [.medium, .large]
-        case .leg: return [.medium, .large]
+        case .leg, .routedLeg: return [.medium, .large]
         case .stamp: return [.medium]
         }
     }
@@ -105,6 +106,47 @@ struct DetailSheet: View {
                 app.show(app.notifyPermits ? "Alert set — 15 minutes before" : "Alert cleared")
             }
             .padding(.top, 16)
+        }
+    }
+
+    // MARK: A routed leg
+    //
+    // The same sheet as a seed leg, minus the things a router does not know: there is no
+    // flight alternative and no charging plan, and no arrival time — an arrival needs a
+    // departure, and nobody has said when they are leaving.
+
+    private func routedLegBody(_ leg: TripRouting.Leg, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(label.uppercased())
+                .font(WP.body(12)).tracking(1.5).foregroundStyle(WP.accent700)
+            Text("\(leg.from) → \(leg.to)").font(WP.heading(23)).padding(.top, 9)
+                .multilineTextAlignment(.leading)
+
+            HStack(spacing: 0) {
+                legStat("Distance", "\(leg.miles) mi")
+                legStat("Wheel time", leg.drive)
+                legStat("Roads", String(leg.road.split(separator: " → ").count))
+            }
+            .padding(.top, 10)
+            .overlay(alignment: .top) { Hairline() }
+            .overlay(alignment: .bottom) { Hairline() }
+
+            Text(leg.road).font(WP.body(13)).lineSpacing(3).opacity(0.8).padding(.top, 11)
+
+            GlowButton(title: "Open in Maps", minHeight: 48) {
+                openInMaps(from: leg.from, to: leg.to)
+            }
+            .padding(.top, 16)
+
+            SourceLine("Distance and wheel time from OSRM, driving profile, over the roads listed. No traffic, no departure time — this is the road, not the day.")
+                .padding(.top, 16)
+        }
+    }
+
+    private func openInMaps(from: String, to: String) {
+        let query = to.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? to
+        if let url = URL(string: "http://maps.apple.com/?daddr=\(query)&dirflg=d") {
+            UIApplication.shared.open(url)
         }
     }
 

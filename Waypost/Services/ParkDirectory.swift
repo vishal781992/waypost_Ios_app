@@ -106,54 +106,53 @@ final class ParkDirectory {
         }
     }
 
+    /// Sources answer at very different speeds — Nominatim in about a second, a
+    /// state-wide Overpass query in thirty to ninety. Waiting for the slowest before
+    /// showing anything is why a search for Texas looked like it had failed. Each source
+    /// now publishes as it lands, and the list fills in.
     private func run(query: String) async {
         var found: [Hit] = []
         answered = []
 
-        // 1. NPS, when the proxy is reachable. It is the better answer for its own units.
+        // 1. Nominatim, first, because it is quick. Parks whose names match the words,
+        //    and — when the words are a state — the national parks in it.
+        let quick = await nominatimParks(query)
+        guard !Task.isCancelled else { return }
+        if !quick.places.isEmpty {
+            answered.insert(.openStreetMap)
+            found += quick.places.map { Hit(park: CuratedPark(osm: $0), source: .openStreetMap) }
+            publish(found, anchor: quick.anchor)
+        }
+
+        // 2. NPS, when the proxy is reachable. Authoritative for its own units.
         if nps.isReady {
             let parks = await nps.search(query)
+            guard !Task.isCancelled else { return }
             if !parks.isEmpty {
                 answered.insert(.nps)
                 found += parks.map { Hit(park: CuratedPark(live: $0), source: .nps) }
+                publish(found, anchor: quick.anchor)
             }
         }
-        guard !Task.isCancelled else { return }
 
-        // 2. OpenStreetMap. A state or a city becomes a place to look around; anything
-        //    else is looked up by name.
-        let osm = await openStreetMapSearch(query)
+        // 3. Overpass last: it is the slow one, and the one that knows about the state
+        //    and county parks the others miss.
+        let osm = await openStreetMapSearch(query, anchor: quick.anchor)
+        guard !Task.isCancelled else { return }
         found += osm.hits
-        finish(found, anchor: osm.anchor)
+        finish(found, anchor: osm.anchor ?? quick.anchor)
+    }
+
+    /// Results so far, on screen now, without declaring the search over.
+    private func publish(_ found: [Hit], anchor: (lat: Double, lon: Double)?) {
+        hits = Self.ordered(Self.deduped(found, anchor: anchor))
+        // Parks are on screen, so the search has answered — the slower source is still
+        // filling in behind it, which is not the same as still having nothing to show.
+        if !hits.isEmpty { phase = .ready }
     }
 
     private func finish(_ found: [Hit], anchor: (lat: Double, lon: Double)?) {
-        // One park can come back from both sources under slightly different names; the
-        // NPS record wins because it carries more, and the OSM duplicate is dropped.
-        var seen = Set<String>()
-        var deduped: [Hit] = []
-        for hit in found {
-            let key = Self.matchKey(hit.park.name)
-            if seen.contains(key) { continue }
-            seen.insert(key)
-            var hit = hit
-            if let anchor {
-                hit.miles = Int(Geo.haversine(anchor, (hit.park.lat, hit.park.lon)).rounded())
-            }
-            deduped.append(hit)
-        }
-        // Overpass truncates arbitrarily, so the cap is high and the ranking is done
-        // here where the whole set is in hand.
-        // National parks first, then monuments, then everything else — and within a rank,
-        // nearest first when the search had somewhere to measure from. A search for Utah
-        // that opens on a wildlife management area has technically answered and
-        // practically failed.
-        deduped.sort { a, b in
-            let ra = Self.rank(a.park), rb = Self.rank(b.park)
-            if ra != rb { return ra < rb }
-            if let ma = a.miles, let mb = b.miles, ma != mb { return ma < mb }
-            return a.park.name < b.park.name
-        }
+        let deduped = Self.ordered(Self.deduped(found, anchor: anchor))
         hits = deduped
         if !deduped.isEmpty || !answered.isEmpty {
             phase = .ready
@@ -163,6 +162,37 @@ final class ParkDirectory {
             phase = .unanswered("No source answered — \(why). The parks already on this iPhone are still here.")
         } else {
             phase = .unanswered("No source answered. The parks already on this iPhone are still here.")
+        }
+    }
+
+    /// One park can come back from more than one source under slightly different names.
+    /// The first to arrive wins, and NPS is asked before Overpass for that reason.
+    private static func deduped(_ found: [Hit], anchor: (lat: Double, lon: Double)?) -> [Hit] {
+        var seen = Set<String>()
+        var out: [Hit] = []
+        for hit in found {
+            let key = matchKey(hit.park.name)
+            if seen.contains(key) { continue }
+            seen.insert(key)
+            var hit = hit
+            if let anchor {
+                hit.miles = Int(Geo.haversine(anchor, (hit.park.lat, hit.park.lon)).rounded())
+            }
+            out.append(hit)
+        }
+        return out
+    }
+
+    /// Overpass truncates arbitrarily, so the caps are high and the ordering is done here
+    /// with the whole set in hand: national parks first, then monuments, then everything
+    /// else — nearest first within a rank. A search for Utah that opens on a wildlife
+    /// management area has technically answered and practically failed.
+    private static func ordered(_ hits: [Hit]) -> [Hit] {
+        hits.sorted { a, b in
+            let ra = rank(a.park), rb = rank(b.park)
+            if ra != rb { return ra < rb }
+            if let ma = a.miles, let mb = b.miles, ma != mb { return ma < mb }
+            return a.park.name < b.park.name
         }
     }
 
@@ -189,31 +219,51 @@ final class ParkDirectory {
 
     // MARK: OpenStreetMap
 
-    private func openStreetMapSearch(_ query: String) async -> (hits: [Hit], anchor: (lat: Double, lon: Double)?) {
+    private func openStreetMapSearch(_ query: String, anchor: (lat: Double, lon: Double)?)
+        async -> (hits: [Hit], anchor: (lat: Double, lon: Double)?) {
         // A state name is answered from the whole state, not from a radius around its
         // centre — Texas is wider than any radius worth using.
         if let abbreviation = USStates.abbreviation(for: query) {
-            let parks = await overpassInState(abbreviation)
-            if !parks.isEmpty { answered.insert(.openStreetMap) }
-            return (parks, nil)
+            return (await overpassInState(abbreviation), nil)
         }
-
-        guard let place = await nominatim(query) else { return ([], nil) }
-        answered.insert(.openStreetMap)
-
-        if place.isPark {
-            // The query named a park. Return it, and what else is near it.
-            var found = [Hit(park: CuratedPark(osm: place), source: .openStreetMap)]
-            found += await overpass(lat: place.lat, lon: place.lon, radiusMiles: 120)
-            return (found, (place.lat, place.lon))
-        }
-        // The query named a city, a county or a state — look around it.
-        return (await overpass(lat: place.lat, lon: place.lon, radiusMiles: 150), (place.lat, place.lon))
+        guard let anchor else { return ([], nil) }
+        return (await overpass(lat: anchor.lat, lon: anchor.lon, radiusMiles: 150), anchor)
     }
 
-    /// One place from a set of words. Nominatim asks for a real user agent and refuses
+    /// The quick pass: Nominatim, which answers in about a second.
+    ///
+    /// It is asked twice for a state — once for the words themselves, once for the
+    /// national parks in that state, because "Texas" alone returns the state polygon and
+    /// no parks at all. Rows outside the named state are dropped.
+    private func nominatimParks(_ query: String)
+        async -> (places: [OSMPlace], anchor: (lat: Double, lon: Double)?) {
+        let stateCode = USStates.abbreviation(for: query)
+        var terms = [query]
+        if stateCode != nil {
+            terms = ["National Park, \(query)", "State Park, \(query)", query]
+        }
+
+        var places: [OSMPlace] = []
+        var anchor: (lat: Double, lon: Double)?
+
+        for term in terms {
+            let rows = await nominatim(term)
+            guard !Task.isCancelled else { break }
+            for place in rows {
+                if let stateCode, place.state != stateCode, !place.state.isEmpty { continue }
+                if place.isPark { places.append(place) }
+                else if anchor == nil { anchor = (place.lat, place.lon) }
+            }
+            // A named park anchors the radius search that follows it.
+            if anchor == nil, let first = places.first { anchor = (first.lat, first.lon) }
+            if stateCode == nil, !places.isEmpty || anchor != nil { break }
+        }
+        return (places, stateCode == nil ? anchor : nil)
+    }
+
+    /// Places for a set of words. Nominatim asks for a real user agent and refuses
     /// anonymous callers, which is fair.
-    private func nominatim(_ query: String) async -> OSMPlace? {
+    private func nominatim(_ query: String) async -> [OSMPlace] {
         var c = URLComponents(string: "https://nominatim.openstreetmap.org/search")!
         c.queryItems = [
             .init(name: "q", value: query),
@@ -221,21 +271,19 @@ final class ParkDirectory {
             .init(name: "addressdetails", value: "1"),
             .init(name: "extratags", value: "1"),
             .init(name: "countrycodes", value: "us"),
-            .init(name: "limit", value: "5"),
+            .init(name: "limit", value: "20"),
         ]
-        guard let url = c.url else { return nil }
+        guard let url = c.url else { return [] }
         var request = URLRequest(url: url)
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 25
 
         do {
-            let rows = try await HTTP.array(request)
-            // A park in the results beats a settlement — "Zion" should find the park.
-            let parks = rows.compactMap(OSMPlace.init(nominatim:)).filter(\.isPark)
-            return parks.first ?? rows.compactMap(OSMPlace.init(nominatim:)).first
+            answered.insert(.openStreetMap)
+            return try await HTTP.array(request).compactMap(OSMPlace.init(nominatim:))
         } catch {
             failures.note("place lookup (Nominatim)", error)
-            return nil
+            return []
         }
     }
 
@@ -253,7 +301,7 @@ final class ParkDirectory {
     /// The protected areas inside one state.
     private func overpassInState(_ abbreviation: String) async -> [Hit] {
         let query = """
-        [out:json][timeout:60];
+        [out:json][timeout:80];
         area["ISO3166-2"="US-\(abbreviation)"][admin_level=4]->.a;
         (
           nwr["boundary"="national_park"]["name"](area.a);
@@ -267,7 +315,7 @@ final class ParkDirectory {
     private func overpass(lat: Double, lon: Double, radiusMiles: Int) async -> [Hit] {
         let metres = Int(Double(radiusMiles) * 1609.34)
         let query = """
-        [out:json][timeout:60];
+        [out:json][timeout:80];
         (
           nwr["boundary"="national_park"]["name"](around:\(metres),\(lat),\(lon));
           nwr["boundary"="protected_area"]["protection_title"~"\(Self.designations)",i](around:\(metres),\(lat),\(lon));
@@ -300,7 +348,7 @@ final class ParkDirectory {
             // A state-wide query genuinely takes half a minute on a public server. The
             // app's usual 15-second budget was cutting it off and reading the timeout as
             // "no parks in Utah", which is the confusion this codebase refuses to make.
-            request.timeoutInterval = 45
+            request.timeoutInterval = 90
 
             do {
                 let obj = try await HTTP.any(request)
