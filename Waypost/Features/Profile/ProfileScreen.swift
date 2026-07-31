@@ -177,9 +177,7 @@ struct ProfileScreen: View {
                     .font(WP.headingUI(12.5))
                     .padding(.horizontal, 13)
                     .frame(minHeight: 32)
-                    .background(state == .ready ? WP.accent100 : .clear, in: Capsule())
-                    .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
-                    .foregroundStyle(state == .ready ? WP.accent800 : WP.accent700)
+                    .glassControl(shadow: false)
             }
             .buttonStyle(PressStyle(scale: 0.95))
         }

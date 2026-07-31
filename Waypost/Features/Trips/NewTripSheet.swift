@@ -223,11 +223,11 @@ struct NewTripSheet: View {
                         HStack {
                             Text(builder.startLabel).font(WP.body(15))
                             Spacer(minLength: 0)
-                            Image(systemName: "calendar").foregroundStyle(WP.accent700)
+                            Image(systemName: "calendar")
                         }
                         .padding(.horizontal, 17)
                         .frame(minHeight: 46)
-                        .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
+                        .glassControl(shadow: false)
                         .contentShape(Capsule())
                     }
                     .buttonStyle(PressStyle(scale: 0.99))

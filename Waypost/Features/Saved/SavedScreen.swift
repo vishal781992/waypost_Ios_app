@@ -68,9 +68,8 @@ struct SavedParksList: View {
                             Button { app.toggleSaved(code) } label: {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(WP.neutral700)
                                     .frame(width: 32, height: 32)
-                                    .overlay(Circle().stroke(WP.divider, lineWidth: 1))
+                                    .glassControl(shadow: false)
                             }
                             .buttonStyle(PressStyle(scale: 0.9))
                         }

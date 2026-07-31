@@ -71,14 +71,7 @@ struct DiscoverScreen: View {
                                     .font(WP.body(12.5))
                                     .padding(.horizontal, 15)
                                     .frame(minHeight: 34)
-                                    .foregroundStyle(active ? WP.bg : WP.text)
-                                    .background {
-                                        if active {
-                                            Capsule().fill(WP.ink)
-                                        } else {
-                                            Capsule().fill(.clear).liquidGlass(.pill, radius: 999)
-                                        }
-                                    }
+                                    .modifier(SelectedControl(active: active))
                             }
                             .buttonStyle(PressStyle(scale: 0.96))
                         }
@@ -197,11 +190,7 @@ struct DiscoverCard: View {
                         .font(WP.headingUI(13))
                         .padding(.horizontal, 16)
                         .frame(minHeight: 36)
-                        .foregroundStyle(isSaved ? WP.accent800 : WP.text)
-                        .background {
-                            if isSaved { Capsule().fill(WP.accent100) }
-                            else { Capsule().fill(.clear).liquidGlass(.pill, radius: 999) }
-                        }
+                        .glassControl(shadow: false)
                 }
                 .buttonStyle(PressStyle(scale: 0.96))
             }
@@ -229,7 +218,7 @@ struct NothingByThatName: View {
                     .font(WP.headingUI(15))
                     .padding(.horizontal, 20)
                     .frame(minHeight: 44)
-                    .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
+                    .glassControl()
             }
             .buttonStyle(PressStyle(scale: 0.97))
             .padding(.top, 14)

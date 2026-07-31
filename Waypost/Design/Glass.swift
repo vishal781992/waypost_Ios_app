@@ -20,6 +20,10 @@ enum GlassStyle {
     case onPhoto
     /// Bottom sheets — `rgba(243,242,242,0.9)`, blur 26.
     case sheet
+    /// Every button and every selected tab: ink glass carrying white type. Dark glass
+    /// still refracts what is behind it, so a control reads as a solid thing you press
+    /// rather than as a hole cut in the page.
+    case control
 
     var tint: Color {
         switch self {
@@ -28,6 +32,7 @@ enum GlassStyle {
         case .pill: return Color.white.opacity(0.50)
         case .onPhoto: return Color.white.opacity(0.17)
         case .sheet: return Color(hex: 0xF3F2F2, opacity: 0.90)
+        case .control: return Color(hex: 0x181410, opacity: 0.88)
         }
     }
 
@@ -35,6 +40,7 @@ enum GlassStyle {
         switch self {
         case .onPhoto: return Color.white.opacity(0.42)
         case .sheet: return Color.white.opacity(0.70)
+        case .control: return Color.white.opacity(0.20)
         default: return Color.black.opacity(0.07)
         }
     }
@@ -44,6 +50,9 @@ enum GlassStyle {
         switch self {
         case .onPhoto: return (Color.white.opacity(0.55), Color.white.opacity(0.25))
         case .tabBar: return (Color.white.opacity(0.72), Color.white.opacity(0.42))
+        // Dark glass takes a quieter highlight; the bright edge the light surfaces wear
+        // would read as a rim of chrome around every button.
+        case .control: return (Color.white.opacity(0.34), Color.white.opacity(0.10))
         default: return (Color.white.opacity(0.80), Color.white.opacity(0.40))
         }
     }
@@ -51,6 +60,7 @@ enum GlassStyle {
     var material: Material {
         switch self {
         case .onPhoto: return .ultraThinMaterial
+        case .control: return .ultraThinMaterial
         case .sheet: return .thickMaterial
         default: return .thinMaterial
         }
@@ -85,6 +95,16 @@ private struct GlassEdge: View {
 }
 
 extension View {
+    /// A control: ink glass, white type, and the press shadow that lifts it off the page.
+    ///
+    /// Every button and every selected tab in the app wears this — the home screen is the
+    /// one exception, and it keeps the light glass it was designed with.
+    func glassControl(radius: CGFloat = 999, shadow: Bool = true) -> some View {
+        foregroundStyle(.white)
+            .liquidGlass(.control, radius: radius, interactive: true)
+            .shadow(color: shadow ? Color(hex: 0x181008, opacity: 0.22) : .clear, radius: 8, y: 5)
+    }
+
     /// Puts the view on a liquid-glass surface.
     func liquidGlass(_ style: GlassStyle = .pill, radius: CGFloat = 999, interactive: Bool = false) -> some View {
         modifier(LiquidGlass(style: style, radius: radius, interactive: interactive))
@@ -343,12 +363,7 @@ struct SegmentedTrough<T: Hashable>: View {
                         .font(WP.body(13))
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: 34)
-                        .background(active ? WP.bg : .clear, in: Capsule())
-                        .overlay {
-                            if active { Capsule().stroke(WP.divider, lineWidth: 1) }
-                        }
-                        .foregroundStyle(active ? WP.accent800 : WP.text.opacity(0.62))
-                        .shadow(color: active ? WP.neutral900.opacity(0.14) : .clear, radius: 1, y: 1)
+                        .modifier(SelectedControl(active: active))
                 }
                 .buttonStyle(.plain)
             }
@@ -375,10 +390,7 @@ struct SegmentRail<T: Hashable>: View {
                             .font(WP.body(12.5))
                             .padding(.horizontal, 15)
                             .frame(minHeight: 34)
-                            .background(active ? WP.bg : .clear, in: Capsule())
-                            .overlay { if active { Capsule().stroke(WP.divider, lineWidth: 1) } }
-                            .foregroundStyle(active ? WP.accent800 : WP.text.opacity(0.62))
-                            .shadow(color: active ? WP.neutral900.opacity(0.12) : .clear, radius: 1, y: 1)
+                            .modifier(SelectedControl(active: active))
                     }
                     .buttonStyle(.plain)
                 }
@@ -405,19 +417,10 @@ struct GlowButton: View {
                 .font(WP.headingUI(filled ? 17 : 15))
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: minHeight)
-                .background {
-                    ZStack {
-                        if filled { WP.ink } else { Color.clear }
-                        ButtonGlow(strong: strongGlow)
-                        if !filled {
-                            Rectangle().fill(Color(hex: 0xFCFBFA, opacity: 0.44))
-                        }
-                    }
-                }
-                .foregroundStyle(filled ? WP.bg : WP.neutral900)
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(filled ? 0 : 0.55), lineWidth: 0.5))
-                .shadow(color: WP.neutral900.opacity(0.14), radius: 8, y: 6)
+                // The brass-and-dusk glow still bleeds through, now from under glass
+                // rather than from under a flat plate.
+                .background { ButtonGlow(strong: strongGlow).clipShape(Capsule()) }
+                .glassControl()
         }
         .buttonStyle(PressStyle())
     }
@@ -506,5 +509,21 @@ struct ToastView: View {
             .foregroundStyle(WP.bg)
             .shadow(color: WP.neutral900.opacity(0.22), radius: 16, y: 8)
             .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}
+
+
+/// A segment or chip in its two states: ink glass when it is the one you chose, plain
+/// type when it is not. Kept in one place so every tab in the app agrees on what
+/// "selected" looks like.
+struct SelectedControl: ViewModifier {
+    var active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.glassControl(shadow: false)
+        } else {
+            content.foregroundStyle(WP.text.opacity(0.62))
+        }
     }
 }

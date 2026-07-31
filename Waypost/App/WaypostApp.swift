@@ -51,7 +51,6 @@ struct RootShell: View {
         }
         .environment(\.zoomNamespace, zoom)
         .modifier(NativeTabBarBehaviour())
-        .task { app.applyLaunchArguments() }
         .overlay(alignment: .bottom) {
             if let toast = app.toast {
                 ToastView(text: toast)

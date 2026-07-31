@@ -102,11 +102,9 @@ struct ParkScreen: View {
                     .font(.system(size: 15, weight: .semibold))
                 Text("Back").font(WP.body(15))
             }
-            .foregroundStyle(WP.accent700)
             .padding(.vertical, 9)
             .padding(.horizontal, 15)
-            .liquidGlass(.pill, radius: 999, interactive: true)
-            .shadow(color: Color(hex: 0x181008, opacity: 0.18), radius: 9, y: 4)
+            .glassControl()
         }
         .buttonStyle(PressStyle(scale: 0.94))
         .padding(.leading, WP.gutter)
@@ -120,9 +118,7 @@ struct ParkScreen: View {
                     Text(isSaved ? "Saved" : "Save this park")
                         .font(WP.headingUI(14))
                         .frame(maxWidth: .infinity, minHeight: 40)
-                        .background(isSaved ? WP.accent100 : .clear, in: Capsule())
-                        .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
-                        .foregroundStyle(isSaved ? WP.accent800 : WP.text)
+                        .glassControl()
                 }
                 .buttonStyle(PressStyle(scale: 0.98))
 
@@ -132,11 +128,7 @@ struct ParkScreen: View {
                          : "Offline pack · \(park.pack)")
                         .font(WP.headingUI(14))
                         .frame(maxWidth: .infinity, minHeight: 40)
-                        .overlay(
-                            Capsule().strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                                .foregroundStyle(WP.neutral400)
-                        )
-                        .foregroundStyle(WP.accent700)
+                        .glassControl()
                 }
                 .buttonStyle(PressStyle(scale: 0.98))
             }

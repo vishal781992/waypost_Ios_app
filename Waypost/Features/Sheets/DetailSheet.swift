@@ -161,9 +161,7 @@ struct DetailSheet: View {
                         Text(app.liveActivityOn ? "Live Activity on" : "Start Live Activity")
                             .font(WP.headingUI(14.5))
                             .frame(maxWidth: .infinity, minHeight: 48)
-                            .background(app.liveActivityOn ? WP.accent100 : .clear, in: Capsule())
-                            .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
-                            .foregroundStyle(app.liveActivityOn ? WP.accent800 : WP.text)
+                            .glassControl()
                     }
                     .buttonStyle(PressStyle(scale: 0.98))
 
@@ -174,8 +172,7 @@ struct DetailSheet: View {
                             .font(WP.headingUI(14.5))
                             .padding(.horizontal, 18)
                             .frame(minHeight: 48)
-                            .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
-                            .foregroundStyle(WP.accent700)
+                            .glassControl()
                     }
                     .buttonStyle(PressStyle(scale: 0.98))
                 }

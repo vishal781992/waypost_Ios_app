@@ -152,7 +152,10 @@ final class AppState {
 
     let library = CuratedLibrary.shared
 
-    init() { restore() }
+    init() {
+        restore()
+        applyLaunchArguments()
+    }
 
     // MARK: Derived
 
@@ -221,13 +224,24 @@ final class AppState {
     /// Synthetic taps are not available on this simulator, so a pushed screen cannot be
     /// reached any other way when capturing one.
     func applyLaunchArguments() {
+        // Both spellings: the argument list, and the argument domain iOS builds from
+        // `-key value` pairs — which is the one that survives however the app was started.
         let args = ProcessInfo.processInfo.arguments
-        if let i = args.firstIndex(of: "-tab"), i + 1 < args.count,
-           let tab = AppTab(rawValue: args[i + 1]) {
-            self.tab = tab
+        func value(_ flag: String) -> String? {
+            if let i = args.firstIndex(of: "-" + flag), i + 1 < args.count { return args[i + 1] }
+            return UserDefaults.standard.string(forKey: flag)
         }
-        if let i = args.firstIndex(of: "-open-park"), i + 1 < args.count {
-            openPark(args[i + 1])
+        let wantedTab = value("wpTab").flatMap(AppTab.init(rawValue:))
+        let wantedPark = value("wpPark")
+        guard wantedTab != nil || wantedPark != nil else { return }
+
+        // Applied after the scene has settled. SwiftUI restores the tab view's own
+        // selection on launch and writes it back through the binding, and `go` clears
+        // the stack — so anything set here during init is overwritten a moment later.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(900))
+            if let wantedTab { self.tab = wantedTab }
+            if let wantedPark { self.openPark(wantedPark) }
         }
     }
 
