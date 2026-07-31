@@ -59,7 +59,7 @@ struct TripsScreen: View {
                         .buttonStyle(PressStyle(scale: 0.99))
                     }
 
-                    Text("Trips live on this iPhone. A shared trip opens read-only for whoever you send it to.")
+                    Text("Trips live on this iPhone and in iCloud. A shared trip opens read-only for whoever you send it to.")
                         .font(WP.bodyItalic(11.5))
                         .lineSpacing(3)
                         .opacity(0.5)

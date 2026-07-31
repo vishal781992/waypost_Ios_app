@@ -54,7 +54,7 @@ struct DetailSheet: View {
             Text(alert.title).font(WP.heading(24)).padding(.top, 11)
                 .multilineTextAlignment(.leading)
             Text(alert.body).font(WP.body(14)).lineSpacing(3).opacity(0.85).padding(.top, 8)
-            Text("Posted by the park. Waypost pushes these while a trip is running.")
+            Text("Posted by the park. ParkHop pushes these while a trip is running.")
                 .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.top, 12)
 
             GlowButton(title: "Understood") { dismiss() }
@@ -70,7 +70,7 @@ struct DetailSheet: View {
                 .font(WP.body(12)).tracking(1.5).foregroundStyle(WP.accent700)
             Text(drop.what).font(WP.heading(23)).padding(.top, 9)
                 .multilineTextAlignment(.leading)
-            Text("They \(drop.when.clockPadded) and are gone in minutes. Waypost can put a notification on your lock screen fifteen minutes before, with the booking link.")
+            Text("They \(drop.when.clockPadded) and are gone in minutes. ParkHop can put a notification on your lock screen fifteen minutes before, with the booking link.")
                 .font(WP.body(13.5)).lineSpacing(3).opacity(0.8).padding(.top, 6)
 
             // What that notification looks like.
@@ -81,7 +81,7 @@ struct DetailSheet: View {
                         .foregroundStyle(.white)
                         .frame(width: 22, height: 22)
                         .background(WP.accent, in: RoundedRectangle(cornerRadius: 6))
-                    Text("WAYPOST").font(WP.body(11.5)).opacity(0.75)
+                    Text("PARKHOP").font(WP.body(11.5)).opacity(0.75)
                     Spacer(minLength: 0)
                     Text("15m before").font(WP.body(11)).opacity(0.55)
                 }

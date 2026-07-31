@@ -313,7 +313,7 @@ struct NewTripSheet: View {
                         }
                     }
                 }
-                Text("Waypost will size an offline pack for each park and watch the permit windows for these dates.")
+                Text("ParkHop will size an offline pack for each park and watch the permit windows for these dates.")
                     .font(WP.bodyItalic(12)).opacity(0.6).lineSpacing(3).padding(.top, 14)
             }
             .padding(.horizontal, WP.gutter)

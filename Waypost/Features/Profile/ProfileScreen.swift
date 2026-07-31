@@ -9,7 +9,7 @@ struct ProfileScreen: View {
 
         VStack(spacing: 0) {
             ScreenHeader {
-                Text("Waypost \(AppVersion.short) · a field planner").kickerStyle()
+                Text("ParkHop \(AppVersion.short) · a field planner").kickerStyle()
                 Text("Profile").font(WP.display(31)).padding(.top, 4)
             }
 
@@ -41,14 +41,6 @@ struct ProfileScreen: View {
                             app.persist()
                         }
                     }
-
-                    sectionLabel("Home screen")
-                    SegmentedTrough(
-                        options: TodayTake.allCases.map { ($0, $0.label) },
-                        selection: Binding(get: { app.take }, set: { app.take = $0; app.persist() })
-                    )
-                    Text("Three ways to read the same day. The design ships all three; pick the one you think in.")
-                        .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.top, 6)
 
                     sectionLabel("Park packs for no signal")
                     Grouped {
@@ -110,11 +102,11 @@ struct ProfileScreen: View {
                         .padding(.horizontal, 14).padding(.vertical, 13)
                     }
 
-                    Text("Every panel says where its rows came from. What you are reading now is the curated field library that ships with the app — the live sources are being re-wired onto these screens, and until they are, nothing here claims to be today's measurement.")
+                    Text("Every panel says where its rows came from. What you are reading now is the curated field library that ships with ParkHop — the live sources are being re-wired onto these screens, and until they are, nothing here claims to be today's measurement.")
                         .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
                         .padding(.top, 22)
 
-                    Text("Always confirm campsites, permits and closures with the park before you travel. Waypost is a planner, not a promise.")
+                    Text("Always confirm campsites, permits and closures with the park before you travel. ParkHop is a planner, not a promise.")
                         .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3)
                         .padding(.top, 12)
                 }
@@ -136,7 +128,7 @@ struct ProfileScreen: View {
                 .background(WP.accent100, in: Circle())
             VStack(alignment: .leading, spacing: 3) {
                 Text("Miriam Halloran").font(WP.heading(20))
-                Text("Trips live on this iPhone").font(WP.body(12)).opacity(0.6)
+                Text("Trips synced by iCloud · 3 devices").font(WP.body(12)).opacity(0.6)
             }
             Spacer(minLength: 0)
         }

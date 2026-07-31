@@ -25,7 +25,7 @@ struct NearbyCard: View {
                 briefBody(brief)
                     .transition(Motion.panelTransition)
                 shortlist
-                footnote("Written on this iPhone by Apple Intelligence, from the figures above. It is not allowed to state a figure of its own — every number here is measured by Waypost — and nothing leaves the phone.")
+                footnote("Written on this iPhone by Apple Intelligence, from the figures above. It is not allowed to state a figure of its own — every number here is measured by ParkHop — and nothing leaves the phone.")
             case .unavailable(let reason):
                 shortlist
                 footnote(reason)
@@ -64,8 +64,8 @@ struct NearbyCard: View {
             Text("What could I reach today?")
                 .font(WP.heading(21))
             Text(briefing.modelAvailability == nil
-                 ? "Waypost measures the parks around you and writes you a short brief on the phone — no network, no account."
-                 : "Waypost measures the parks around you and ranks them by real distance.")
+                 ? "ParkHop measures the parks around you and writes you a short brief on the phone — no network, no account."
+                 : "ParkHop measures the parks around you and ranks them by real distance.")
                 .font(WP.body(12.5)).lineSpacing(2).opacity(0.72)
                 .fixedSize(horizontal: false, vertical: true)
 
