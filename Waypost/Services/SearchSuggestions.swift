@@ -130,7 +130,7 @@ final class SearchSuggestions {
         request.timeoutInterval = 12
 
         do {
-            let rows = try await HTTP.array(request)
+            let rows = try await NominatimGate.shared.run { try await HTTP.array(request) }
             return rows.compactMap { row -> Suggestion? in
                 let type = row["type"] as? String ?? ""
                 let category = (row["category"] as? String) ?? (row["class"] as? String) ?? ""

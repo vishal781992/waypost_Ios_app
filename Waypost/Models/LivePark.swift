@@ -60,16 +60,16 @@ extension CuratedPark {
             state: place.state,
             lat: place.lat,
             lon: place.lon,
-            // The tagline is a sentence about the park, which OSM does not carry. The
+            // The tagline is a sentence about the park, which neither map carries. The
             // designation goes in the kicker instead, so this says what is actually known.
-            tag: "Mapped in OpenStreetMap. Fees, hours and closures come from the park.",
+            tag: "Mapped in \(place.source.rawValue). Fees, hours and closures come from the park.",
             gw: "",
             region: CuratedPark.region(for: place.name + " " + (place.designation ?? "")),
             crowd: place.designation ?? "Protected area",
-            fee: "Not published by OpenStreetMap",
-            hours: "Not published by OpenStreetMap",
+            fee: "Not published by \(place.source.rawValue)",
+            hours: "Not published by \(place.source.rawValue)",
             res: false,
-            resNote: "OpenStreetMap does not carry entry reservations. Check with the park before you travel.",
+            resNote: "\(place.source.rawValue) does not carry entry reservations. Check with the park before you travel.",
             c: CuratedPark.palette(for: place.id),
             pack: "Not downloaded",
             wx: .unpublished,
@@ -82,7 +82,7 @@ extension CuratedPark {
             alerts: [],
             days: [],
             stamps: [],
-            source: .openStreetMap,
+            source: place.source,
             designation: place.designation ?? ParkDesignation.inName(place.name)
         )
     }

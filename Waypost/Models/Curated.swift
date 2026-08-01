@@ -212,6 +212,7 @@ enum ParkDesignation {
 /// Where a park record came from.
 enum CatalogueSource: String, Decodable, Hashable {
     case nps = "NPS"
+    case appleMaps = "Apple Maps"
     case openStreetMap = "OpenStreetMap"
     case curated = "the curated library"
 }

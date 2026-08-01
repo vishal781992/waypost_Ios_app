@@ -1,4 +1,5 @@
 import Foundation
+import MapKit
 
 /// Finding a park that is not one of the eight the app ships with.
 ///
@@ -71,7 +72,7 @@ final class ParkDirectory {
         inFlight = Task { [weak self] in
             guard let self else { return }
             // A short pause so a fast typist makes one request, not eight.
-            try? await Task.sleep(for: .milliseconds(280))
+            try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled else { return }
             await run(query: query)
         }
@@ -83,7 +84,8 @@ final class ParkDirectory {
         phase = .searching
         inFlight = Task { [weak self] in
             guard let self else { return }
-            let found = await overpass(lat: lat, lon: lon, radiusMiles: radiusMiles)
+            let found = await overpassPlaces(lat: lat, lon: lon, radiusMiles: radiusMiles)
+                .map { Hit(park: CuratedPark(osm: $0), source: $0.source) }
             guard !Task.isCancelled else { return }
             finish(found, anchor: (lat, lon))
         }
@@ -100,7 +102,8 @@ final class ParkDirectory {
                 phase = .unanswered("This iPhone did not give a location, and the fallback lookup did not answer either.")
                 return
             }
-            let found = await overpass(lat: fix.lat, lon: fix.lon, radiusMiles: radiusMiles)
+            let found = await overpassPlaces(lat: fix.lat, lon: fix.lon, radiusMiles: radiusMiles)
+                .map { Hit(park: CuratedPark(osm: $0), source: $0.source) }
             guard !Task.isCancelled else { return }
             finish(found, anchor: (fix.lat, fix.lon))
         }
@@ -110,37 +113,107 @@ final class ParkDirectory {
     /// state-wide Overpass query in thirty to ninety. Waiting for the slowest before
     /// showing anything is why a search for Texas looked like it had failed. Each source
     /// now publishes as it lands, and the list fills in.
+    /// Every source at once, and the screen updates whenever any of them lands.
+    ///
+    /// Running them in order cost the wait of all of them added together. They now run
+    /// together, except for Nominatim's own terms: it rate-limits a caller that opens
+    /// several connections at once and answers none of them, which is worse than asking
+    /// twice in a row. So the terms are a chain, and the chain publishes after each one.
     private func run(query: String) async {
-        var found: [Hit] = []
         answered = []
+        building = []
+        anchor = nil
 
-        // 1. Nominatim, first, because it is quick. Parks whose names match the words,
-        //    and — when the words are a state — the national parks in it.
-        let quick = await nominatimParks(query)
-        guard !Task.isCancelled else { return }
-        if !quick.places.isEmpty {
+        // A term searched a moment ago comes back instantly. People retype and backspace
+        // far more than they type something new.
+        if let cached = Self.cache[query.lowercased()] {
+            hits = cached
             answered.insert(.openStreetMap)
-            found += quick.places.map { Hit(park: CuratedPark(osm: $0), source: .openStreetMap) }
-            publish(found, anchor: quick.anchor)
+            phase = .ready
         }
 
-        // 2. NPS, when the proxy is reachable. Authoritative for its own units.
-        if nps.isReady {
-            let parks = await nps.search(query)
-            guard !Task.isCancelled else { return }
-            if !parks.isEmpty {
-                answered.insert(.nps)
-                found += parks.map { Hit(park: CuratedPark(live: $0), source: .nps) }
-                publish(found, anchor: quick.anchor)
+        let stateCode = USStates.abbreviation(for: query)
+
+        await withTaskGroup(of: Void.self) { group in
+            // The quick chain. A state needs asking twice — "Texas" alone returns the
+            // state polygon and no parks — and the first answer is on screen in about a
+            // second, before the second is even sent.
+            group.addTask { @MainActor in
+                // Apple Maps answers in well under a second and does not rate-limit.
+                // Nominatim does both the other way round — it refuses a second caller
+                // outright with a 429, which is how a working search came to look empty.
+                let terms = stateCode == nil
+                    ? ["national parks near \(query)", "state parks near \(query)"]
+                    : ["national parks in \(query)", "state parks in \(query)"]
+                for term in terms {
+                    if Task.isCancelled { return }
+                    self.absorb(places: await self.appleParks(term), state: stateCode)
+                }
+                // Only if Apple had nothing is Nominatim worth the wait.
+                if self.building.isEmpty, !Task.isCancelled {
+                    self.absorb(places: await self.nominatim(query), state: stateCode)
+                }
+                if let anchor = self.anchor, stateCode == nil {
+                    self.absorb(places: await self.overpassPlaces(lat: anchor.lat,
+                                                                  lon: anchor.lon,
+                                                                  radiusMiles: 150),
+                                state: nil)
+                }
+            }
+
+            // NPS in parallel rather than after it: when the proxy refuses, the refusal
+            // costs nothing, because nothing is waiting behind it.
+            if nps.isReady {
+                group.addTask { @MainActor in
+                    self.absorb(parks: await self.nps.search(query))
+                }
+            }
+
+            // A state is somewhere the slow sweep can start on immediately — it needs
+            // nothing geocoded first.
+            if let stateCode {
+                group.addTask { @MainActor in
+                    self.absorb(places: await self.overpassPlacesInState(stateCode),
+                                state: stateCode)
+                }
             }
         }
 
-        // 3. Overpass last: it is the slow one, and the one that knows about the state
-        //    and county parks the others miss.
-        let osm = await openStreetMapSearch(query, anchor: quick.anchor)
         guard !Task.isCancelled else { return }
-        found += osm.hits
-        finish(found, anchor: osm.anchor ?? quick.anchor)
+        finish(building, anchor: anchor)
+        Self.cache[query.lowercased()] = hits
+    }
+
+    /// What the sources have handed over so far, and the point they are measured from.
+    private var building: [Hit] = []
+    private var anchor: (lat: Double, lon: Double)?
+
+    private func absorb(places: [OSMPlace], state: String?) {
+        for place in places {
+            // A row from another state is not an answer to "Texas".
+            if let state, !place.state.isEmpty, place.state != state { continue }
+            if place.isPark {
+                building.append(Hit(park: CuratedPark(osm: place), source: place.source))
+            } else if anchor == nil {
+                anchor = (place.lat, place.lon)
+            }
+        }
+        if anchor == nil, let first = building.first {
+            anchor = (first.park.lat, first.park.lon)
+        }
+        publish(building, anchor: state == nil ? anchor : nil)
+    }
+
+    private func absorb(parks: [Park]) {
+        guard !parks.isEmpty else { return }
+        answered.insert(.nps)
+        building += parks.map { Hit(park: CuratedPark(live: $0), source: .nps) }
+        publish(building, anchor: anchor)
+    }
+
+    /// Searches already run this session. Small on purpose — a typing aid, not a database.
+    private static var cache: [String: [Hit]] = [:] {
+        didSet { if cache.count > 24 { cache.removeAll() } }
     }
 
     /// Results so far, on screen now, without declaring the search over.
@@ -219,46 +292,41 @@ final class ParkDirectory {
 
     // MARK: OpenStreetMap
 
-    private func openStreetMapSearch(_ query: String, anchor: (lat: Double, lon: Double)?)
-        async -> (hits: [Hit], anchor: (lat: Double, lon: Double)?) {
-        // A state name is answered from the whole state, not from a radius around its
-        // centre — Texas is wider than any radius worth using.
-        if let abbreviation = USStates.abbreviation(for: query) {
-            return (await overpassInState(abbreviation), nil)
-        }
-        guard let anchor else { return ([], nil) }
-        return (await overpass(lat: anchor.lat, lon: anchor.lon, radiusMiles: 150), anchor)
-    }
 
-    /// The quick pass: Nominatim, which answers in about a second.
+    /// Parks by name, city or state, from Apple Maps.
     ///
-    /// It is asked twice for a state — once for the words themselves, once for the
-    /// national parks in that state, because "Texas" alone returns the state polygon and
-    /// no parks at all. Rows outside the named state are dropped.
-    private func nominatimParks(_ query: String)
-        async -> (places: [OSMPlace], anchor: (lat: Double, lon: Double)?) {
-        let stateCode = USStates.abbreviation(for: query)
-        var terms = [query]
-        if stateCode != nil {
-            terms = ["National Park, \(query)", "State Park, \(query)", query]
-        }
+    /// This is the fast half of the search: MapKit answers a natural-language query in a
+    /// fraction of a second, needs no key and has no rate limit worth worrying about.
+    /// Anything whose name does not carry a designation is dropped — "parks in Texas"
+    /// otherwise returns car parks, trailer parks and the Texas Rangers.
+    private func appleParks(_ term: String) async -> [OSMPlace] {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = term
+        request.resultTypes = .pointOfInterest
 
-        var places: [OSMPlace] = []
-        var anchor: (lat: Double, lon: Double)?
-
-        for term in terms {
-            let rows = await nominatim(term)
-            guard !Task.isCancelled else { break }
-            for place in rows {
-                if let stateCode, place.state != stateCode, !place.state.isEmpty { continue }
-                if place.isPark { places.append(place) }
-                else if anchor == nil { anchor = (place.lat, place.lon) }
+        do {
+            let response = try await MKLocalSearch(request: request).start()
+            answered.insert(.appleMaps)
+            return response.mapItems.compactMap { item -> OSMPlace? in
+                guard let name = item.name,
+                      let designation = ParkDesignation.inName(name) else { return nil }
+                let placemark = item.placemark
+                return OSMPlace(
+                    id: "apple-\(name)-\(placemark.coordinate.latitude),\(placemark.coordinate.longitude)",
+                    name: name,
+                    lat: placemark.coordinate.latitude,
+                    lon: placemark.coordinate.longitude,
+                    state: placemark.administrativeArea.flatMap { USStates.abbreviation(for: $0) ?? $0 } ?? "",
+                    designation: designation,
+                    isPark: true,
+                    website: item.url?.absoluteString,
+                    source: .appleMaps
+                )
             }
-            // A named park anchors the radius search that follows it.
-            if anchor == nil, let first = places.first { anchor = (first.lat, first.lon) }
-            if stateCode == nil, !places.isEmpty || anchor != nil { break }
+        } catch {
+            failures.note("parks (Apple Maps)", error)
+            return []
         }
-        return (places, stateCode == nil ? anchor : nil)
     }
 
     /// Places for a set of words. Nominatim asks for a real user agent and refuses
@@ -280,7 +348,8 @@ final class ParkDirectory {
 
         do {
             answered.insert(.openStreetMap)
-            return try await HTTP.array(request).compactMap(OSMPlace.init(nominatim:))
+            let rows = try await NominatimGate.shared.run { try await HTTP.array(request) }
+            return rows.compactMap(OSMPlace.init(nominatim:))
         } catch {
             failures.note("place lookup (Nominatim)", error)
             return []
@@ -298,8 +367,8 @@ final class ParkDirectory {
         "|National Lakeshore|National Recreation Area|National Historical Park" +
         "|State Park|State Recreation Area|Wilderness"
 
-    /// The protected areas inside one state.
-    private func overpassInState(_ abbreviation: String) async -> [Hit] {
+    /// The protected areas inside one state, as places.
+    private func overpassPlacesInState(_ abbreviation: String) async -> [OSMPlace] {
         let query = """
         [out:json][timeout:80];
         area["ISO3166-2"="US-\(abbreviation)"][admin_level=4]->.a;
@@ -309,10 +378,10 @@ final class ParkDirectory {
         );
         out tags center 200;
         """
-        return await overpass(query, state: abbreviation)
+        return await overpassPlaces(query, state: abbreviation)
     }
 
-    private func overpass(lat: Double, lon: Double, radiusMiles: Int) async -> [Hit] {
+    private func overpassPlaces(lat: Double, lon: Double, radiusMiles: Int) async -> [OSMPlace] {
         let metres = Int(Double(radiusMiles) * 1609.34)
         let query = """
         [out:json][timeout:80];
@@ -322,7 +391,7 @@ final class ParkDirectory {
         );
         out tags center 200;
         """
-        return await overpass(query, state: nil)
+        return await overpassPlaces(query, state: nil)
     }
 
     /// The public Overpass servers are free and correspondingly busy — the main one
@@ -334,7 +403,7 @@ final class ParkDirectory {
         "https://overpass.kumi.systems/api/interpreter",
     ]
 
-    private func overpass(_ query: String, state: String?) async -> [Hit] {
+    private func overpassPlaces(_ query: String, state: String?) async -> [OSMPlace] {
         var lastError: Error?
         var answeredAtAll = false
         for host in Self.overpassHosts {
@@ -360,7 +429,7 @@ final class ParkDirectory {
                 // mirror is asked, so an empty answer is not accepted as the answer.
                 if places.isEmpty { continue }
                 answered.insert(.openStreetMap)
-                return places.map { Hit(park: CuratedPark(osm: $0), source: .openStreetMap) }
+                return places
             } catch {
                 lastError = error
                 continue
@@ -389,6 +458,23 @@ struct OSMPlace: Hashable {
     var designation: String?
     var isPark: Bool
     var website: String?
+    /// Which map this came off. Apple Maps and OpenStreetMap know different things and
+    /// the card says which one it is reading.
+    var source: CatalogueSource = .openStreetMap
+
+    init(id: String, name: String, lat: Double, lon: Double,
+         state: String, designation: String?, isPark: Bool, website: String?,
+         source: CatalogueSource = .openStreetMap) {
+        self.id = id
+        self.name = name
+        self.lat = lat
+        self.lon = lon
+        self.state = state
+        self.designation = designation
+        self.isPark = isPark
+        self.website = website
+        self.source = source
+    }
 
     init?(nominatim row: [String: Any]) {
         guard let lat = Double(row["lat"] as? String ?? ""),
