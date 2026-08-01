@@ -1,4 +1,5 @@
 import Foundation
+import Network
 
 /// Where every failed source is recorded.
 ///
@@ -149,4 +150,23 @@ func safeURL(_ raw: String?) -> URL? {
         return nil
     }
     return URL(string: raw)
+}
+
+
+/// Whether it is fair to spend the user's data.
+///
+/// Prefetching sixty-two photographs is a kindness on wi-fi and a rudeness on a metered
+/// connection abroad. `NWPathMonitor` answers cheaply, and the answer is only ever used
+/// to decide whether to do optional work.
+enum Network {
+    private static let monitor: NWPathMonitor = {
+        let monitor = NWPathMonitor()
+        monitor.start(queue: DispatchQueue(label: "us.parkhop.network-path"))
+        return monitor
+    }()
+
+    static var isUnmetered: Bool {
+        let path = monitor.currentPath
+        return path.status == .satisfied && !path.isExpensive && !path.isConstrained
+    }
 }

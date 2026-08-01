@@ -31,6 +31,7 @@ final class ParkPhotos {
 
     private(set) var photos: [String: Photo] = [:]
     private var inFlight: Set<String> = []
+    fileprivate var isPrefetching = false
     private let failures = FailureLog()
     private var proxy: ProxyConfig { ProxyConfig() }
 
@@ -58,6 +59,58 @@ final class ParkPhotos {
                 persist()
             }
         }
+    }
+
+    /// Fills the store with a photograph for every national park in the country.
+    ///
+    /// Sixty-two pictures at roughly 250 KB each is about fifteen megabytes — worth
+    /// spending once, on wi-fi, so that every park screen opens instantly afterwards and
+    /// keeps working with no signal. It runs at most once a fortnight, four at a time so
+    /// it never competes with whatever the user is actually looking at, and only while
+    /// the connection is unmetered.
+    func prefetchNationalParks() {
+        let key = "parkhop-photo-prefetch"
+        let last = UserDefaults.standard.object(forKey: key) as? Date
+        if let last, Date().timeIntervalSince(last) < 14 * 24 * 3600 { return }
+        guard !isPrefetching else { return }
+        isPrefetching = true
+
+        Task.detached(priority: .background) {
+            defer { Task { @MainActor in ParkPhotos.shared.isPrefetching = false } }
+
+            // `NWPathMonitor` has not necessarily settled the instant the app launches,
+            // and an unsettled path is not the same as a metered one. Give it a moment
+            // before deciding to spend somebody's data — or not to.
+            for _ in 0..<5 where !Network.isUnmetered {
+                try? await Task.sleep(for: .milliseconds(400))
+            }
+            guard Network.isUnmetered else { return }
+
+            let parks = await MainActor.run { NationalParks.all.map { CuratedPark(bundled: $0) } }
+            await withTaskGroup(of: Void.self) { group in
+                var running = 0
+                for park in parks {
+                    if running >= 4 { await group.next(); running -= 1 }
+                    group.addTask { await ParkPhotos.shared.prefetch(park) }
+                    running += 1
+                }
+            }
+            // Recorded on the way out, not on the way in: a run that never happened
+            // should not stop the next one for a fortnight.
+            UserDefaults.standard.set(Date(), forKey: key)
+        }
+    }
+
+    /// One park: find the photograph if it is not known, then put it on disk.
+    fileprivate func prefetch(_ park: CuratedPark) async {
+        if photos[park.code] == nil {
+            if let found = await wikipediaPhoto(park) {
+                photos[park.code] = found
+                persist()
+            }
+        }
+        guard let photo = photos[park.code] else { return }
+        await PhotoStore.shared.fetch(photo.url)
     }
 
     // MARK: Sources
@@ -111,8 +164,9 @@ final class ParkPhotos {
 
     // MARK: Persistence
     //
-    // Only the resolved URLs are kept. The images themselves are left to URLCache, which
-    // already does this better than a hand-rolled disk cache would.
+    // Only the resolved URLs are kept here. The pictures themselves live in PhotoStore,
+    // downsized to what the screen can show and capped, so a phone cannot quietly fill up
+    // with photographs of state parks somebody scrolled past once.
 
     private struct Stored: Codable {
         var url: URL
@@ -163,19 +217,10 @@ struct ParkImage: View {
         BlobField(colors: park.c.map { Color(css: $0) }, scrim: showsScrim, topLight: topLight)
             .overlay {
                 if let photo {
-                    AsyncImage(url: photo.url,
-                               transaction: Transaction(animation: .easeOut(duration: 0.5))) { phase in
-                        if case .success(let image) = phase {
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .blur(radius: blur, opaque: false)
-                                .saturation(saturation)
-                                .scaleEffect(blur > 0 ? 1.2 : 1)   // hide the blur's soft edge
-                                .transition(.opacity)
-                        }
-                    }
-                    .allowsHitTesting(false)
+                    // From the phone if it is there; from the network once, and from the
+                    // phone every time after that.
+                    CachedPhoto(url: photo.url, blur: blur, saturation: saturation)
+                        .allowsHitTesting(false)
                 }
             }
             .overlay {
@@ -193,5 +238,41 @@ struct ParkImage: View {
             }
             .clipped()
             .task(id: park.code) { ParkPhotos.shared.load(park) }
+    }
+}
+
+
+/// One photograph, read from the store.
+///
+/// `AsyncImage` fetches straight from the network every time a view is rebuilt and keeps
+/// whatever it gets in memory only. This goes through `PhotoStore` instead: sized down
+/// once, written to disk, and read from there afterwards — which is what makes a park
+/// screen work on a road with two bars, and what makes the same picture cost nothing the
+/// second time.
+struct CachedPhoto: View {
+    var url: URL
+    var blur: CGFloat = 0
+    var saturation: Double = 1
+
+    @State private var image: UIImage?
+
+    var body: some View {
+        // `Color.clear` rather than a bare conditional: a view that renders as empty is
+        // an `EmptyView`, and SwiftUI never runs `.task` on one — which is exactly how
+        // every photograph in the app quietly stopped loading.
+        Color.clear
+            .overlay {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .blur(radius: blur, opaque: false)
+                        .saturation(saturation)
+                        .scaleEffect(blur > 0 ? 1.2 : 1)   // hides the blur's soft edge
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: 0.45), value: image != nil)
+            .task(id: url) { image = await PhotoStore.shared.fetch(url) }
     }
 }

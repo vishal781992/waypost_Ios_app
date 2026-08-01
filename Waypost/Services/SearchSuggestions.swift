@@ -95,12 +95,20 @@ final class SearchSuggestions {
         }
         out.sort { $0.title < $1.title }
 
-        // Parks the app already holds, then parks the last search turned up.
-        var parks: [Suggestion] = library.orderedParks
+        // Every national park in the country, from the list on the phone.
+        var parks: [Suggestion] = NationalParks.search(text)
+            .prefix(5)
+            .map { Suggestion(kind: .park, title: $0.name,
+                              subtitle: "\($0.designation) · \($0.state)",
+                              query: $0.full) }
+
+        // Then the eight the app carries in full, and the last search's finds.
+        parks += library.orderedParks
             .filter { $0.name.lowercased().contains(needle) || $0.full.lowercased().contains(needle) }
             .map { Suggestion(kind: .park, title: $0.name,
                               subtitle: "\($0.designationLabel) · \($0.state)",
                               query: $0.name) }
+            .filter { suggestion in !parks.contains { $0.title == suggestion.title } }
 
         let already = Set(parks.map { $0.title.lowercased() })
         parks += knownParks

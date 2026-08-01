@@ -31,7 +31,12 @@ struct TodayScreen: View {
             }
             .scrollIndicators(.hidden)
         }
-        .task { app.refreshRecommendation() }
+        .task {
+            app.refreshRecommendation()
+            // Every national park's photograph, once, on wi-fi — so the app keeps its
+            // pictures on a road with no signal.
+            ParkPhotos.shared.prefetchNationalParks()
+        }
     }
 
     /// The masthead: the app's name at display size, and one glass control that starts a

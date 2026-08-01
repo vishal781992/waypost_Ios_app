@@ -1,0 +1,99 @@
+import Foundation
+
+/// Every national park in the country, on the phone.
+///
+/// Nine and a half kilobytes buys the whole list: name, full name, state, coordinates and
+/// designation for all sixty-two. That is small enough to ship, and it changes what the
+/// search is. Before this, finding a park meant asking Apple Maps or Overpass and waiting
+/// — offline you could find eight. Now every park answers instantly, with no network, and
+/// the live sources become enrichment rather than the only way in.
+///
+/// Built from Wikidata for the parks and the US Census geocoder for the states, by
+/// `tools/build-national-parks.mjs`. It is a list of places, not a claim about any of
+/// them: no fees, no hours, no conditions. Those still come from the park.
+struct NationalPark: Decodable, Hashable, Identifiable {
+    let code: String
+    let name: String
+    let full: String
+    let state: String
+    let lat: Double
+    let lon: Double
+    let designation: String
+
+    var id: String { code }
+}
+
+enum NationalParks {
+    static let all: [NationalPark] = {
+        guard let url = Bundle.main.url(forResource: "national-parks", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let parks = try? JSONDecoder().decode([NationalPark].self, from: data)
+        else {
+            assertionFailure("national-parks.json missing from the bundle")
+            return []
+        }
+        return parks
+    }()
+
+    /// Name, full name or state, matched locally. The whole list is 62 rows, so this is
+    /// a linear scan and is still faster than any request could be.
+    static func search(_ query: String) -> [NationalPark] {
+        let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard needle.count >= 2 else { return [] }
+
+        let stateCode = USStates.abbreviation(for: needle)
+        return all.filter { park in
+            if let stateCode, park.state.contains(stateCode) { return true }
+            return park.name.lowercased().contains(needle)
+                || park.full.lowercased().contains(needle)
+        }
+    }
+
+    /// The parks nearest a point, for the shelf and the recommendation.
+    static func near(lat: Double, lon: Double, limit: Int = 8) -> [(park: NationalPark, miles: Int)] {
+        all.map { ($0, Geo.haversine((lat, lon), ($0.lat, $0.lon))) }
+            .sorted { $0.1 < $1.1 }
+            .prefix(limit)
+            .map { (park: $0.0, miles: Int($0.1.rounded())) }
+    }
+
+    static func park(code: String) -> NationalPark? { all.first { $0.code == code } }
+}
+
+extension CuratedPark {
+    /// A bundled park, in the shape the screens draw. Everything a live record leaves
+    /// blank is blank here too — this list knows where a park is and what it is called,
+    /// and says nothing it does not know.
+    init(bundled park: NationalPark) {
+        self.init(
+            code: park.code,
+            name: park.name,
+            full: park.full,
+            state: park.state,
+            lat: park.lat,
+            lon: park.lon,
+            tag: "On this iPhone. Fees, hours and closures come from the park.",
+            gw: "",
+            region: CuratedPark.region(for: park.full),
+            crowd: park.designation,
+            fee: "Not published in the on-device list",
+            hours: "Not published in the on-device list",
+            res: false,
+            resNote: "Entry reservations are not carried on the phone. Check with the park before you travel.",
+            c: CuratedPark.palette(for: park.code),
+            pack: "Not downloaded",
+            wx: .unpublished,
+            gates: [],
+            parking: "",
+            airports: [],
+            camping: [],
+            lodging: [],
+            fuel: CuratedFuel(gas: [], fast: [], slow: []),
+            alerts: [],
+            days: [],
+            stamps: [],
+            source: .onDevice,
+            designation: park.designation
+        )
+    }
+}

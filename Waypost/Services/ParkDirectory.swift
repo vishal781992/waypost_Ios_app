@@ -134,6 +134,16 @@ final class ParkDirectory {
 
         let stateCode = USStates.abbreviation(for: query)
 
+        // The list on the phone, first and instantly. Sixty-two parks, no network, no
+        // wait — whatever the sources add after this is added to something already on
+        // screen rather than to an empty page.
+        let bundled = NationalParks.search(query)
+        if !bundled.isEmpty {
+            answered.insert(.onDevice)
+            building = bundled.map { Hit(park: CuratedPark(bundled: $0), source: .onDevice) }
+            publish(building, anchor: nil)
+        }
+
         await withTaskGroup(of: Void.self) { group in
             // The quick chain. A state needs asking twice — "Texas" alone returns the
             // state polygon and no parks — and the first answer is on screen in about a

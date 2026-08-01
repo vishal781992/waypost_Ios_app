@@ -4,6 +4,21 @@ import SwiftUI
 struct ProfileScreen: View {
     @Environment(AppState.self) private var app
 
+    /// Measured off the disk rather than estimated: this is the one storage number on
+    /// the screen that is a fact.
+    @State private var photoBytes = 0
+
+    private var photoStorageLine: String {
+        guard photoBytes > 0 else { return "No park photographs stored yet" }
+        let megabytes = Double(photoBytes) / 1024 / 1024
+        let cap = PhotoStore.capBytes / 1024 / 1024
+        return String(format: "%.0f MB of park photographs · %d MB ceiling", megabytes, cap)
+    }
+
+    private func measurePhotos() async {
+        photoBytes = await PhotoStore.shared.bytesUsed
+    }
+
     var body: some View {
         @Bindable var app = app
 
@@ -49,11 +64,36 @@ struct ProfileScreen: View {
                             if index < app.library.orderedParks.count - 1 { Hairline() }
                         }
                         Hairline()
-                        Text("\(app.packStorageMB) MB of park packs on this iPhone")
-                            .font(WP.bodyItalic(11.5)).opacity(0.6)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 11)
+                        // The pack figure is the curated library's own; the photograph
+                        // figure is measured off the disk, because that one is real.
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("\(app.packStorageMB) MB of park packs on this iPhone")
+                                .font(WP.bodyItalic(11.5)).opacity(0.6)
+                            HStack(spacing: 10) {
+                                Text(photoStorageLine)
+                                    .font(WP.bodyItalic(11.5)).opacity(0.6)
+                                Spacer(minLength: 0)
+                                if photoBytes > 0 {
+                                    Button {
+                                        Task {
+                                            await PhotoStore.shared.clear()
+                                            await measurePhotos()
+                                            app.show("Photographs cleared")
+                                        }
+                                    } label: {
+                                        Text("Clear")
+                                            .font(WP.headingUI(12))
+                                            .padding(.horizontal, 12)
+                                            .frame(minHeight: 28)
+                                            .glassControl(shadow: false)
+                                    }
+                                    .buttonStyle(PressStyle(scale: 0.95))
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 11)
                     }
 
                     sectionLabel("Travel defaults")
@@ -117,6 +157,7 @@ struct ProfileScreen: View {
             }
             .scrollIndicators(.hidden)
         }
+        .task { await measurePhotos() }
     }
 
     private var identity: some View {
