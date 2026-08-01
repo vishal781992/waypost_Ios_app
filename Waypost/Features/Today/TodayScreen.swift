@@ -9,6 +9,10 @@ import SwiftUI
 struct TodayScreen: View {
     @Environment(AppState.self) private var app
 
+    /// The `+` opens a search rather than the trip builder: the first question anybody
+    /// has is where to go, not how many nights.
+    @State private var showsSearch = false
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -18,6 +22,8 @@ struct TodayScreen: View {
                     if let park = app.featuredPark {
                         WhereYouAreCard(park: park)
                         NearbyRail(park: park)
+                    } else {
+                        ChoosingCard()
                     }
                     if let leg = app.todayLeg {
                         DrivingDayCard(leg: leg)
@@ -32,6 +38,12 @@ struct TodayScreen: View {
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }
+        .onChange(of: app.showsQuickSearch) { _, wanted in showsSearch = wanted }
+        .sheet(isPresented: $showsSearch) {
+            QuickSearchSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .task {
             app.refreshRecommendation()
             // Every national park's photograph, once, on wi-fi — so the app keeps its
@@ -45,15 +57,15 @@ struct TodayScreen: View {
     private var header: some View {
         HStack(spacing: 10) {
             Text("ParkHop")
-                .font(.system(size: 42, weight: .bold))
-                .tracking(-0.8)
+                .font(WP.displayBold(44))
+                .tracking(-0.4)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
             Spacer(minLength: 0)
 
             Button {
-                app.startBuilder()
+                showsSearch = true
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 19, weight: .medium))
@@ -72,7 +84,7 @@ struct TodayScreen: View {
                     .shadow(color: Color(hex: 0x181008, opacity: 0.16), radius: 8, y: 5)
             }
             .buttonStyle(PressStyle(scale: 0.94))
-            .accessibilityLabel("Add a park")
+            .accessibilityLabel("Find a park")
         }
         .frame(minHeight: 52)
         .padding(.horizontal, WP.gutter)
@@ -146,6 +158,47 @@ struct WhereYouAreCard: View {
     }
 }
 
+/// The hero while the recommendation is being worked out.
+///
+/// The same shape and the same height as the card it becomes, so nothing moves when the
+/// answer arrives. It says what it is doing rather than showing a park chosen for it.
+struct ChoosingCard: View {
+    @State private var breathing = false
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            BlobField(colors: [WP.neutral300, WP.neutral200, WP.neutral100])
+                .opacity(breathing ? 0.75 : 1)
+                .animation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true),
+                           value: breathing)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Worth the drive today".uppercased())
+                    .font(.system(size: 9.5))
+                    .tracking(1.7)
+                    .opacity(0.55)
+                Text("Finding one")
+                    .font(WP.display(34))
+                    .opacity(0.75)
+                Text("Reading where you are and what the weather is doing there")
+                    .font(WP.bodyItalic(12))
+                    .opacity(0.6)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .liquidGlass(.pill, radius: 18)
+            .padding(10)
+        }
+        .frame(height: 456)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous)
+            .stroke(.white.opacity(0.42), lineWidth: 0.5))
+        .onAppear { breathing = true }
+    }
+}
+
 // MARK: - Near here
 
 /// What else is within reach of where you are standing. Measured from the park's own
@@ -155,10 +208,23 @@ struct NearbyRail: View {
     @Environment(AppState.self) private var app
     var park: CuratedPark
 
+    /// Measured from where the phone is when it will say, and from the featured park
+    /// when it will not — because "near" has to be near something, and the honest
+    /// fallback is the park you are looking at.
+    private var origin: (lat: Double, lon: Double) {
+        app.recommender.fix ?? (park.lat, park.lon)
+    }
+
     private var neighbours: [(park: CuratedPark, miles: Int)] {
-        app.library.orderedParks
-            .filter { $0.code != park.code }
-            .map { ($0, Geo.haversine((park.lat, park.lon), ($0.lat, $0.lon))) }
+        let all = app.library.orderedParks
+            + NationalParks.all.map(CuratedPark.init(bundled:))
+        // The same park carries different codes in the curated library and the on-device
+        // list — "romo" and "np-rocky-mountain" — so the featured park was appearing
+        // again as the first tile under itself. Names are what a reader compares.
+        var seen: Set<String> = [park.name]
+        return all
+            .filter { $0.code != park.code && seen.insert($0.name).inserted }
+            .map { ($0, Geo.haversine(origin, ($0.lat, $0.lon))) }
             .sorted { $0.1 < $1.1 }
             .prefix(4)
             .map { (park: $0.0, miles: Int(($0.1 / 5).rounded()) * 5) }
@@ -178,7 +244,7 @@ struct NearbyRail: View {
                     HStack(spacing: 5) {
                         Image(systemName: "mappin.and.ellipse")
                             .font(.system(size: 11))
-                        Text("Near \(park.gw)")
+                        Text("Near \(app.recommender.placeName ?? park.gw)")
                             .font(WP.body(13.5))
                     }
                     Text(radiusLabel)

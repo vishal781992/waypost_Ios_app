@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 
 /// Which park to put at the top of the home screen today.
@@ -30,6 +31,9 @@ final class Recommender {
 
     private(set) var pick: Pick?
     private(set) var isWorking = false
+    /// Where the phone said it was, in words, for the screens that measure from it.
+    private(set) var placeName: String?
+    private(set) var fix: (lat: Double, lon: Double)?
 
     private let location = LocationService()
     private let failures = FailureLog()
@@ -64,6 +68,16 @@ final class Recommender {
                 let first = await group.next() ?? nil
                 group.cancelAll()
                 return first
+            }
+
+            if let fix {
+                self.fix = (fix.lat, fix.lon)
+                self.placeName = fix.city
+                // An IP lookup often answers with a township nobody has heard of, so a
+                // nameless fix is snapped to the nearest town Apple Maps does know.
+                if self.placeName == nil {
+                    self.placeName = await Self.nearestPlaceName(lat: fix.lat, lon: fix.lon)
+                }
             }
 
             // Distance first, because it is free — then only the nearest handful are
@@ -112,6 +126,13 @@ final class Recommender {
             pick = best
             recent = [best.park.code] + recent.filter { $0 != best.park.code }
         }
+    }
+
+    /// The town a coordinate is in, from Apple Maps.
+    private static func nearestPlaceName(lat: Double, lon: Double) async -> String? {
+        let placemarks = try? await CLGeocoder()
+            .reverseGeocodeLocation(CLLocation(latitude: lat, longitude: lon))
+        return placemarks?.first.flatMap { $0.locality ?? $0.subAdministrativeArea }
     }
 
     // MARK: Scoring

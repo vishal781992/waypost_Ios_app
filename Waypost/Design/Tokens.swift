@@ -85,6 +85,15 @@ enum WP {
     /// Nowhere smaller. In a list row or a nav bar the serif thins out and the app gets
     /// back the uneven texture 2.1.1 removed, so those stay on `heading`. Sizes are the
     /// design's own, with no SF scaling — they were drawn in this face.
+    /// The masthead weight: Cormorant Garamond at 700, cut from the variable original.
+    /// Only the app's own name is set in it — a display serif this heavy stops being a
+    /// heading and starts being a logotype.
+    static func displayBold(_ size: CGFloat) -> Font {
+        scaled(.custom("CormorantGaramond-Bold", size: size),
+               uiFont: UIFont(name: "CormorantGaramond-Bold", size: size),
+               style: .largeTitle, size: size, cap: 1.4)
+    }
+
     static func display(_ size: CGFloat) -> Font {
         scaled(.custom("CormorantGaramond-SemiBold", size: size),
                uiFont: UIFont(name: "CormorantGaramond-SemiBold", size: size),

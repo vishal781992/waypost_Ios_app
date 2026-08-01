@@ -199,7 +199,17 @@ final class ParkDirectory {
     private var anchor: (lat: Double, lon: Double)?
 
     private func absorb(places: [OSMPlace], state: String?) {
-        for place in places {
+        for var place in places {
+            // A park that is already in the list on the phone keeps that list's code, so
+            // it resolves to the photograph already cached against it rather than being
+            // looked up again as though it were a stranger.
+            if let bundled = NationalParks.all.first(where: {
+                $0.full.caseInsensitiveCompare(place.name) == .orderedSame
+                    || $0.name.caseInsensitiveCompare(CuratedPark.shortName(place.name)) == .orderedSame
+            }) {
+                place.id = bundled.code
+                if place.state.isEmpty { place.state = bundled.state }
+            }
             // A row from another state is not an answer to "Texas".
             if let state, !place.state.isEmpty, place.state != state { continue }
             if place.isPark {

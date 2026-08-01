@@ -147,6 +147,9 @@ final class AppState {
     /// and the suggestions are visible without a tap.
     var focusSearchOnAppear = false
 
+    /// Opens the search behind the home screen's `+`, for capture.
+    var showsQuickSearch = false
+
     /// Picking one searches for the term the sources will recognise, not the two letters
     /// that were typed.
     func takeSuggestion(_ suggestion: SearchSuggestions.Suggestion) {
@@ -265,7 +268,8 @@ final class AppState {
         guard wantedTab != nil || wantedPark != nil
                 || value("wpSearch") != nil || value("wpTrip") != nil
                 || value("wpBuilder") != nil || value("wpStateParks") != nil
-                || value("wpEmpty") != nil || value("wpSheet") != nil else { return }
+                || value("wpEmpty") != nil || value("wpSheet") != nil
+                || value("wpFind") != nil else { return }
 
         // Applied after the scene has settled. SwiftUI restores the tab view's own
         // selection on launch and writes it back through the binding, and `go` clears
@@ -299,6 +303,11 @@ final class AppState {
                 }
             }
             if value("wpStateParks") != nil { self.tab = .discover; self.discoverShowsState = true }
+            if let term = value("wpFind") {
+                self.tab = .today
+                self.showsQuickSearch = true
+                if term != "1" { self.suggestions.update(term); self.directory.search(term) }
+            }
 
             // The empty states, which are otherwise only reachable by deleting things.
             if let empty = value("wpEmpty") {
@@ -353,16 +362,17 @@ final class AppState {
         return codes
     }
 
-    /// The park the home screen leads with — the recommendation once it has been worked
-    /// out, and the trip's own park until then, so the hero is never empty.
-    var featuredPark: CuratedPark? { recommender.pick?.park ?? todayPark }
+    /// The park the home screen leads with. Nil until the recommendation has been worked
+    /// out — the screen used to open on whichever park the seed trip happened to be in
+    /// and then swap, which read as the app changing its mind in front of you.
+    var featuredPark: CuratedPark? { recommender.pick?.park }
+
+    /// True while it is still being worked out, so the screen can say so rather than
+    /// showing a park it is about to replace.
+    var isChoosingFeature: Bool { recommender.pick == nil }
 
     /// The line under its name: why this park, or where you are in the trip.
-    var featuredReason: String {
-        if let pick = recommender.pick { return pick.reason }
-        guard let park = todayPark else { return "" }
-        return "Day \(today.n ?? 1) of \(today.of ?? 1) in park · \(park.gw)"
-    }
+    var featuredReason: String { recommender.pick?.reason ?? "" }
 
     /// Asks for a fresh recommendation. Called every time the home screen appears, and
     /// the recommender itself holds back the last two so it lands somewhere new.
