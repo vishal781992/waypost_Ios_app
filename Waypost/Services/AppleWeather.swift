@@ -1,6 +1,6 @@
 import Foundation
 import CoreLocation
-#if canImport(WeatherKit)
+#if PARKHOP_WEATHERKIT
 import WeatherKit
 #endif
 
@@ -10,11 +10,21 @@ import WeatherKit
 /// high and low, UV index, wind, sunrise and sunset all come from one call, already in
 /// the user's units, with no key in the app and no proxy in front of it.
 ///
-/// It is also the only source here that can be switched off by something outside the
-/// code: WeatherKit needs the capability on the App ID and a paid developer account, and
-/// without the entitlement every call throws. That is why it is a source rather than
-/// *the* source — when it is unavailable the app falls back to Open-Meteo and the panel
-/// says which one answered, exactly as it does for every other feed.
+/// **It is switched off, and the code is kept.**
+///
+/// The entitlement requires a paid Apple Developer Program membership. Signing with a
+/// free personal team, Xcode cannot generate a provisioning profile carrying it, so the
+/// build fails before any of this runs — Apple policy, not a fault in the project. Rather
+/// than delete a working implementation for a billing reason, it is compiled out behind
+/// `PARKHOP_WEATHERKIT`, which is not defined.
+///
+/// To bring it back: pay for the membership, add the WeatherKit capability to the App ID,
+/// re-enable `CODE_SIGN_ENTITLEMENTS` in `project.yml`, uncomment the key in
+/// `Waypost.entitlements`, and define `PARKHOP_WEATHERKIT`. Nothing else changes —
+/// `WeatherService` already asks this first and falls through when it declines.
+///
+/// Until then Open-Meteo and the National Weather Service carry the app, as they did
+/// before this file existed, and the panel names whichever answered.
 @MainActor
 struct AppleWeather {
     let failures: FailureLog
@@ -22,8 +32,10 @@ struct AppleWeather {
     /// Attribution is required by WeatherKit's terms wherever its data is shown.
     static let attribution = "Apple Weather"
 
+    /// False while the entitlement is unavailable, so `WeatherService` does not even
+    /// try — a refusal that costs a round trip is worse than one that costs nothing.
     var isAvailable: Bool {
-        #if canImport(WeatherKit)
+        #if PARKHOP_WEATHERKIT
         return true
         #else
         return false
@@ -33,7 +45,7 @@ struct AppleWeather {
     /// The forecast for one day at one place, or nil if WeatherKit is not entitled,
     /// not reachable, or has nothing for that date.
     func forecast(lat: Double, lon: Double, iso: String) async -> WeatherDay? {
-        #if canImport(WeatherKit)
+        #if PARKHOP_WEATHERKIT
         let location = CLLocation(latitude: lat, longitude: lon)
         do {
             let weather = try await WeatherKit.WeatherService.shared.weather(for: location)

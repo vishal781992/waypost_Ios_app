@@ -16,9 +16,10 @@ struct WeatherService {
     let failures: FailureLog
 
     func forecast(lat: Double, lon: Double, iso: String) async -> WeatherDay? {
-        // Apple's forecast first: it is the best one available on an iPhone and it needs
-        // no key in the app. It is not guaranteed — WeatherKit is an entitlement, and a
-        // build without it throws on every call — so the open feeds stay behind it.
+        // Apple's forecast would be first — it is the best one available on an iPhone —
+        // but the entitlement needs a paid developer account, so `isAvailable` is false
+        // and this costs nothing. Open-Meteo and the National Weather Service carry the
+        // app; see AppleWeather for how to switch it back on.
         let apple = AppleWeather(failures: failures)
         if apple.isAvailable, let day = await apple.forecast(lat: lat, lon: lon, iso: iso) {
             return day

@@ -2,10 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- WeatherKit. Needs the capability enabled on the App ID in the developer portal
-	     and a paid account; without it every WeatherKit call throws and the app falls
-	     back to Open-Meteo, which is why nothing here is load-bearing. -->
+	<!-- WeatherKit, switched off.
+
+	     The entitlement needs a paid Apple Developer Program membership. Signing with a
+	     free personal team, Xcode cannot generate a provisioning profile that carries
+	     it, and the build fails before it ever reaches the code. That is Apple policy,
+	     not a fault here.
+
+	     To turn it back on: uncomment the key below, re-enable CODE_SIGN_ENTITLEMENTS in
+	     project.yml, add the WeatherKit capability to the App ID in the developer
+	     portal, and define PARKHOP_WEATHERKIT in the target's Swift flags.
+
 	<key>com.apple.developer.weatherkit</key>
 	<true/>
+	-->
 </dict>
 </plist>
