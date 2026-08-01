@@ -5,6 +5,10 @@ import SwiftUI
 struct TripsScreen: View {
     @Environment(AppState.self) private var app
 
+    /// The `+` opens the same search the home screen's does — a state, a city or a park
+    /// — with starting a trip one tap further in.
+    @State private var showsSearch = false
+
     var body: some View {
         VStack(spacing: 0) {
             ScreenHeader {
@@ -37,23 +41,33 @@ struct TripsScreen: View {
                         }
                     }
 
-                    Text("Behind you".uppercased())
-                        .font(WP.body(10)).tracking(1.4).opacity(0.5)
-                        .padding(.top, 26)
-                        .padding(.bottom, 4)
+                    // Behind you is where you have actually been — a park with a
+                    // cancellation stamp against it. Nothing invented, and nothing at all
+                    // until the first stamp is collected.
+                    if !app.visitedParks.isEmpty {
+                        Text("Behind you".uppercased())
+                            .font(WP.body(10)).tracking(1.4).opacity(0.5)
+                            .padding(.top, 26)
+                            .padding(.bottom, 4)
 
-                    ForEach(SavedTrip.past, id: \.title) { past in
+                        ForEach(app.visitedParks) { park in
                         Button {
-                            app.show("Past trips are read-only in this pass")
+                            app.openPark(park.code)
                         } label: {
                             DividedRow(vertical: 13) {
                                 HStack(spacing: 12) {
+                                    ParkImage(park: park, showsScrim: false, topLight: false)
+                                        .frame(width: 44, height: 44)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Text(past.title).font(WP.rowTitle(17))
-                                        Text(past.sub).font(WP.body(12)).opacity(0.6)
+                                        Text(park.name).font(WP.rowTitle(17))
+                                        Text([park.state, park.designationLabel]
+                                                .filter { !$0.isEmpty }
+                                                .joined(separator: " · "))
+                                            .font(WP.body(12)).opacity(0.6)
                                     }
                                     Spacer(minLength: 0)
-                                    Text(past.dates).font(WP.body(11.5)).opacity(0.5)
+                                    Text("Stamped").font(WP.body(11.5)).opacity(0.5)
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundStyle(WP.accent700)
@@ -61,6 +75,7 @@ struct TripsScreen: View {
                             }
                         }
                         .buttonStyle(PressStyle(scale: 0.99))
+                        }
                     }
 
                     Text("Trips live on this iPhone and in iCloud. A shared trip opens read-only for whoever you send it to.")
@@ -77,11 +92,17 @@ struct TripsScreen: View {
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }
+        .onChange(of: app.showsQuickSearch) { _, wanted in showsSearch = wanted }
+        .sheet(isPresented: $showsSearch) {
+            QuickSearchSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private var newTripButton: some View {
         Button {
-            app.startBuilder()
+            showsSearch = true
         } label: {
             ZStack {
                 WP.ink
@@ -114,7 +135,7 @@ struct NoTripsYet: View {
                 )
 
             Text("No trips yet.").font(WP.display(27)).padding(.top, 17)
-            Text("Pick the parks and say when. ParkHop works out the order, the mileage and which permit windows you have to be awake for — and leaves blank whatever it cannot measure.")
+            Text("Pick the parks and say when. ParkHop works out the order, the mileage and which permit windows you have to be awake for.")
                 .font(WP.body(13.5)).lineSpacing(3).opacity(0.78).padding(.top, 9)
                 .fixedSize(horizontal: false, vertical: true)
 

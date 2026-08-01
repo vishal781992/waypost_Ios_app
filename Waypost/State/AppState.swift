@@ -311,8 +311,10 @@ final class AppState {
 
             // The empty states, which are otherwise only reachable by deleting things.
             if let empty = value("wpEmpty") {
-                if empty == "trips" { self.seedTripHidden = true; self.myTrips = [] }
-                if empty == "saved" { self.saved = []; self.stamps = [] }
+                let wanted = Set(empty.split(separator: ",").map(String.init))
+                if wanted.contains("trips") { self.seedTripHidden = true; self.myTrips = [] }
+                if wanted.contains("saved") { self.saved = [] }
+                if wanted.contains("stamps") || wanted.contains("saved") { self.stamps = [] }
             }
 
             // The four sheets, each of which needs a row tapped to reach.
@@ -352,6 +354,17 @@ final class AppState {
 
     /// Which park leads the home screen today.
     let recommender = Recommender()
+
+    /// Parks with a cancellation stamp against them — the ones you have actually stood
+    /// in. Empty until the first is collected, and the screens that show it show nothing
+    /// rather than a placeholder.
+    var visitedParks: [CuratedPark] {
+        let all = library.orderedParks + NationalParks.all.map(CuratedPark.init(bundled:))
+        var seen = Set<String>()
+        return all
+            .filter { stamps.contains(stampKey(forName: $0.name)) && seen.insert($0.name).inserted }
+            .sorted { $0.name < $1.name }
+    }
 
     /// Parks you have already been to, one way or another: stamped, saved for later, or
     /// already written into a trip.
@@ -622,10 +635,6 @@ struct SavedTrip: Codable, Hashable, Identifiable {
         )
     }
 
-    static let past: [(title: String, dates: String, sub: String)] = [
-        ("North Cascades & Olympic", "October 2025", "2 parks · 8 days · 1,240 mi"),
-        ("Big Bend at New Year", "December 2024", "1 park · 5 days · 890 mi"),
-    ]
 }
 
 /// The three-step new-trip flow: pick parks, set the dates and origin, review.

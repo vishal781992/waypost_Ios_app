@@ -1,13 +1,17 @@
-# changed.v.1 — A1.1
+# changed.v.1
 
-The home screen after the five changes you asked for. Same filenames as `docs/screens/`,
-so `docs/screens/A1.1.png` and `docs/changed.v.1/A1.1.png` sit side by side.
+Screens after the changes you asked for. Same filenames as `docs/screens/`, so
+`docs/screens/A1.1.png` and `docs/changed.v.1/A1.1.png` sit side by side.
 
 | | Before | After |
 |---|---|---|
-| Today | [`screens/A1.1.png`](../screens/A1.1.png) | [`A1.1.png`](A1.1.png) |
-| The `+` | — | [`A1.1.1.png`](A1.1.1.png) — new |
-| The `+`, searched | — | [`A1.1.2.png`](A1.1.2.png) — new |
+| **A1.1** Today | [`screens/A1.1.png`](../screens/A1.1.png) | [`A1.1.png`](A1.1.png) |
+| **A1.1.1** the `+` | — | [`A1.1.1.png`](A1.1.1.png) — new |
+| **A1.1.2** the `+`, searched | — | [`A1.1.2.png`](A1.1.2.png) — new |
+| **B1.1** Trips | [`screens/B1.1.png`](../screens/B1.1.png) | [`B1.1.png`](B1.1.png) |
+| **B1.1.1** Trips, empty | [`screens/B1.1.1.png`](../screens/B1.1.1.png) | [`B1.1.1.png`](B1.1.1.png) |
+| **B1.1.1.1** empty, nothing stamped | — | [`B1.1.1.1.png`](B1.1.1.1.png) — new |
+| **B1.1.2** the `+` from Trips | — | [`B1.1.2.png`](B1.1.2.png) — new |
 
 ---
 
@@ -90,3 +94,33 @@ xcrun simctl launch --terminate-running-process <device> us.parkhop.waypost -wpF
 ```
 
 Simulator located at 39.7392, −104.9903 — Denver.
+
+
+---
+
+# B1.1.1 — Trips, empty
+
+### 1. The claim came off
+
+**Before** — "…works out the order, the mileage and which permit windows you have to be
+awake for — and leaves blank whatever it cannot measure."
+**After** — the sentence stops at "awake for".
+
+### 2. "Behind you" is what you have actually stamped
+
+**Before** — two hard-coded rows: *North Cascades & Olympic, October 2025, 2 parks · 8
+days · 1,240 mi* and *Big Bend at New Year*. Neither trip ever happened. They were in the
+design as filler and they were still in the app, on a screen whose whole message was that
+you have not been anywhere yet.
+
+**After** — the section lists the parks carrying a cancellation stamp, each with its
+photograph, its state and its designation, opening the park when tapped. With no stamps
+the heading is not drawn at all — see **B1.1.1.1**, where the screen ends after the
+disclaimer rather than inventing a history.
+
+### 3. The `+` searches
+
+Same sheet as the home screen's — a state, a city or a park name — with "Plan a trip
+instead" at the bottom. **B1.1.2**.
+
+The two invented trips are gone from the code, not just from the view.
