@@ -142,8 +142,12 @@ struct ParkScreen: View {
             }
             .padding(.top, 13)
 
-            Text("Gateway town \(park.gw)")
-                .font(WP.bodyItalic(12.5)).opacity(0.62).padding(.top, 3)
+            // A live record often has no gateway town, and "Gateway town" followed by
+            // nothing reads as a bug rather than as an absence.
+            if !park.gw.isEmpty {
+                Text("Gateway town \(park.gw)")
+                    .font(WP.bodyItalic(12.5)).opacity(0.62).padding(.top, 3)
+            }
         }
         .padding(.horizontal, WP.gutter)
         .padding(.top, 14)
@@ -176,6 +180,7 @@ struct OverviewSection: View {
                     .font(WP.bodyItalic(13)).lineSpacing(3).opacity(0.75)
             }
 
+            if !park.alerts.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 SectionTitle("Know before you go")
                 ForEach(park.alerts) { alert in
@@ -204,7 +209,9 @@ struct OverviewSection: View {
                     .buttonStyle(PressStyle(scale: 0.99))
                 }
             }
+            }
 
+            if !park.gates.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
                 SectionTitle("Entry gates")
                 ForEach(park.gates, id: \.self) { gate in
@@ -212,11 +219,15 @@ struct OverviewSection: View {
                         Text(gate).font(WP.body(13.5)).lineSpacing(2)
                     }
                 }
-                Text(park.parking)
-                    .font(WP.bodyItalic(12.5)).lineSpacing(3).opacity(0.7)
-                    .padding(.top, 9)
+                if !park.parking.isEmpty {
+                    Text(park.parking)
+                        .font(WP.bodyItalic(12.5)).lineSpacing(3).opacity(0.7)
+                        .padding(.top, 9)
+                }
+            }
             }
 
+            if !park.airports.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
                 SectionTitle("Fly-in airports")
                 ForEach(park.airports) { airport in
@@ -243,6 +254,8 @@ struct OverviewSection: View {
                         }
                     }
                 }
+            }
+
             }
 
             VStack(alignment: .leading, spacing: 12) {
