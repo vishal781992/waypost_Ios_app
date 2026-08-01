@@ -1,12 +1,19 @@
 # ParkHop — every screen
 
 Thirty-six captures: every screen, every tab, both halves of anything that scrolls, the
-four sheets, and the empty states. Each has a **name in bold** — write your notes under
-the one you mean and nothing else needs saying. "**K3b** rows are the wrong order" is
-enough.
+four sheets, and the empty states. Each has a **number in bold**, and the file is named
+the same thing — write your notes under the one you mean and nothing else needs saying.
+"**D3.2** rows are the wrong order" is enough.
 
-A name ending in **b** is the same screen scrolled to the bottom. A name ending in **e**
-is that screen with nothing in it.
+The number reads left to right: **section · screen · part**, with a fourth level for a
+variant of a part. So `D3.1` is Park, third segment, top of the page; `D3.2` is the same
+page scrolled to its end; `E1.1.1` is Saved with nothing saved.
+
+| | | | | | |
+|---|---|---|---|---|---|
+| **A** Today | **B** Trips | **C** Discover | **D** Park | **E** Saved | **F** Profile |
+
+**G** is the four bottom sheets.
 
 Captured from v2.12.2 on iPhone 16 Pro, iOS 26.4, located in Denver. ⚠ marks a gap I
 already know about.
@@ -18,22 +25,22 @@ already know about.
 
 ## Today
 
-### **T1 — Today**
+### **A1.1 — Today**
 
 One recommendation, worked out fresh on every launch from where you are, today's forecast
 at each candidate, and which parks you have not been to. Below it, the parks near that
 one.
 
-![T1](screens/today.png)
+![A1.1](screens/A1.1.png)
 
 **Feedback:**
 -
 
-### **T1b — Today, lower**
+### **A1.2 — Today, lower**
 
 The driving day and the stamps within reach.
 
-![T1b](screens/today-lower.png)
+![A1.2](screens/A1.2.png)
 
 **Feedback:**
 -
@@ -42,84 +49,84 @@ The driving day and the stamps within reach.
 
 ## Trips
 
-### **T2 — Trips**
+### **B1.1 — Trips**
 
 On the books and behind you. The map is Apple Maps, monochrome; the disc removes a trip.
 
-![T2](screens/trips.png)
+![B1.1](screens/B1.1.png)
 
 **Feedback:**
 -
 
-### **T2e — Trips, empty**
+### **B1.1.1 — Trips, empty**
 
 Before there is anything to show.
 
-![T2e](screens/trips-empty.png)
+![B1.1.1](screens/B1.1.1.png)
 
 **Feedback:**
 -
 
-### **T3 — Trip · Route**
+### **B2.1 — Trip · Route**
 
 Parks in visiting order with the legs between them. The first row is the drive from where
-you are standing, routed by OSRM; tapping any leg opens **X3**.
+you are standing, routed by OSRM; tapping any leg opens **G3.1**.
 
-![T3](screens/trip-route.png)
-
-**Feedback:**
--
-
-### **T3b — Trip · Route, lower**
-
-![T3b](screens/trip-route-lower.png)
+![B2.1](screens/B2.1.png)
 
 **Feedback:**
 -
 
-### **T4 — Trip · Days**
+### **B2.2 — Trip · Route, lower**
+
+![B2.2](screens/B2.2.png)
+
+**Feedback:**
+-
+
+### **B3.1 — Trip · Days**
 
 Day by day. ⚠ Still the curated ten-day itinerary.
 
-![T4](screens/trip-days.png)
+![B3.1](screens/B3.1.png)
 
 **Feedback:**
 -
 
-### **T5 — Trip · Stays**
+### **B4.1 — Trip · Stays**
 
 Where you sleep each night. ⚠ Curated — Recreation.gov blocks non-browser callers, so
 there is no availability for your own dates.
 
-![T5](screens/trip-stays.png)
+![B4.1](screens/B4.1.png)
 
 **Feedback:**
 -
 
-### **T6 — New trip · step 1**
+### **B5.1 — New trip · step 1**
 
 Pick parks in visiting order. ⚠ This search still reads the eight curated parks rather
 than the sixty-two on the phone.
 
-![T6](screens/new-trip.png)
+![B5.1](screens/B5.1.png)
 
 **Feedback:**
 -
 
-### **T7 — New trip · step 2**
+### **B5.2 — New trip · step 2**
 
 Dates, origin and vehicle.
 
-![T7](screens/new-trip-2.png)
+![B5.2](screens/B5.2.png)
 
 **Feedback:**
 -
 
-### **T8 — New trip · step 3**
+### **B5.3 — New trip · step 3**
 
 The review, before it is composed.
 
-![T8](screens/new-trip-3.png)
+![B5.3](screens/B5.3.png)
 
 **Feedback:**
 -
@@ -128,57 +135,57 @@ The review, before it is composed.
 
 ## Discover
 
-### **D1 — Discover**
+### **C1.1 — Discover**
 
 An empty field: the curated shelf, with the on-device brief above it.
 
-![D1](screens/discover.png)
+![C1.1](screens/C1.1.png)
 
 **Feedback:**
 -
 
-### **D1b — Discover, lower**
+### **C1.2 — Discover, lower**
 
-![D1b](screens/discover-lower.png)
+![C1.2](screens/C1.2.png)
 
 **Feedback:**
 -
 
-### **D2 — Discover · suggestions**
+### **C2.1 — Discover · suggestions**
 
 Two letters in. States and parks match on the phone and appear on the keystroke; towns
 come from Nominatim a moment later.
 
-![D2](screens/discover-suggestions.png)
+![C2.1](screens/C2.1.png)
 
 **Feedback:**
 -
 
-### **D3 — Discover · results**
+### **C3.1 — Discover · results**
 
 A state search. The line under the chips says how many and from where — the on-device
 list first, then Apple Maps, then OpenStreetMap filling in behind.
 
-![D3](screens/discover-results.png)
+![C3.1](screens/C3.1.png)
 
 **Feedback:**
 -
 
-### **D3e — Discover · nothing found**
+### **C3.1.1 — Discover · nothing found**
 
 What a search with no answer says.
 
-![D3e](screens/discover-none.png)
+![C3.1.1](screens/C3.1.1.png)
 
 **Feedback:**
 -
 
-### **D4 — Discover · state parks**
+### **C4.1 — Discover · state parks**
 
 The other catalogue: 470 units on the phone, plus what OpenStreetMap finds around the
 place you typed.
 
-![D4](screens/discover-state.png)
+![C4.1](screens/C4.1.png)
 
 **Feedback:**
 -
@@ -187,96 +194,96 @@ place you typed.
 
 ## Park
 
-Five segments of one screen, each with its lower half. **K6** is the same screen for a
+Five segments of one screen, each with its lower half. **D6.1** is the same screen for a
 park that is not one of the curated eight — worth comparing, because it shows what the
 app says when a source is silent.
 
-### **K1 — Park · Overview**
+### **D1.1 — Park · Overview**
 
 Reservations, alerts, gates and airports.
 
-![K1](screens/park-overview.png)
+![D1.1](screens/D1.1.png)
 
 **Feedback:**
 -
 
-### **K1b — Park · Overview, lower**
+### **D1.2 — Park · Overview, lower**
 
 Charging, fuel and shops, live from Apple Maps, nearest first. Tapping a row opens
 directions.
 
-![K1b](screens/park-overview-lower.png)
+![D1.2](screens/D1.2.png)
 
 **Feedback:**
 -
 
-### **K2 — Park · Weather**
+### **D2.1 — Park · Weather**
 
 Today at the park, from the National Weather Service and Open-Meteo. ⚠ WeatherKit sits in
 front of both and is off until the developer account is paid.
 
-![K2](screens/park-weather.png)
+![D2.1](screens/D2.1.png)
 
 **Feedback:**
 -
 
-### **K2b — Park · Weather, lower**
+### **D2.2 — Park · Weather, lower**
 
-![K2b](screens/park-weather-lower.png)
+![D2.2](screens/D2.2.png)
 
 **Feedback:**
 -
 
-### **K3 — Park · Stay**
+### **D3.1 — Park · Stay**
 
 In-park campgrounds and lodges. ⚠ Curated for the eight.
 
-![K3](screens/park-stay.png)
+![D3.1](screens/D3.1.png)
 
 **Feedback:**
 -
 
-### **K3b — Park · Stay, lower**
+### **D3.2 — Park · Stay, lower**
 
 Campgrounds, RV parks, beds and food around the park, live from Apple Maps.
 
-![K3b](screens/park-stay-lower.png)
+![D3.2](screens/D3.2.png)
 
 **Feedback:**
 -
 
-### **K4 — Park · Plans**
+### **D4.1 — Park · Plans**
 
 Day plans written around the light and the crowds. ⚠ Curated.
 
-![K4](screens/park-plans.png)
+![D4.1](screens/D4.1.png)
 
 **Feedback:**
 -
 
-### **K4b — Park · Plans, lower**
+### **D4.2 — Park · Plans, lower**
 
-![K4b](screens/park-plans-lower.png)
+![D4.2](screens/D4.2.png)
 
 **Feedback:**
 -
 
-### **K5 — Park · Nearby**
+### **D5.1 — Park · Nearby**
 
 Passport units within reach. ⚠ Curated.
 
-![K5](screens/park-nearby.png)
+![D5.1](screens/D5.1.png)
 
 **Feedback:**
 -
 
-### **K6 — Park · from the live catalogue**
+### **D6.1 — Park · from the live catalogue**
 
 Guadalupe Mountains, opened from the on-device list. Every field the source does not
 publish says so, and a heading with nothing under it is not drawn at all — which is why
 this one opens on its chargers.
 
-![K6](screens/park-live.png)
+![D6.1](screens/D6.1.png)
 
 **Feedback:**
 -
@@ -285,25 +292,25 @@ this one opens on its chargers.
 
 ## Saved
 
-### **S1 — Saved**
+### **E1.1 — Saved**
 
 Bookmarked parks and the passport book.
 
-![S1](screens/saved.png)
+![E1.1](screens/E1.1.png)
 
 **Feedback:**
 -
 
-### **S1b — Saved, lower**
+### **E1.1.1 — Saved, empty**
 
-![S1b](screens/saved-lower.png)
+![E1.1.1](screens/E1.1.1.png)
 
 **Feedback:**
 -
 
-### **S1e — Saved, empty**
+### **E1.2 — Saved, lower**
 
-![S1e](screens/saved-empty.png)
+![E1.2](screens/E1.2.png)
 
 **Feedback:**
 -
@@ -312,21 +319,21 @@ Bookmarked parks and the passport book.
 
 ## Profile
 
-### **P1 — Profile**
+### **F1.1 — Profile**
 
 Notifications, offline packs, travel defaults.
 
-![P1](screens/profile.png)
+![F1.1](screens/F1.1.png)
 
 **Feedback:**
 -
 
-### **P1b — Profile, lower**
+### **F1.2 — Profile, lower**
 
 Travel defaults, what the app is holding, and the disclaimers. The photograph figure is
 measured off the disk; ⚠ the pack figure is still the curated library's.
 
-![P1b](screens/profile-lower.png)
+![F1.2](screens/F1.2.png)
 
 **Feedback:**
 -
@@ -335,35 +342,35 @@ measured off the disk; ⚠ the pack figure is still the curated library's.
 
 ## Sheets
 
-### **X1 — Sheet · park alert**
+### **G1.1 — Sheet · park alert**
 
-![X1](screens/sheet-alert.png)
+![G1.1](screens/G1.1.png)
 
 **Feedback:**
 -
 
-### **X2 — Sheet · permit window**
+### **G2.1 — Sheet · permit window**
 
 ⚠ The countdown is a fixed string, not a clock.
 
-![X2](screens/sheet-permit.png)
+![G2.1](screens/G2.1.png)
 
 **Feedback:**
 -
 
-### **X3 — Sheet · driving leg**
+### **G3.1 — Sheet · driving leg**
 
 ⚠ This is the seed trip's leg sheet; a routed leg opens a different one, with Open in
 Maps and no invented arrival time.
 
-![X3](screens/sheet-leg.png)
+![G3.1](screens/G3.1.png)
 
 **Feedback:**
 -
 
-### **X4 — Sheet · passport stamp**
+### **G4.1 — Sheet · passport stamp**
 
-![X4](screens/sheet-stamp.png)
+![G4.1](screens/G4.1.png)
 
 **Feedback:**
 -
