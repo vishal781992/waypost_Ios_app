@@ -156,6 +156,7 @@ struct DiscoverScreen: View {
                 .padding(.bottom, WP.tabBarClearance)
             }
             .scrollIndicators(.hidden)
+            .captureScrollPosition()
         }
         .onAppear {
             if app.focusSearchOnAppear {

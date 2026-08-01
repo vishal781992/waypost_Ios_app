@@ -30,6 +30,7 @@ struct TodayScreen: View {
                 .padding(.bottom, WP.tabBarClearance)
             }
             .scrollIndicators(.hidden)
+            .captureScrollPosition()
         }
         .task {
             app.refreshRecommendation()

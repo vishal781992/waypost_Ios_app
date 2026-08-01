@@ -264,7 +264,8 @@ final class AppState {
         let wantedPark = value("wpPark")
         guard wantedTab != nil || wantedPark != nil
                 || value("wpSearch") != nil || value("wpTrip") != nil
-                || value("wpBuilder") != nil || value("wpStateParks") != nil else { return }
+                || value("wpBuilder") != nil || value("wpStateParks") != nil
+                || value("wpEmpty") != nil || value("wpSheet") != nil else { return }
 
         // Applied after the scene has settled. SwiftUI restores the tab view's own
         // selection on launch and writes it back through the binding, and `go` clears
@@ -289,8 +290,40 @@ final class AppState {
                 }
                 self.push(.trip(id: id))
             }
-            if value("wpBuilder") != nil { self.startBuilder() }
+            if let step = value("wpBuilder") {
+                self.startBuilder()
+                // Steps two and three need parks picked before they will show anything.
+                if let wanted = Int(step), wanted > 1 {
+                    self.builder?.picks = ["romo", "arch", "zion"]
+                    self.builder?.step = wanted
+                }
+            }
             if value("wpStateParks") != nil { self.tab = .discover; self.discoverShowsState = true }
+
+            // The empty states, which are otherwise only reachable by deleting things.
+            if let empty = value("wpEmpty") {
+                if empty == "trips" { self.seedTripHidden = true; self.myTrips = [] }
+                if empty == "saved" { self.saved = []; self.stamps = [] }
+            }
+
+            // The four sheets, each of which needs a row tapped to reach.
+            if let sheet = value("wpSheet") {
+                switch sheet {
+                case "alert":
+                    if let park = self.library.park("zion"), let alert = park.alerts.first {
+                        self.sheet = .alert(park: park.name, alert: alert)
+                    }
+                case "permit":
+                    if let drop = PermitDrop.byPark["arch"] { self.sheet = .permit(drop: drop) }
+                case "leg":
+                    self.sheet = .leg(index: 0, date: "6 August")
+                case "stamp":
+                    if let stamp = self.library.park("arch")?.stamps.first {
+                        self.sheet = .stamp(name: stamp.name, city: stamp.city, dist: stamp.dist)
+                    }
+                default: break
+                }
+            }
             if let term = value("wpSearch") {
                 self.tab = .discover
                 self.focusSearchOnAppear = true

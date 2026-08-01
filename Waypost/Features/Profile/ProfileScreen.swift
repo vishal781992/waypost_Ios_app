@@ -156,6 +156,7 @@ struct ProfileScreen: View {
                 .padding(.bottom, WP.tabBarClearance)
             }
             .scrollIndicators(.hidden)
+            .captureScrollPosition()
         }
         .task { await measurePhotos() }
     }

@@ -48,6 +48,7 @@ struct ParkScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollIndicators(.hidden)
+            .captureScrollPosition()
             .ignoresSafeArea(edges: .top)
 
             backControl

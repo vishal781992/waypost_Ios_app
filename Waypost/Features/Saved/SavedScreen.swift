@@ -33,6 +33,7 @@ struct SavedScreen: View {
                 .panelTransition(id: app.savedShowsPassport)
             }
             .scrollIndicators(.hidden)
+            .captureScrollPosition()
         }
     }
 }

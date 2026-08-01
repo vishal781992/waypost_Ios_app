@@ -51,6 +51,7 @@ struct TripDetailScreen: View {
                 .padding(.bottom, WP.tabBarClearance)
             }
             .scrollIndicators(.hidden)
+            .captureScrollPosition()
         }
         .background(WP.bg)
         .onAppear {

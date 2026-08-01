@@ -75,6 +75,7 @@ struct TripsScreen: View {
                 .padding(.bottom, WP.tabBarClearance)
             }
             .scrollIndicators(.hidden)
+            .captureScrollPosition()
         }
     }
 
