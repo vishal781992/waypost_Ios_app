@@ -61,27 +61,8 @@ struct TodayScreen: View {
 
             Spacer(minLength: 0)
 
-            Button {
-                app.showsQuickSearch = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(WP.accent700)
-                    .frame(width: 52, height: 52)
-                    .liquidGlass(.pill, radius: 999, interactive: true)
-                    .overlay(alignment: .top) {
-                        // The lit crown the design puts on its round glass controls.
-                        Ellipse()
-                            .fill(LinearGradient(colors: [.white.opacity(0.75), .white.opacity(0)],
-                                                 startPoint: .top, endPoint: .bottom))
-                            .frame(width: 40, height: 23)
-                            .padding(.top, 3)
-                            .allowsHitTesting(false)
-                    }
-                    .shadow(color: Color(hex: 0x181008, opacity: 0.16), radius: 8, y: 5)
-            }
-            .buttonStyle(PressStyle(scale: 0.94))
-            .accessibilityLabel("Find a park")
+            GlassDisc(icon: "plus") { app.showsQuickSearch = true }
+                .accessibilityLabel("Find a park")
         }
         .frame(minHeight: 52)
         .padding(.horizontal, WP.gutter)

@@ -103,14 +103,10 @@ struct QuickSearchSheet: View {
                         .minimumScaleFactor(0.8)
                 }
                 Spacer(minLength: 12)
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .semibold))
-                        .frame(width: 34, height: 34)
-                        .glassControl(shadow: false)
-                }
-                .buttonStyle(PressStyle(scale: 0.92))
-                .padding(.top, 2)
+                // The same disc as the `+` that opened this: same size, same glass, the
+                // two ends of one gesture.
+                GlassDisc(icon: "xmark") { dismiss() }
+                    .accessibilityLabel("Close")
             }
 
             Text("A state, a city, or a name. The national parks answer instantly; everything else comes from Apple Maps and OpenStreetMap.")

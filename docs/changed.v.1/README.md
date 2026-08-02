@@ -60,6 +60,11 @@ an empty field is no longer an empty page: the sheet opens on the six national p
 nearest you, measured from the same fix the home screen uses, off the list on the phone —
 so it answers before it is asked. See **A1.1.1**.
 
+The `×` that closes it is the same control as the `+` that opened it — 52 points of light
+glass with the lit crown, not the small ink disc it started as. Both are one `GlassDisc`
+now, because two controls at opposite ends of the same gesture should not be able to drift
+apart.
+
 ### 4. No more opening on Zion or Arches
 
 **Before** — the hero showed whichever park the seed trip was in — Arches on day five —

@@ -527,3 +527,37 @@ struct SelectedControl: ViewModifier {
         }
     }
 }
+
+
+/// The round glass control the home screen wears: 52 points of light glass with a lit
+/// crown and a soft shadow under it.
+///
+/// It exists as one component because it appears in two places — the `+` on the home
+/// screen and the `×` that closes the search it opens — and a pair of controls that sit
+/// at opposite ends of the same gesture should be the same size and the same material.
+struct GlassDisc: View {
+    var icon: String
+    var size: CGFloat = 52
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: size * 0.365, weight: .medium))
+                .foregroundStyle(WP.accent700)
+                .frame(width: size, height: size)
+                .liquidGlass(.pill, radius: 999, interactive: true)
+                .overlay(alignment: .top) {
+                    // The lit crown the design puts on its round glass controls.
+                    Ellipse()
+                        .fill(LinearGradient(colors: [.white.opacity(0.75), .white.opacity(0)],
+                                             startPoint: .top, endPoint: .bottom))
+                        .frame(width: size * 0.77, height: size * 0.44)
+                        .padding(.top, size * 0.058)
+                        .allowsHitTesting(false)
+                }
+                .shadow(color: Color(hex: 0x181008, opacity: 0.16), radius: 8, y: 5)
+        }
+        .buttonStyle(PressStyle(scale: 0.94))
+    }
+}
