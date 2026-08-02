@@ -51,7 +51,7 @@ struct DiscoverScreen: View {
         let plural = count == 1 ? "park" : "parks"
         if q.isEmpty {
             let tail = app.discoverChip == "all"
-                ? "the field library on this iPhone"
+                ? "the ParkHop catalogue"
                 : app.discoverChip.lowercased() + " country"
             return "\(count) \(plural) · \(tail)"
         }
@@ -62,7 +62,7 @@ struct DiscoverScreen: View {
             return why
         case .idle, .ready:
             let sources = app.directory.answered.map(\.rawValue).sorted().joined(separator: " · ")
-            let from = sources.isEmpty ? "the field library on this iPhone" : sources
+            let from = sources.isEmpty ? "the ParkHop catalogue" : sources
             return "\(count) \(plural) matching “\(q)” · \(from)"
         }
     }
@@ -274,7 +274,7 @@ struct NothingByThatName: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Nothing by that name.").font(WP.display(22))
-            Text("Sixty-three parks and 470 units are in the catalogue; this build carries eight of them. State parks are searched separately — and on this phone.")
+            Text("Nothing in the national-park catalogue matches those words. State parks are searched separately.")
                 .font(WP.body(13)).lineSpacing(3).opacity(0.75).padding(.top, 8)
                 .fixedSize(horizontal: false, vertical: true)
             Button {
@@ -327,11 +327,11 @@ struct StateParkList: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 7) {
                 Circle().fill(WP.live).frame(width: 6, height: 6)
-                Text("On this phone".uppercased())
+                Text("State parks".uppercased())
                     .font(WP.body(10)).tracking(1.3)
                     .foregroundStyle(Color(oklch: 0.40, 0.10, 150))
                 Rectangle().fill(WP.divider).frame(height: 1)
-                Text("470 units · no network")
+                Text("470 units")
                     .font(WP.bodyItalic(10.5)).opacity(0.5)
             }
             .padding(.bottom, 12)

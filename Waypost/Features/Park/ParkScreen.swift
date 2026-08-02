@@ -279,7 +279,7 @@ struct OverviewSection: View {
     /// of the live services filled in the rest.
     private var overviewSource: String {
         let base = park.source == nil
-            ? "Overview from the curated field library."
+            ? "Overview from ParkHop's own records."
             : "Overview from \(park.sourceName) — fees, hours and closures come from the park itself."
         return base + " Charging, fuel and shops from Apple Maps, measured from the park's own coordinates."
     }
@@ -383,10 +383,10 @@ struct WeatherSection: View {
 
     private var sourceLine: String {
         if let live {
-            return "Today at this park, from \(live.source). The curated August normals are underneath it for the eight parks that ship with the app."
+            return "Today at this park, from \(live.source)."
         }
         if park.wx.isPublished || park.source == nil {
-            return "August normals from the curated library. The live forecast is being fetched; when it answers, this panel says so."
+            return "August normals. The live forecast is being fetched; when it answers, this panel says so."
         }
         return "\(park.sourceName) does not publish weather. Open-Meteo is being asked for this park's forecast — until it answers there is nothing here to read."
     }
@@ -464,9 +464,9 @@ struct StaySection: View {
     private var staySource: String {
         (park.camping.isEmpty
             ? "No in-park campground list ships for this park."
-            : "In-park campgrounds and lodges from the curated field library.")
+            : "In-park campgrounds and lodges from ParkHop's own records.")
         + " Everything under them is Apple Maps, within thirty miles of the park, nearest first."
-        + " Recreation.gov availability for your own dates is not wired in — it blocks callers that are not a browser, and a guess is worse than a gap."
+        + " Availability for your own nights is not published to this app — confirm with the campground."
     }
 
     private func chipBackground(_ camp: CuratedCamp) -> Color {
@@ -515,7 +515,7 @@ struct PlansSection: View {
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(WP.divider, lineWidth: 1))
             }
 
-            SourceLine("Day plans — curated for this park, written around the light and the crowds.")
+            SourceLine("Day plans written around the light and the crowds.")
         }
     }
 }
@@ -563,7 +563,7 @@ struct NearbySection: View {
                 .buttonStyle(PressStyle(scale: 0.99))
             }
 
-            SourceLine("Nearby units — curated. The NPS registry lookup within 160 miles is being re-wired onto this list.")
+            SourceLine("Passport units near this park.")
                 .padding(.top, 16)
         }
     }

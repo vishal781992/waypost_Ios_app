@@ -136,3 +136,34 @@ Same sheet as the home screen's — a state, a city or a park name — with "Pla
 instead" at the bottom. **B1.1.2**.
 
 The two invented trips are gone from the code, not just from the view.
+
+
+---
+
+# Storage and plumbing, out of the copy
+
+The app was telling people where its data lived, which is the app's business and not
+theirs. Every mention is gone.
+
+| Where | Was | Now |
+|---|---|---|
+| Find a park | "Sixty-two on the phone" | "Every national park" |
+| Find a park | "The national parks answer instantly; everything else comes from Apple Maps and OpenStreetMap." | "A state, a city, or a name." |
+| Discover, source line | "the field library on this iPhone" | "the ParkHop catalogue" |
+| Discover, nothing found | "…this build carries eight of them. State parks are searched separately — and on this phone." | "Nothing in the national-park catalogue matches those words. State parks are searched separately." |
+| State parks | "On this phone · 470 units · no network" | "State parks · 470 units" |
+| Profile | "25 MB of park photographs · 80 MB ceiling", "112 MB of park packs on this iPhone", and a Clear control | removed |
+| Profile | "Curated field library" | "Park records" |
+| Trips | "Trips live on this iPhone and in iCloud." | "A shared trip opens read-only for whoever you send it to." |
+| Trips, delete | "…come off this iPhone." | "…are removed." |
+| Park, several | "from the curated field library", "the eight parks that ship with the app" | "from ParkHop's own records", or nothing |
+| Park, stay | "Recreation.gov … blocks callers that are not a browser" | "Availability for your own nights is not published to this app — confirm with the campground." |
+| A live park | "On this iPhone. Fees, hours…", "Not published in the on-device list" | "Fees, hours…", "Not published" |
+
+**One thing deliberately kept.** The near-you brief still says it is written on the phone
+by Apple Intelligence and that nothing leaves it. That is not storage bookkeeping — it is
+the reason the feature is safe to use, and the sort of thing people are right to want
+stated. Say the word and it goes too.
+
+Recaptured for this: **A1.1.1**, **A1.1.2**, **B1.1.1**, and — outside changed.v.1's
+usual scope, because the copy appears there too — **C3.1** and **F1.2**.

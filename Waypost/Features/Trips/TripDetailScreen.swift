@@ -361,7 +361,7 @@ struct TripDetailScreen: View {
                     }
                 }
             }
-            SourceLine("Stays — curated. Live availability for your nights arrives with the data re-wire.")
+            SourceLine("Availability for your own nights is not published to this app — confirm with the campground.")
         }
     }
 }

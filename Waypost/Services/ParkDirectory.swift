@@ -252,9 +252,9 @@ final class ParkDirectory {
         } else if let why = failures.failures["protected areas (Overpass)"]
                     ?? failures.failures["place lookup (Nominatim)"]
                     ?? failures.failures.values.first {
-            phase = .unanswered("No source answered — \(why). The parks already on this iPhone are still here.")
+            phase = .unanswered("No source answered — \(why).")
         } else {
-            phase = .unanswered("No source answered. The parks already on this iPhone are still here.")
+            phase = .unanswered("No source answered.")
         }
     }
 

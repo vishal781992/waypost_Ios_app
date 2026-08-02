@@ -75,7 +75,7 @@ struct TripsScreen: View {
                         }
                     }
 
-                    Text("Trips live on this iPhone and in iCloud. A shared trip opens read-only for whoever you send it to.")
+                    Text("A shared trip opens read-only for whoever you send it to.")
                         .font(WP.bodyItalic(11.5))
                         .lineSpacing(3)
                         .opacity(0.5)
@@ -170,7 +170,7 @@ struct TripCard: View {
             Button("Remove trip", role: .destructive) { app.deleteTrip(trip.id) }
             Button("Keep it", role: .cancel) { }
         } message: {
-            Text("\(trip.title) and its day plans come off this iPhone. This cannot be undone.")
+            Text("\(trip.title) and its day plans are removed. This cannot be undone.")
         }
     }
 

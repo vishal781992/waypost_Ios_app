@@ -96,7 +96,7 @@ struct QuickSearchSheet: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 7) {
-                    Kicker(text: "Sixty-two on the phone")
+                    Kicker(text: "Every national park")
                     Text("Find a park")
                         .font(WP.display(38))
                         .lineLimit(1)
@@ -109,7 +109,7 @@ struct QuickSearchSheet: View {
                     .accessibilityLabel("Close")
             }
 
-            Text("A state, a city, or a name. The national parks answer instantly; everything else comes from Apple Maps and OpenStreetMap.")
+            Text("A state, a city, or a name.")
                 .font(WP.body(13)).opacity(0.6).lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 10)
