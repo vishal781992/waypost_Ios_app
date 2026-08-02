@@ -9,9 +9,6 @@ import SwiftUI
 struct TodayScreen: View {
     @Environment(AppState.self) private var app
 
-    /// The `+` opens a search rather than the trip builder: the first question anybody
-    /// has is where to go, not how many nights.
-    @State private var showsSearch = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,8 +35,8 @@ struct TodayScreen: View {
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }
-        .onChange(of: app.showsQuickSearch) { _, wanted in showsSearch = wanted }
-        .sheet(isPresented: $showsSearch) {
+        .sheet(isPresented: Binding(get: { app.showsQuickSearch },
+                                    set: { app.showsQuickSearch = $0 })) {
             QuickSearchSheet()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
@@ -65,7 +62,7 @@ struct TodayScreen: View {
             Spacer(minLength: 0)
 
             Button {
-                showsSearch = true
+                app.showsQuickSearch = true
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 19, weight: .medium))

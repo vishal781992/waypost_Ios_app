@@ -53,6 +53,13 @@ with the same suggestions and the same live directory the Discover screen uses. 
 carries the park's photograph, its state and its designation, and opens the park. Starting
 a trip is still there, at the bottom, as one tap rather than the only tap.
 
+**Reworked once more** after the first pass looked cramped and empty. The head starts
+below the drag indicator rather than under it, the headline is Cormorant at 38 rather than
+28, with a kicker over it and air around it, and the field is taller. More to the point,
+an empty field is no longer an empty page: the sheet opens on the six national parks
+nearest you, measured from the same fix the home screen uses, off the list on the phone —
+so it answers before it is asked. See **A1.1.1**.
+
 ### 4. No more opening on Zion or Arches
 
 **Before** — the hero showed whichever park the seed trip was in — Arches on day five —

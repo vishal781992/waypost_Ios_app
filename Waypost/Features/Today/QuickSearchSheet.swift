@@ -32,9 +32,10 @@ struct QuickSearchSheet: View {
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
                 .font(WP.body(16))
-                .padding(.horizontal, 16)
-                .frame(minHeight: 44)
+                .padding(.horizontal, 18)
+                .frame(minHeight: 50)
                 .liquidGlass(.pill, radius: 999)
+                .shadow(color: Color(hex: 0x181008, opacity: 0.06), radius: 10, y: 4)
                 .focused($focused)
                 .submitLabel(.search)
                 .padding(.horizontal, WP.gutter)
@@ -45,6 +46,10 @@ struct QuickSearchSheet: View {
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
+                    if query.isEmpty {
+                        nearYou
+                    }
+
                     if !suggestions.isEmpty, results.isEmpty {
                         SuggestionList(items: suggestions) { suggestion in
                             query = suggestion.query
@@ -88,25 +93,89 @@ struct QuickSearchSheet: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text("Find a park").font(WP.display(28))
-                Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 7) {
+                    Kicker(text: "Sixty-two on the phone")
+                    Text("Find a park")
+                        .font(WP.display(38))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                Spacer(minLength: 12)
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .semibold))
-                        .frame(width: 32, height: 32)
+                        .frame(width: 34, height: 34)
                         .glassControl(shadow: false)
                 }
                 .buttonStyle(PressStyle(scale: 0.92))
+                .padding(.top, 2)
             }
-            Text("By state, by city, or by name — sixty-two national parks are on the phone, the rest comes from Apple Maps and OpenStreetMap.")
-                .font(WP.body(12.5)).opacity(0.62).lineSpacing(2)
+
+            Text("A state, a city, or a name. The national parks answer instantly; everything else comes from Apple Maps and OpenStreetMap.")
+                .font(WP.body(13)).opacity(0.6).lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10)
+                .padding(.trailing, 24)
         }
         .padding(.horizontal, WP.gutter)
-        .padding(.top, 18)
-        .padding(.bottom, 12)
+        // Below the drag indicator rather than under it: a sheet that starts at the very
+        // top reads as a page that was cut off.
+        .padding(.top, 34)
+        .padding(.bottom, 18)
+    }
+
+    /// What is closest, before a word has been typed.
+    ///
+    /// The sheet used to open on a blank page under a field, which is a question with no
+    /// hint at the answer. These come from the list on the phone, measured from the same
+    /// fix the home screen uses, so they need no network and appear with the sheet.
+    @ViewBuilder
+    private var nearYou: some View {
+        let fix = app.recommender.fix
+        let parks = fix.map { NationalParks.near(lat: $0.lat, lon: $0.lon, limit: 6) } ?? []
+
+        if !parks.isEmpty {
+            HStack(spacing: 7) {
+                Image(systemName: "location.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(WP.accent700)
+                Text((app.recommender.placeName.map { "Nearest to \($0)" } ?? "Nearest to you").uppercased())
+                    .font(WP.body(10)).tracking(1.4).opacity(0.55)
+                Rectangle().fill(WP.divider).frame(height: 1)
+            }
+            .padding(.top, 22)
+            .padding(.bottom, 6)
+
+            ForEach(parks, id: \.park.code) { entry in
+                let park = CuratedPark(bundled: entry.park)
+                Button {
+                    dismiss()
+                    app.openPark(park.code)
+                } label: {
+                    DividedRow(vertical: 12) {
+                        HStack(spacing: 12) {
+                            ParkImage(park: park, showsScrim: false, topLight: false)
+                                .frame(width: 44, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(park.name).font(WP.rowTitle(16))
+                                Text([park.state, park.designationLabel]
+                                        .filter { !$0.isEmpty }.joined(separator: " · "))
+                                    .font(WP.body(11.5)).opacity(0.6)
+                            }
+                            Spacer(minLength: 0)
+                            Text("\(entry.miles) mi").font(WP.body(11.5)).opacity(0.55).tnum()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(WP.accent700)
+                        }
+                    }
+                }
+                .buttonStyle(PressStyle(scale: 0.995))
+            }
+        }
     }
 
     private var note: String {

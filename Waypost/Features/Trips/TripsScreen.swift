@@ -5,9 +5,6 @@ import SwiftUI
 struct TripsScreen: View {
     @Environment(AppState.self) private var app
 
-    /// The `+` opens the same search the home screen's does — a state, a city or a park
-    /// — with starting a trip one tap further in.
-    @State private var showsSearch = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -92,8 +89,8 @@ struct TripsScreen: View {
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }
-        .onChange(of: app.showsQuickSearch) { _, wanted in showsSearch = wanted }
-        .sheet(isPresented: $showsSearch) {
+        .sheet(isPresented: Binding(get: { app.showsQuickSearch },
+                                    set: { app.showsQuickSearch = $0 })) {
             QuickSearchSheet()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
@@ -102,7 +99,7 @@ struct TripsScreen: View {
 
     private var newTripButton: some View {
         Button {
-            showsSearch = true
+            app.showsQuickSearch = true
         } label: {
             ZStack {
                 WP.ink
