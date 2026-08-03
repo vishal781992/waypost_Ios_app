@@ -23,7 +23,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Waypost opens on the parks nearest you. Location is used once, for that shelf and to suggest an origin city — it is never stored or sent anywhere.</string>
+	<string>ParkHop uses your location to rank the parks near you and to measure the drive to them. Coordinates are sent to Apple Maps and to the routing and weather services that answer those questions, and are not stored on our servers.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>CormorantGaramond-SemiBold.ttf</string>
@@ -36,7 +36,7 @@
 	</dict>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

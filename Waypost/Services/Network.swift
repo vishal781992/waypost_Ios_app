@@ -48,7 +48,16 @@ final class ProxyConfig {
         base = stored ?? Self.defaultBase
     }
 
-    var isConnected: Bool { base.hasPrefix("http") }
+    /// A URL that parses, over HTTPS, with a host. `hasPrefix("http")` accepted
+    /// "httpfoo" and, worse, accepted plaintext `http://`, which would have carried the
+    /// proxy's traffic in the clear.
+    var isConnected: Bool {
+        guard let components = URLComponents(string: base.trimmingCharacters(in: .whitespaces)),
+              components.scheme?.lowercased() == "https",
+              let host = components.host, !host.isEmpty
+        else { return false }
+        return true
+    }
 
     var status: String {
         isConnected

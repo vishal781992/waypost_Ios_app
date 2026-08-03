@@ -5,17 +5,26 @@ import SwiftUI
 struct TripsScreen: View {
     @Environment(AppState.self) private var app
 
+    /// Counted, not asserted. With the seed trip gone this read "One trip on the books,
+    /// one in the field" over a screen that said "No trips yet".
+    private var kicker: String {
+        let planned = app.trips.count
+        let visited = app.visitedParks.count
+        if planned == 0 && visited == 0 { return "Nothing planned yet" }
+        var parts: [String] = []
+        if planned > 0 { parts.append("\(planned) trip\(planned == 1 ? "" : "s") on the books") }
+        if visited > 0 { parts.append("\(visited) park\(visited == 1 ? "" : "s") behind you") }
+        return parts.joined(separator: ", ")
+    }
+
 
     var body: some View {
         VStack(spacing: 0) {
             ScreenHeader {
                 HStack(alignment: .bottom, spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(app.myTrips.isEmpty
-                             ? "One trip on the books, one in the field."
-                             : "\(app.trips.count) trips on the books.")
-                            .kickerStyle()
-                        Text("Trips").font(WP.display(31))
+                        Text(kicker).kickerStyle()
+                        Text("Trips").font(WP.displayBold(44)).tracking(-0.4)
                     }
                     Spacer(minLength: 0)
                     newTripButton

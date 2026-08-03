@@ -11,7 +11,7 @@ struct ProfileScreen: View {
         VStack(spacing: 0) {
             ScreenHeader {
                 Text("ParkHop \(AppVersion.short) · a field planner").kickerStyle()
-                Text("Profile").font(WP.display(31)).padding(.top, 4)
+                Text("Profile").font(WP.displayBold(44)).tracking(-0.4).padding(.top, 2)
             }
 
             ScrollView(.vertical) {
@@ -51,6 +51,9 @@ struct ProfileScreen: View {
                         }
 
                     }
+
+                    sectionLabel("Page colour · while testing")
+                    PageTintRow()
 
                     sectionLabel("Travel defaults")
                     VStack(alignment: .leading, spacing: 12) {
@@ -191,5 +194,80 @@ struct Grouped<Content: View>: View {
         VStack(spacing: 0) { content }
             .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(WP.divider, lineWidth: 1))
+    }
+}
+
+
+/// A hex field that repaints the app as it is typed.
+///
+/// Here while the colour is being decided, not forever — which is why it says so on the
+/// label above it rather than pretending to be a preference.
+struct PageTintRow: View {
+    @Environment(AppState.self) private var app
+    @State private var typed = PageTint.shared.hex
+    @FocusState private var focused: Bool
+
+    private var parsed: Color? { PageTint.colour(from: typed) }
+
+    var body: some View {
+        Grouped {
+            HStack(spacing: 12) {
+                // The colour as it will actually be, not as a name for it.
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(parsed ?? PageTint.shared.colour)
+                    .frame(width: 42, height: 42)
+                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .stroke(WP.divider, lineWidth: 1))
+
+                HStack(spacing: 2) {
+                    Text("#").font(WP.mono(15)).opacity(0.4)
+                    TextField(PageTint.defaultHex, text: $typed)
+                        .textFieldStyle(.plain)
+                        .font(WP.mono(15))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.characters)
+                        .focused($focused)
+                        .submitLabel(.done)
+                        .onChange(of: typed) { _, new in
+                            // Applied the moment it is valid, so the colour can be judged
+                            // against the photographs rather than against a swatch.
+                            if PageTint.colour(from: new) != nil {
+                                PageTint.shared.hex = new
+                            }
+                        }
+                }
+
+                Spacer(minLength: 0)
+
+                if !PageTint.shared.isDefault {
+                    Button {
+                        PageTint.shared.reset()
+                        typed = PageTint.defaultHex
+                        focused = false
+                        app.show("Page colour back to #\(PageTint.defaultHex)")
+                    } label: {
+                        Text("Reset")
+                            .font(WP.headingUI(12.5))
+                            .padding(.horizontal, 13)
+                            .frame(minHeight: 32)
+                            .glassControl(shadow: false)
+                    }
+                    .buttonStyle(PressStyle(scale: 0.95))
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+
+            Hairline()
+
+            Text(parsed == nil
+                 ? "Three or six hex digits — that is not one, so the page is unchanged."
+                 : "Every screen takes this colour as you type. It survives a relaunch, and Reset puts it back.")
+                .font(WP.bodyItalic(11.5)).opacity(0.6).lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+        }
     }
 }

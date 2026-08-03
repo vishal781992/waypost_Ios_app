@@ -11,7 +11,7 @@ struct SavedScreen: View {
             ScreenHeader {
                 Text("\(app.stamps.count) of 63 stamps").kickerStyle()
                     .rollingNumber(app.stamps.count)
-                Text("Saved").font(WP.display(31)).padding(.top, 4).padding(.bottom, 11)
+                Text("Saved").font(WP.displayBold(44)).tracking(-0.4).padding(.top, 2).padding(.bottom, 11)
                 SegmentedTrough(
                     options: [(false, "Parks"), (true, "Passport")],
                     selection: $app.savedShowsPassport

@@ -73,7 +73,7 @@ struct DiscoverScreen: View {
         VStack(spacing: 0) {
             ScreenHeader {
                 Text("Sixty-three parks, one at a time").kickerStyle()
-                Text("Discover").font(WP.display(31)).padding(.top, 4).padding(.bottom, 10)
+                Text("Discover").font(WP.displayBold(44)).tracking(-0.4).padding(.top, 2).padding(.bottom, 10)
 
                 // Two catalogues with different guarantees: the NPS registry, and the
                 // state-park table that ships on the phone.

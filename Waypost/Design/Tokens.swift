@@ -12,8 +12,9 @@ enum WP {
 
     // MARK: Palette
 
-    /// The page.
-    static let bg = Color(hex: 0xD1CFA5)
+    /// The page. Read through `PageTint` so the colour can be tried on live while it is
+    /// still being chosen; ships as #D1CFA5.
+    @MainActor static var bg: Color { PageTint.shared.colour }
     /// What sits *on* ink — the trip cards, the permit plate, the glyph on a dark disc.
     /// This was `bg` when the page was near-white and the two were the same colour by
     /// coincidence; they are different things and now they look it.
@@ -94,14 +95,13 @@ enum WP {
     /// Only the app's own name is set in it — a display serif this heavy stops being a
     /// heading and starts being a logotype.
     static func displayBold(_ size: CGFloat) -> Font {
-        scaled(.custom("CormorantGaramond-Bold", size: size),
-               uiFont: UIFont(name: "CormorantGaramond-Bold", size: size),
+        scaled("CormorantGaramond-Bold", fallback: .system(size: size, weight: .bold, design: .serif),
                style: .largeTitle, size: size, cap: 1.4)
     }
 
     static func display(_ size: CGFloat) -> Font {
-        scaled(.custom("CormorantGaramond-SemiBold", size: size),
-               uiFont: UIFont(name: "CormorantGaramond-SemiBold", size: size),
+        scaled("CormorantGaramond-SemiBold",
+               fallback: .system(size: size, weight: .semibold, design: .serif),
                style: .largeTitle, size: size, cap: 1.4)
     }
 
@@ -145,10 +145,15 @@ enum WP {
     }
 
     /// The serif has no system metrics of its own, so it is scaled by the same rule.
-    private static func scaled(_ fallback: Font, uiFont: UIFont?,
+    ///
+    /// The face has to be carried through: this used to rebuild the font from a
+    /// hard-coded `CormorantGaramond-SemiBold`, which meant `displayBold` asked for the
+    /// Bold cut, passed the check that the Bold cut exists, and then drew SemiBold —
+    /// including the masthead the weight was cut for.
+    private static func scaled(_ name: String, fallback: Font,
                                style: UIFont.TextStyle, size: CGFloat, cap: CGFloat) -> Font {
-        guard uiFont != nil else { return fallback }
-        return .custom("CormorantGaramond-SemiBold", size: scaledSize(size, style: style, cap: cap))
+        guard UIFont(name: name, size: size) != nil else { return fallback }
+        return .custom(name, size: scaledSize(size, style: style, cap: cap))
     }
 
     // MARK: Metrics

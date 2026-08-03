@@ -27,9 +27,17 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         manager.desiredAccuracy = kCLLocationAccuracyKilometer
     }
 
-    /// A device fix if the user allows one; otherwise the IP city; otherwise nil.
-    func currentFix() async -> Fix? {
+    /// A device fix if the user allows one, and nothing at all if they do not.
+    ///
+    /// This used to fall through to an IP lookup when Core Location said no, which sends
+    /// the user's address to a third party immediately after they declined to share where
+    /// they are. A refusal is an answer. The IP path is still here, behind
+    /// `allowsNetworkFallback`, for a caller that has asked separately and been told yes.
+    func currentFix(allowsNetworkFallback: Bool = false) async -> Fix? {
+        let status = manager.authorizationStatus
         if let device = await deviceFix() { return device }
+        // Only when the user never answered — not when they said no.
+        guard allowsNetworkFallback, status != .denied, status != .restricted else { return nil }
         return await ipFix()
     }
 

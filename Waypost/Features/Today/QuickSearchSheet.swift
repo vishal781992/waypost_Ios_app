@@ -98,7 +98,8 @@ struct QuickSearchSheet: View {
                 VStack(alignment: .leading, spacing: 7) {
                     Kicker(text: "Every national park")
                     Text("Find a park")
-                        .font(WP.display(38))
+                        .font(WP.displayBold(44))
+                        .tracking(-0.4)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                 }

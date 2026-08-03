@@ -105,26 +105,28 @@ final class AppState {
     var sheet: ActiveSheet?
     var take: TodayTake = .field
 
-    // The day you are living in — day 5 of the seed trip, as the design opens.
-    var day: Int = 5
+    // Which day of the open trip is being read. One, until a trip says otherwise.
+    var day: Int = 1
 
     // Today
-    var doneItems: Set<String> = ["a0"]
+    var doneItems: Set<String> = []
     var liveActivityOn = false
-    var journalCount = 2
+    var journalCount = 0
 
-    // Notifications
-    var notifyPermits = true
-    var notifyAlerts = true
+    // Notifications. Off until the system says otherwise — these are a record of what the
+    // user asked for, and a fresh install has been asked nothing.
+    var notifyPermits = false
+    var notifyAlerts = false
     var notifyLive = false
 
     // Offline packs
-    var packs: [String: PackState] = ["romo": .ready, "arch": .ready]
+    var packs: [String: PackState] = [:]
     var packProgress: [String: Double] = [:]
 
-    // Library
-    var saved: [String] = ["grte", "glac"]
-    var stamps: Set<String> = ["cany", "dino", "brca", "flfo", "meve"]
+    // Library. Empty on a clean install: a saved park, a stamp and a downloaded pack are
+    // claims about what somebody did, and nobody has done anything yet.
+    var saved: [String] = []
+    var stamps: Set<String> = []
     var savedShowsPassport = false
 
     // Discover
@@ -256,6 +258,10 @@ final class AppState {
     /// Synthetic taps are not available on this simulator, so a pushed screen cannot be
     /// reached any other way when capturing one.
     func applyLaunchArguments() {
+        // Debug only. Every one of these hooks writes user state — a tab, an emptied
+        // screen, an open sheet, the page colour — so in a release build this function
+        // does nothing and the arguments cannot reach anything.
+        #if DEBUG
         // Both spellings: the argument list, and the argument domain iOS builds from
         // `-key value` pairs — which is the one that survives however the app was started.
         let args = ProcessInfo.processInfo.arguments
@@ -269,7 +275,7 @@ final class AppState {
                 || value("wpSearch") != nil || value("wpTrip") != nil
                 || value("wpBuilder") != nil || value("wpStateParks") != nil
                 || value("wpEmpty") != nil || value("wpSheet") != nil
-                || value("wpFind") != nil else { return }
+                || value("wpFind") != nil || value("wpTint") != nil else { return }
 
         // Applied after the scene has settled. SwiftUI restores the tab view's own
         // selection on launch and writes it back through the binding, and `go` clears
@@ -303,6 +309,9 @@ final class AppState {
                 }
             }
             if value("wpStateParks") != nil { self.tab = .discover; self.discoverShowsState = true }
+            if let hex = value("wpTint"), PageTint.colour(from: hex) != nil {
+                PageTint.shared.hex = hex
+            }
             if let term = value("wpFind") {
                 self.tab = .today
                 self.showsQuickSearch = true
@@ -343,6 +352,7 @@ final class AppState {
                 self.discoverQuery = term
             }
         }
+        #endif
     }
 
     /// The live catalogue. The eight curated parks are still the ones with day plans and
@@ -506,7 +516,9 @@ final class AppState {
     // MARK: Trips
 
     var trips: [SavedTrip] {
-        myTrips + (seedTripHidden ? [] : [SavedTrip.seed(dayNumber: today.d)])
+        // Only trips the user made. The sample itinerary is a fixture now, reachable in
+        // debug builds through the capture hooks and never on a clean install.
+        myTrips
     }
 
     /// Removing a trip is not undoable, so the card asks first.
