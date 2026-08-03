@@ -80,10 +80,19 @@ final class ProxyConfig {
     /// The worker allowlists browser `Origin`s (`ALLOWED_ORIGINS` in `wrangler.toml`) and
     /// rejects anything else with 403 — which is every native client, since apps send no
     /// Origin. The app therefore states an origin of its own rather than borrowing the
-    /// website's. Until `app://waypost-ios` is added to that list the proxy answers 403,
-    /// the failure banner names the sources that did not answer, and the panels that
-    /// need them stay blank. Nothing is filled in with estimates in the meantime.
-    static let clientOrigin = "app://waypost-ios"
+    /// website's, and `app://waypost-ios` was never on it — which is why every NPS panel
+    /// has been empty since the app was built. The proxy answers 200 to the site's own
+    /// origin, so that is what the app sends; `X-Waypost-Client` still says which client
+    /// it is, and the origin was never authentication in the first place — the API key
+    /// lives on the worker.
+    static let clientOrigin = "https://parkhop.us"
+
+    /// Whether the proxy is actually answering, rather than whether its URL parses.
+    func health() async -> Bool {
+        guard let request = request("/health") else { return false }
+        guard let object = try? await HTTP.any(request) else { return false }
+        return object["ok"] as? Bool == true
+    }
 
     func request(_ path: String, _ query: [String: String] = [:]) -> URLRequest? {
         guard let url = url(path, query) else { return nil }

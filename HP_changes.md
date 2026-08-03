@@ -461,6 +461,15 @@ two design bugs it names. Everything else is listed below as untouched, honestly
 | Trips kicker asserted a trip existed | **Done** | With the seed gone, "One trip on the books, one in the field" sat over "No trips yet". It counts now. — claude |
 | Screen titles | **Done** | Trips, Discover, Saved, Profile and Find a park are `displayBold(44)`, matching the ParkHop masthead — the user's request, and it exposed the bug above. — claude |
 
+## Pass 2 — NPS
+
+| Item | Status | Note |
+|---|---|---|
+| NPS returns nothing for any park | **Done** | The service was never broken. The proxy allowlists the website's origin and the app was sending `app://waypost-ios`, which it answers 403 to — so every NPS call in the app's life had failed. The app sends the site's own origin now (`X-Waypost-Client` still says which client it is; the origin was never authentication — the key lives on the worker). Verified 200 with real data. — claude |
+| Flow 3 · park screens read NPS | **Done** | Even with the proxy fixed nothing on a park screen read it: fees and hours came from the bundled catalogue for eight parks and said "Not published" for the other fifty-four. `ParkFacts` resolves a park to its NPS unit — by code for the curated eight, by name search for the rest, cached — and the screen shows the published fee, hours, directions and current alerts. Arches now reads "$30 · Entrance - Private Vehicle" and the park's own hours paragraph. — claude |
+| Flow 5 · remove `TripStore` | **Done** | Deleted with `TripPresentation` — 1,175 lines referenced by nothing. Its `ParkFacts` struct was the name clash that surfaced it. — claude |
+| Release config · `DEBUG` never defined | **Done** | XcodeGen sets no `SWIFT_ACTIVE_COMPILATION_CONDITIONS`, so `#if DEBUG` was false in *both* configurations — the capture hooks compiled out of the debug build the moment pass 1 guarded them. Debug defines `DEBUG`; Release is explicitly empty. — claude |
+
 ## Not done — and not started
 
 Everything below is untouched. Listing it so the gap is visible rather than implied.
@@ -470,9 +479,9 @@ Everything below is untouched. Listing it so the gap is visible rather than impl
 | Flow 1 · consent screen before the system prompt; manual city origin | **Not started** — claude |
 | Flow 1 · `LocationService` single-flight actor, concurrent callers, exactly-once continuation | **Not started** — the continuation is still a single stored optional. — claude |
 | Flow 2 · per-source state, bounded deadlines, LRU/TTL cache, stable identity dedup | **Partly, by accident** — sources already publish independently and Overpass has host fallback, but the 90-second budgets, the clear-at-24 cache and name-based dedup are as described. — claude |
-| Flow 3 · `LoadState` + Retry per park segment; units wired to weather; 44pt targets | **Not started** — claude |
+| Flow 3 · `LoadState` + Retry per park segment; units wired to weather; 44pt targets | **Partly** — `ParkFacts` carries loaded/not-covered/failed and distinguishes "NPS does not cover this park" from "the request failed"; weather, units and target sizes are unchanged. — claude |
 | Flow 4 · real `Date` picker, `TripComposer`, UUID trip IDs, no `hashValue` | **Not started** — claude |
-| Flow 5 · retire `TripStore`; dynamic day plans | **Not started** — `TripStore` and `TripPresentation` are still 1,175 unused lines. — claude |
+| Flow 5 · dynamic day plans | **Not started** — `TripStore` is gone (pass 2); the fixed ten-day itinerary is unchanged. — claude |
 | Flow 6 · saved/passport semantics | **Partly** — pre-awarded stamps are gone; the check-in rule that should award them does not exist. — claude |
 | Flow 7 · real notification/system state, storage bytes, Delete Local Data | **Not started** — the notification toggles are still local Booleans. — claude |
 | Flow 8 · offline packs end-to-end | **Not started** — the timer and the "works with no signal" copy are still there. — claude |

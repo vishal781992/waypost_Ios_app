@@ -12,6 +12,14 @@ struct ParkScreen: View {
     private var packState: PackState { app.packState(park.code) }
     private var isSaved: Bool { app.saved.contains(park.code) }
 
+    /// What the park service publishes today, in preference to anything bundled.
+    private var facts: ParkFacts.Facts? {
+        if case .loaded(let facts) = ParkFacts.shared.state(for: park) { return facts }
+        return nil
+    }
+    private var liveFee: String? { facts?.fee }
+    private var liveHours: String? { facts?.hours }
+
     var body: some View {
         // The photograph runs to the very top of the display — under the status bar and
         // around the island — so opening a park feels like arriving at it rather than
@@ -56,6 +64,7 @@ struct ParkScreen: View {
         .background(WP.bg)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { segment = app.parkSegment[park.code] ?? initialSegment }
+        .task(id: park.code) { ParkFacts.shared.load(park) }
         .onChange(of: segment) { _, new in app.parkSegment[park.code] = new }
     }
 
@@ -137,9 +146,9 @@ struct ParkScreen: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(park.fee).font(WP.body(12.5)).opacity(0.85)
+                Text(liveFee ?? park.fee).font(WP.body(12.5)).opacity(0.85)
                 Text("|").opacity(0.28)
-                Text(park.hours).font(WP.body(12.5)).opacity(0.85)
+                Text(liveHours ?? park.hours).font(WP.body(12.5)).opacity(0.85)
             }
             .padding(.top, 13)
 
@@ -181,10 +190,10 @@ struct OverviewSection: View {
                     .font(WP.bodyItalic(13)).lineSpacing(3).opacity(0.75)
             }
 
-            if !park.alerts.isEmpty {
+            if !alerts.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 SectionTitle("Know before you go")
-                ForEach(park.alerts) { alert in
+                ForEach(alerts) { alert in
                     Button {
                         app.sheet = .alert(park: park.name, alert: alert)
                     } label: {
@@ -273,6 +282,22 @@ struct OverviewSection: View {
 
             SourceLine(overviewSource)
         }
+    }
+
+    private var facts: ParkFacts.Facts? {
+        if case .loaded(let facts) = ParkFacts.shared.state(for: park) { return facts }
+        return nil
+    }
+
+    /// The fee the park service publishes today, in preference to anything bundled.
+    private var liveFee: String? { facts?.fee }
+    private var liveHours: String? { facts?.hours }
+
+    /// Alerts the park is posting right now — closures, fire, road work — ahead of the
+    /// bundled ones, which are editorial rather than current.
+    private var alerts: [CuratedAlert] {
+        if let live = facts?.alerts, !live.isEmpty { return live }
+        return park.alerts
     }
 
     /// Which of the two catalogues this park's overview is being read out of, and which
