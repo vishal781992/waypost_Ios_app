@@ -329,7 +329,12 @@ final class ParkDirectory {
             answered.insert(.appleMaps)
             return response.mapItems.compactMap { item -> OSMPlace? in
                 guard let name = item.name,
-                      let designation = ParkDesignation.inName(name) else { return nil }
+                      let designation = ParkDesignation.inName(name),
+                      // "Western National Parks Store - Guadalupe Mountains" carries a
+                      // designation in its name and is a gift shop. So do the visitor
+                      // centres, ranger stations and campgrounds inside a park; the park
+                      // is the thing being searched for, not its buildings.
+                      !Self.isNotThePark(name) else { return nil }
                 let placemark = item.placemark
                 return OSMPlace(
                     id: "apple-\(name)-\(placemark.coordinate.latitude),\(placemark.coordinate.longitude)",
@@ -347,6 +352,16 @@ final class ParkDirectory {
             failures.note("parks (Apple Maps)", error)
             return []
         }
+    }
+
+    /// Things named after a park that are not the park.
+    private static func isNotThePark(_ name: String) -> Bool {
+        let noise = ["store", "shop", "gift", "visitor center", "visitor centre",
+                     "ranger station", "campground", "trading post", "museum",
+                     "association", "conservancy", "headquarters", "lodge", "inn",
+                     "hotel", "restaurant", "parking"]
+        let lowered = name.lowercased()
+        return noise.contains { lowered.contains($0) }
     }
 
     /// Places for a set of words. Nominatim asks for a real user agent and refuses

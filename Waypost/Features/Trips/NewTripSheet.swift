@@ -30,6 +30,8 @@ struct NewTripSheet: View {
         .presentationDetents([.large])
         .presentationCornerRadius(22)
         .presentationDragIndicator(.visible)
+        .onChange(of: app.directory.hits) { _, _ in app.refreshBuilderResults() }
+        .onChange(of: app.directory.phase) { _, _ in app.refreshBuilderResults() }
     }
 
     // MARK: Chrome
@@ -100,12 +102,29 @@ struct NewTripSheet: View {
         compose()
     }
 
+    /// What answered, and whether anything is still coming — the same line Discover
+    /// carries, so a search that is merely slow does not read as a search that failed.
+    private var searchNote: String {
+        let count = builder.results.count
+        switch app.directory.phase {
+        case .searching:
+            return "\(count) so far · still looking"
+        case .unanswered(let why):
+            return why
+        case .idle, .ready:
+            let sources = app.directory.answered.map(\.rawValue).sorted().joined(separator: " · ")
+            return sources.isEmpty
+                ? "\(count) \(count == 1 ? "park" : "parks")"
+                : "\(count) \(count == 1 ? "park" : "parks") · \(sources)"
+        }
+    }
+
     // MARK: Step 1 — parks
 
     private var stepParks: some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
-                TextField("Search parks…", text: $builder.query)
+                TextField("A state, a city, or a park…", text: $builder.query)
                     .textFieldStyle(.plain)
                     .autocorrectionDisabled()
                     .font(WP.body(16))
@@ -134,6 +153,16 @@ struct NewTripSheet: View {
 
             ScrollView(.vertical) {
                 VStack(spacing: 0) {
+                    if !builder.query.isEmpty {
+                        HStack(spacing: 6) {
+                            Text(searchNote)
+                                .font(WP.bodyItalic(11.5)).opacity(0.6)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, WP.gutter)
+                        .padding(.bottom, 6)
+                    }
+
                     ForEach(builder.results) { park in
                         Button {
                             withAnimation(.snappy(duration: 0.2)) { builder.toggle(park.code) }
@@ -146,7 +175,7 @@ struct NewTripSheet: View {
                                             Text(park.state.uppercased())
                                                 .font(WP.body(10)).tracking(1.4)
                                                 .foregroundStyle(WP.accent)
-                                            Text(park.region.uppercased())
+                                            Text(park.designationLabel.uppercased())
                                                 .font(WP.body(10)).tracking(1.4).opacity(0.4)
                                         }
                                         Text(park.name).font(WP.rowTitle(18))

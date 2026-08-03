@@ -303,6 +303,7 @@ final class AppState {
             if let step = value("wpBuilder") {
                 self.startBuilder()
                 // Steps two and three need parks picked before they will show anything.
+                if let typed = value("wpBuilderQuery") { self.builder?.query = typed }
                 if let wanted = Int(step), wanted > 1 {
                     self.builder?.picks = ["romo", "arch", "zion"]
                     self.builder?.step = wanted
@@ -538,7 +539,19 @@ final class AppState {
     func trip(_ id: String) -> SavedTrip? { trips.first { $0.id == id } }
 
     func startBuilder() {
-        builder = TripBuilder(vehicleIsElectric: vehicleIsElectric)
+        let builder = TripBuilder(vehicleIsElectric: vehicleIsElectric)
+        // The builder's field drives the same live search Discover uses, and takes the
+        // results back as they land.
+        builder.onQueryChanged = { [weak self] query in
+            guard let self else { return }
+            self.directory.search(query)
+        }
+        self.builder = builder
+    }
+
+    /// Hands the directory's findings to the open builder, if there is one.
+    func refreshBuilderResults() {
+        builder?.liveResults = directory.hits.map(\.park)
     }
 
     func finishBuilder() {
@@ -659,7 +672,14 @@ final class TripBuilder {
     var origin = "den"
     var flyWhenFaster = false
     var vehicleIsElectric: Bool
-    var query = ""
+    var query = "" {
+        didSet {
+            guard query != oldValue else { return }
+            onQueryChanged?(query)
+        }
+    }
+    /// Set by `AppState` so the builder can reach the shared directory without owning it.
+    var onQueryChanged: ((String) -> Void)?
     var composeProgress: Double = 0
     var composing = false
 
@@ -693,12 +713,43 @@ final class TripBuilder {
         days[code] = min(9, max(1, days(for: code) + delta))
     }
 
+    /// Every park the app can find, not the eight it ships with.
+    ///
+    /// This read `library.orderedParks` alone, so a trip could only ever be built out of
+    /// the curated eight — a park found on Discover could be opened and saved but not
+    /// planned around, which is the one place it mattered.
+    ///
+    /// Three sources, in the order they can answer: the sixty-two on the phone, instantly
+    /// and offline; the curated eight, which carry day plans the others do not; and
+    /// whatever the live directory has found for the same words.
     var results: [CuratedPark] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
-        let all = library.orderedParks
-        guard !q.isEmpty else { return all }
-        return all.filter { ($0.name + " " + $0.state + " " + $0.tag).lowercased().contains(q) }
+
+        var out = library.orderedParks
+        var seen = Set(out.map { $0.name.lowercased() })
+
+        func add(_ parks: [CuratedPark]) {
+            for park in parks where seen.insert(park.name.lowercased()).inserted {
+                out.append(park)
+            }
+        }
+
+        if q.isEmpty {
+            // Nothing typed: the eight with plans first, then the rest of the country.
+            add(NationalParks.all.map(CuratedPark.init(bundled:)))
+            return out
+        }
+
+        out = out.filter { ($0.name + " " + $0.state + " " + $0.full).lowercased().contains(q) }
+        seen = Set(out.map { $0.name.lowercased() })
+        add(NationalParks.search(q).map(CuratedPark.init(bundled:)))
+        add(liveResults)
+        return out
     }
+
+    /// Filled by the directory as it answers. Held rather than read through `AppState` so
+    /// the builder keeps working if it is ever presented on its own.
+    var liveResults: [CuratedPark] = []
 
     var totalDays: Int { picks.reduce(0) { $0 + days(for: $1) } }
 
