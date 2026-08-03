@@ -106,7 +106,7 @@ struct TripsScreen: View {
                 ButtonGlow(strong: true)
                 Image(systemName: "plus")
                     .font(.system(size: 20, weight: .light))
-                    .foregroundStyle(WP.bg)
+                    .foregroundStyle(WP.onInk)
             }
             .frame(width: 44, height: 44)
             .clipShape(Circle())
@@ -182,7 +182,7 @@ struct TripCard: View {
         } label: {
             Image(systemName: "trash")
                 .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(WP.bg)
+                .foregroundStyle(WP.onInk)
                 .frame(width: 34, height: 34)
                 .background(.white.opacity(0.12), in: Circle())
                 .overlay(Circle().stroke(.white.opacity(0.24), lineWidth: 0.5))
@@ -257,7 +257,7 @@ struct TripCard: View {
                         .padding(.horizontal, 18)
                 }
             }
-            .foregroundStyle(WP.bg)
+            .foregroundStyle(WP.onInk)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(.white.opacity(0.18), lineWidth: 0.5))

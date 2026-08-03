@@ -12,7 +12,12 @@ enum WP {
 
     // MARK: Palette
 
-    static let bg = Color(hex: 0xF3F2F2)
+    /// The page.
+    static let bg = Color(hex: 0xD1CFA5)
+    /// What sits *on* ink — the trip cards, the permit plate, the glyph on a dark disc.
+    /// This was `bg` when the page was near-white and the two were the same colour by
+    /// coincidence; they are different things and now they look it.
+    static let onInk = Color(hex: 0xF3F2F2)
     static let surface = Color(hex: 0xEAE9E9)
     static let text = Color(hex: 0x201F1D)
     static let accent = Color(hex: 0xB68235)

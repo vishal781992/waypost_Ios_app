@@ -407,7 +407,7 @@ struct DrivingDayCard: View {
 
                     Text(leg.road)
                         .font(WP.body(12.5))
-                        .foregroundStyle(WP.bg.opacity(0.85))
+                        .foregroundStyle(WP.onInk.opacity(0.85))
                         .padding(.horizontal, 2)
                         .padding(.top, 12)
                 }

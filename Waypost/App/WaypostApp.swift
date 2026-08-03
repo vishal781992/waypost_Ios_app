@@ -255,7 +255,7 @@ struct TabIcon: View {
                 Capsule().frame(width: 6.4, height: 2.6)
                     .rotationEffect(.degrees(45)).offset(x: 7.5, y: 7.5)
                 NeedleShape()
-                    .fill(WP.bg)
+                    .fill(WP.onInk)
                     .frame(width: 8, height: 8)
                     .offset(x: -1.2, y: -1.2)
             }

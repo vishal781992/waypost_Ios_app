@@ -506,7 +506,7 @@ struct ToastView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 9)
             .background(WP.ink, in: Capsule())
-            .foregroundStyle(WP.bg)
+            .foregroundStyle(WP.onInk)
             .shadow(color: WP.neutral900.opacity(0.22), radius: 16, y: 8)
             .transition(.move(edge: .bottom).combined(with: .opacity))
     }

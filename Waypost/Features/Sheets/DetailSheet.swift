@@ -90,7 +90,7 @@ struct DetailSheet: View {
                 Text("\(drop.what) — tap to open Recreation.gov with your dates filled in.")
                     .font(WP.body(12.5)).opacity(0.78).lineSpacing(2).padding(.top, 3)
             }
-            .foregroundStyle(WP.bg)
+            .foregroundStyle(WP.onInk)
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(WP.ink, in: RoundedRectangle(cornerRadius: 16))
