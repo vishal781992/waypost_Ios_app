@@ -176,7 +176,7 @@ struct ProfileScreen: View {
                      : "Get")
                     .font(WP.headingUI(12.5))
                     .padding(.horizontal, 13)
-                    .frame(minHeight: 32)
+                    .frame(minHeight: 44)
                     .glassControl(shadow: false)
             }
             .buttonStyle(PressStyle(scale: 0.95))
@@ -249,7 +249,7 @@ struct PageTintRow: View {
                         Text("Reset")
                             .font(WP.headingUI(12.5))
                             .padding(.horizontal, 13)
-                            .frame(minHeight: 32)
+                            .frame(minHeight: 44)
                             .glassControl(shadow: false)
                     }
                     .buttonStyle(PressStyle(scale: 0.95))

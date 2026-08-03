@@ -18,7 +18,7 @@ struct TripDetailScreen: View {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(trip.tag).kickerStyle()
-                    Text(trip.title).font(WP.heading(27)).padding(.top, 7)
+                    Text(trip.title).font(WP.display(34)).padding(.top, 7)
                         .multilineTextAlignment(.leading)
                     Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.65).padding(.top, 5)
 

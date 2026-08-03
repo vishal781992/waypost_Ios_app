@@ -117,7 +117,7 @@ struct DiscoverScreen: View {
                                 Text(chip.label)
                                     .font(WP.body(12.5))
                                     .padding(.horizontal, 15)
-                                    .frame(minHeight: 34)
+                                    .frame(minHeight: 44)
                                     .modifier(SelectedControl(active: active))
                             }
                             .buttonStyle(PressStyle(scale: 0.96))
@@ -255,7 +255,7 @@ struct DiscoverCard: View {
                     Text(isSaved ? "Saved" : "Save")
                         .font(WP.headingUI(13))
                         .padding(.horizontal, 16)
-                        .frame(minHeight: 36)
+                        .frame(minHeight: 44)
                         .glassControl(shadow: false)
                 }
                 .buttonStyle(PressStyle(scale: 0.96))

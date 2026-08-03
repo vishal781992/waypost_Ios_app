@@ -148,22 +148,29 @@ struct PushHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            // 15pt back, 16pt title: both read as system chrome borrowed from another
+            // app rather than as part of a screen whose masthead is 44pt serif.
             Button(action: onBack) {
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 15, weight: .semibold))
-                    Text(backLabel).font(WP.body(15))
+                        .font(.system(size: 19, weight: .semibold))
+                    Text(backLabel).font(WP.body(19))
                 }
                 .foregroundStyle(WP.accent700)
-                .padding(.vertical, 6)
+                .padding(.vertical, 8)
                 .padding(.horizontal, 6)
+                // 44 points, as every control on the screen should be.
+                .frame(minHeight: 44, alignment: .center)
             }
             .buttonStyle(PressStyle(scale: 0.94))
 
             Spacer(minLength: 0)
             Text(title)
-                .font(WP.headingUI(16))
+                .font(WP.display(24))
                 .lineLimit(1)
+                // A trip's name is as long as somebody made it; shrinking reads better
+                // than "The Colorado Platea…".
+                .minimumScaleFactor(0.65)
             Spacer(minLength: 0)
 
             Color.clear.frame(width: 64, height: 1)

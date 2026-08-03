@@ -69,7 +69,7 @@ struct SavedParksList: View {
                             Button { app.toggleSaved(code) } label: {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 11, weight: .semibold))
-                                    .frame(width: 32, height: 32)
+                                    .frame(width: 44, height: 44)
                                     .glassControl(shadow: false)
                             }
                             .buttonStyle(PressStyle(scale: 0.9))

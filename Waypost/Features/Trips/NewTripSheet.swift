@@ -47,8 +47,9 @@ struct NewTripSheet: View {
                     }
                 } label: {
                     Text(builder.step > 1 ? "Back" : "Cancel")
-                        .font(WP.body(14.5))
+                        .font(WP.body(19))
                         .foregroundStyle(WP.accent700)
+                        .frame(minHeight: 44, alignment: .center)
                 }
                 .buttonStyle(PressStyle(scale: 0.94))
 
@@ -57,17 +58,13 @@ struct NewTripSheet: View {
                     .font(WP.body(10)).tracking(1.4).opacity(0.55)
                 Spacer(minLength: 0)
 
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(WP.neutral700)
-                        .frame(width: 30, height: 30)
-                        .background(WP.neutral200, in: Circle())
-                }
-                .buttonStyle(PressStyle(scale: 0.9))
+                // The same disc the home screen and the search sheet use, at the size
+                // every other round control in the app is.
+                GlassDisc(icon: "xmark", size: 44) { dismiss() }
+                    .accessibilityLabel("Cancel")
             }
 
-            Text(builder.heading).font(WP.heading(27)).padding(.top, 9)
+            Text(builder.heading).font(WP.display(32)).padding(.top, 9)
             Text(builder.subtitle).font(WP.body(12.5)).lineSpacing(2).opacity(0.7).padding(.top, 5)
         }
         .padding(.horizontal, WP.gutter)
@@ -129,7 +126,7 @@ struct NewTripSheet: View {
                     .autocorrectionDisabled()
                     .font(WP.body(16))
                     .padding(.horizontal, 15)
-                    .frame(minHeight: 40)
+                    .frame(minHeight: 46)
                     .background(WP.neutral200, in: Capsule())
                     .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
 
@@ -187,13 +184,13 @@ struct NewTripSheet: View {
                                         Text("\(index + 1)")
                                             .font(WP.headingUI(14))
                                             .foregroundStyle(.white)
-                                            .frame(width: 32, height: 32)
+                                            .frame(width: 44, height: 44)
                                             .background(WP.accent, in: Circle())
                                     } else {
                                         Image(systemName: "plus")
                                             .font(.system(size: 14))
                                             .foregroundStyle(WP.accent700)
-                                            .frame(width: 32, height: 32)
+                                            .frame(width: 44, height: 44)
                                             .overlay(Circle().stroke(WP.divider, lineWidth: 1))
                                     }
                                 }

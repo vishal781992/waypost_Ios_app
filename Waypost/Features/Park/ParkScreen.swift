@@ -111,11 +111,12 @@ struct ParkScreen: View {
         Button { app.pop() } label: {
             HStack(spacing: 3) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 15, weight: .semibold))
-                Text("Back").font(WP.body(15))
+                    .font(.system(size: 18, weight: .semibold))
+                Text("Back").font(WP.body(18))
             }
-            .padding(.vertical, 9)
-            .padding(.horizontal, 15)
+            .padding(.vertical, 11)
+            .padding(.horizontal, 17)
+            .frame(minHeight: 44)
             .glassControl()
         }
         .buttonStyle(PressStyle(scale: 0.94))
@@ -129,7 +130,7 @@ struct ParkScreen: View {
                 Button { app.toggleSaved(park.code) } label: {
                     Text(isSaved ? "Saved" : "Save this park")
                         .font(WP.headingUI(14))
-                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .frame(maxWidth: .infinity, minHeight: 46)
                         .glassControl()
                 }
                 .buttonStyle(PressStyle(scale: 0.98))
@@ -139,7 +140,7 @@ struct ParkScreen: View {
                          : packState == .busy ? "Downloading \(Int((app.packProgress[park.code] ?? 0) * 100))%"
                          : "Offline pack · \(park.pack)")
                         .font(WP.headingUI(14))
-                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .frame(maxWidth: .infinity, minHeight: 46)
                         .glassControl()
                 }
                 .buttonStyle(PressStyle(scale: 0.98))

@@ -275,7 +275,8 @@ final class AppState {
                 || value("wpSearch") != nil || value("wpTrip") != nil
                 || value("wpBuilder") != nil || value("wpStateParks") != nil
                 || value("wpEmpty") != nil || value("wpSheet") != nil
-                || value("wpFind") != nil || value("wpTint") != nil else { return }
+                || value("wpFind") != nil || value("wpTint") != nil
+                || value("wpDemoTrip") != nil else { return }
 
         // Applied after the scene has settled. SwiftUI restores the tab view's own
         // selection on launch and writes it back through the binding, and `go` clears
@@ -292,6 +293,11 @@ final class AppState {
                     self.openPark(wantedPark, segment: segment)
                     try? await Task.sleep(for: .milliseconds(500))
                 }
+            }
+            // A trip to look at. Debug only, like everything in this function — the
+            // sample itinerary stopped being production state in v2.15.0.
+            if value("wpDemoTrip") != nil, !self.myTrips.contains(where: { $0.id == "seed" }) {
+                self.myTrips.append(SavedTrip.seed(dayNumber: self.day))
             }
             if let id = value("wpTrip") {
                 self.tab = .trips

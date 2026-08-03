@@ -192,7 +192,7 @@ struct TripCard: View {
             Image(systemName: "trash")
                 .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(WP.onInk)
-                .frame(width: 34, height: 34)
+                .frame(width: 44, height: 44)
                 .background(.white.opacity(0.12), in: Circle())
                 .overlay(Circle().stroke(.white.opacity(0.24), lineWidth: 0.5))
         }
