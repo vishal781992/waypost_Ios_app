@@ -422,8 +422,24 @@ struct WeatherSection: View {
 struct StaySection: View {
     var park: CuratedPark
 
+    private var liveCampgrounds: [ParkFacts.Campground] {
+        if case .loaded(let facts) = ParkFacts.shared.state(for: park) { return facts.campgrounds }
+        return []
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
+            // What the park service publishes, and what Recreation.gov says is free.
+            if !liveCampgrounds.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    SectionTitle("Campgrounds")
+                    ForEach(liveCampgrounds) { camp in
+                        LiveCampgroundRow(camp: camp)
+                    }
+                }
+            }
+
+            if liveCampgrounds.isEmpty, !park.camping.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
                 SectionTitle("Campgrounds")
                 ForEach(park.camping) { camp in
@@ -445,6 +461,7 @@ struct StaySection: View {
                         }
                     }
                 }
+            }
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -491,7 +508,7 @@ struct StaySection: View {
             ? "No in-park campground list ships for this park."
             : "In-park campgrounds and lodges from ParkHop's own records.")
         + " Everything under them is Apple Maps, within thirty miles of the park, nearest first."
-        + " Availability for your own nights is not published to this app — confirm with the campground."
+        + " Campgrounds and nightly availability from the National Park Service and Recreation.gov."
     }
 
     private func chipBackground(_ camp: CuratedCamp) -> Color {
@@ -509,6 +526,11 @@ struct StaySection: View {
 
 struct PlansSection: View {
     var park: CuratedPark
+
+    private var thingsToDo: [ParkFacts.Activity] {
+        if case .loaded(let facts) = ParkFacts.shared.state(for: park) { return facts.thingsToDo }
+        return []
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -540,7 +562,34 @@ struct PlansSection: View {
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(WP.divider, lineWidth: 1))
             }
 
-            SourceLine("Day plans written around the light and the crowds.")
+            if !thingsToDo.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    SectionTitle("Things to do")
+                    ForEach(thingsToDo) { activity in
+                        DividedRow(vertical: 11) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                    Text(activity.title)
+                                        .font(WP.rowTitle(16)).multilineTextAlignment(.leading)
+                                    Spacer(minLength: 0)
+                                    if let duration = activity.duration {
+                                        Text(duration).font(WP.body(11.5)).opacity(0.6)
+                                    }
+                                }
+                                if let note = activity.note {
+                                    Text(note).font(WP.body(12)).opacity(0.7).lineSpacing(2)
+                                        .multilineTextAlignment(.leading)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.top, 6)
+            }
+
+            SourceLine(thingsToDo.isEmpty
+                       ? "Day plans written around the light and the crowds."
+                       : "Day plans written around the light and the crowds; the list under them is what the National Park Service publishes for this park.")
         }
     }
 }
@@ -621,5 +670,73 @@ struct SourceLine: View {
             .opacity(0.5)
             .padding(.top, 12)
             .overlay(alignment: .top) { Hairline() }
+    }
+}
+
+
+/// One campground: what the park service says about it, and what Recreation.gov says is
+/// free tonight.
+///
+/// The two are different questions and the row keeps them apart — a campground with 184
+/// sites and none free is not the same as one that takes no reservations at all, and
+/// neither is the same as a request that failed.
+struct LiveCampgroundRow: View {
+    var camp: ParkFacts.Campground
+
+    private var availability: Recreation.State? {
+        camp.facilityID.map { Recreation.shared.state(facility: $0) }
+    }
+
+    private var tonight: String {
+        guard let id = camp.facilityID else { return "" }
+        switch Recreation.shared.state(facility: id) {
+        case .loaded:
+            guard let free = Recreation.shared.freeSites(facility: id, on: Date()) else {
+                return "No calendar for tonight"
+            }
+            return free == 0 ? "Full tonight" : "\(free) free tonight"
+        case .loading, .idle: return "Checking…"
+        case .notBookable: return "First-come, no calendar"
+        case .failed: return "Availability unavailable"
+        }
+    }
+
+    private var chipColour: Color {
+        guard let id = camp.facilityID,
+              case .loaded = Recreation.shared.state(facility: id),
+              let free = Recreation.shared.freeSites(facility: id, on: Date())
+        else { return WP.neutral200 }
+        return free == 0 ? WP.neutral200 : WP.accent100
+    }
+
+    var body: some View {
+        DividedRow(vertical: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(camp.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
+                    Spacer(minLength: 0)
+                    if camp.facilityID != nil {
+                        Text(tonight)
+                            .font(WP.body(10))
+                            .padding(.horizontal, 9).padding(.vertical, 2)
+                            .background(chipColour, in: Capsule())
+                            .foregroundStyle(WP.accent800)
+                    }
+                }
+
+                Text([camp.sites.map { "\($0) sites" }, camp.fee]
+                        .compactMap { $0 }.joined(separator: " · "))
+                    .font(WP.body(12)).opacity(0.7).tnum()
+
+                if let note = camp.reservationNote {
+                    Text(note)
+                        .font(WP.bodyItalic(12)).opacity(0.65).lineSpacing(2)
+                        .multilineTextAlignment(.leading)
+                }
+            }
+        }
+        .task(id: camp.facilityID) {
+            if let id = camp.facilityID { Recreation.shared.load(facility: id) }
+        }
     }
 }

@@ -470,6 +470,15 @@ two design bugs it names. Everything else is listed below as untouched, honestly
 | Flow 5 · remove `TripStore` | **Done** | Deleted with `TripPresentation` — 1,175 lines referenced by nothing. Its `ParkFacts` struct was the name clash that surfaced it. — claude |
 | Release config · `DEBUG` never defined | **Done** | XcodeGen sets no `SWIFT_ACTIVE_COMPILATION_CONDITIONS`, so `#if DEBUG` was false in *both* configurations — the capture hooks compiled out of the debug build the moment pass 1 guarded them. Debug defines `DEBUG`; Release is explicitly empty. — claude |
 
+## Pass 3 — NPS, Recreation.gov, OpenStreetMap live
+
+| Item | Status | Note |
+|---|---|---|
+| NPS · campgrounds, things to do, parking | **Done** | `ParkFacts` fetches `campgrounds`, `thingstodo` and `parkinglots` alongside the park record and its alerts, concurrently, each absent rather than fatal on failure. Stay lists the park service's own campgrounds with site counts, nightly fees and reservation notes; Plans lists what the service publishes for the park under the curated day plans. — claude |
+| Recreation.gov · live availability | **Done** | The join is the park service's own `reservationUrl`, which ends in the Recreation.gov facility id — no mapping table, no guessing. Zion reads "2 free tonight" at Lava Point and "79 free tonight" at South, counted from the 184-site calendar rather than shown raw. Two faults had to be fixed: the timestamp's colons must be percent-encoded, which `URLComponents` will not do because it does not treat `:` as reserved in a query — the endpoint answers `400 {"error":"query not encoded"}` — and the month must start on the first in **UTC**, where `WPDate.iso` formats in the device's zone and turned 1 August into 31 July in Denver. `notBookable` is kept distinct from `failed`. — claude |
+| OpenStreetMap | **Already live** | Nominatim geocodes city and state searches and feeds the suggestions; Overpass supplies the state and county parks neither Apple Maps nor NPS carries. Both verified answering. — claude |
+| Flow 8 · "works with no signal" copy | **Removed earlier** | The offline pack itself is still a timer; the claim is gone. — claude |
+
 ## Not done — and not started
 
 Everything below is untouched. Listing it so the gap is visible rather than implied.
@@ -479,7 +488,7 @@ Everything below is untouched. Listing it so the gap is visible rather than impl
 | Flow 1 · consent screen before the system prompt; manual city origin | **Not started** — claude |
 | Flow 1 · `LocationService` single-flight actor, concurrent callers, exactly-once continuation | **Not started** — the continuation is still a single stored optional. — claude |
 | Flow 2 · per-source state, bounded deadlines, LRU/TTL cache, stable identity dedup | **Partly, by accident** — sources already publish independently and Overpass has host fallback, but the 90-second budgets, the clear-at-24 cache and name-based dedup are as described. — claude |
-| Flow 3 · `LoadState` + Retry per park segment; units wired to weather; 44pt targets | **Partly** — `ParkFacts` carries loaded/not-covered/failed and distinguishes "NPS does not cover this park" from "the request failed"; weather, units and target sizes are unchanged. — claude |
+| Flow 3 · `LoadState` + Retry per park segment; units wired to weather; 44pt targets | **Partly** — Stay and Plans now carry live sourced records with distinct not-covered/not-bookable/failed states; `ParkFacts` carries loaded/not-covered/failed and distinguishes "NPS does not cover this park" from "the request failed"; weather, units and target sizes are unchanged. — claude |
 | Flow 4 · real `Date` picker, `TripComposer`, UUID trip IDs, no `hashValue` | **Not started** — claude |
 | Flow 5 · dynamic day plans | **Not started** — `TripStore` is gone (pass 2); the fixed ten-day itinerary is unchanged. — claude |
 | Flow 6 · saved/passport semantics | **Partly** — pre-awarded stamps are gone; the check-in rule that should award them does not exist. — claude |
