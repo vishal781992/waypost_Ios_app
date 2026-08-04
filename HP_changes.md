@@ -497,7 +497,8 @@ Everything below is untouched. Listing it so the gap is visible rather than impl
 | Flow 7 · real notification/system state, storage bytes, Delete Local Data | **Not started** — the notification toggles are still local Booleans. — claude |
 | Flow 8 · offline packs end-to-end | **Not started** — the timer and the "works with no signal" copy are still there. — claude |
 | Flow 9 · UNUserNotificationCenter, ActivityKit, PhotosPicker journal | **Not started** — claude |
-| Architecture · split `AppState`, per-tab navigation paths, DI, versioned persistence | **Not started** — the single shared `stack` across five `NavigationStack`s is unchanged. — claude |
+| Architecture · per-tab navigation paths | **Done** | All five `NavigationStack`s were bound to one `$app.stack`, so a screen pushed on one tab was in every tab's history and popping one popped all of them. Each tab has its own path and keeps it across switches; tapping the tab you are on returns to its root. — claude |
+| Architecture · split `AppState`, DI, versioned persistence | **Not started** — claude |
 | Networking · retry/backoff, structured errors, injected connectivity | **Not started** — claude |
 | Accessibility · Reduce Transparency/Motion, Dynamic Type reflow, VoiceOver, contrast | **Not started** — claude |
 | Localization · String Catalogs, `MeasurementFormatter`, RTL | **Not started** — claude |

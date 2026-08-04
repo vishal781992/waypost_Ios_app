@@ -38,7 +38,16 @@ struct RootShell: View {
         // shrinking out of the way as you read down a screen.
         TabView(selection: selection) {
             ForEach(AppTab.allCases) { tab in
-                tabStack(tab, path: $app.stack)
+                // The path is read here, in the body, on purpose. A hand-built `Binding`
+                // whose `get` closure reads the path never registers a dependency —
+                // Observation tracks what a body *reads*, and the closure runs later —
+                // so pushing and popping mutated the array and nothing redrew. Reading it
+                // here registers the dependency; `$app.paths` carries the writes back.
+                let screens = app.path(for: tab)
+                tabStack(tab, path: Binding(
+                    get: { screens },
+                    set: { app.setPath($0, for: tab) }
+                ))
                     .tag(tab)
                     .tabItem {
                         Label {
@@ -73,10 +82,14 @@ struct RootShell: View {
     private func tabStack(_ tab: AppTab, path: Binding<[PushedScreen]>) -> some View {
         NavigationStack(path: path) {
             destination(tab)
-                .navigationBarHidden(true)
+                // `.navigationBarHidden(true)` hides the bar *and* switches off the
+                // interactive pop gesture with it, so on a screen with a custom header
+                // there was no way back but the button. The toolbar API hides only the
+                // bar.
+                .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(for: PushedScreen.self) { screen in
                     pushed(screen)
-                        .navigationBarHidden(true)
+                        .toolbar(.hidden, for: .navigationBar)
                         .zoomDestination(screen.id, in: zoom)
                         .toolbar(.hidden, for: .tabBar)
                 }

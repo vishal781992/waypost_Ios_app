@@ -101,7 +101,23 @@ final class AppState {
 
     // Navigation
     var tab: AppTab = .today
-    var stack: [PushedScreen] = []
+    /// One navigation path per tab.
+    ///
+    /// All five `NavigationStack`s were bound to a single array, so five stacks were
+    /// driven by one path: a screen pushed on Discover appeared in the history of every
+    /// other tab, and popping one of them popped all of them — which is why Back stopped
+    /// behaving. Each tab keeps its own history now, and keeps it across tab switches.
+    var paths: [AppTab: [PushedScreen]] = [:]
+
+    /// The current tab's path, for the call sites that only ever mean this one.
+    var stack: [PushedScreen] {
+        get { paths[tab] ?? [] }
+        set { paths[tab] = newValue }
+    }
+
+    func path(for tab: AppTab) -> [PushedScreen] { paths[tab] ?? [] }
+
+    func setPath(_ screens: [PushedScreen], for tab: AppTab) { paths[tab] = screens }
     var sheet: ActiveSheet?
     var take: TodayTake = .field
 
@@ -239,18 +255,23 @@ final class AppState {
 
     func go(_ tab: AppTab) {
         withAnimation(.snappy(duration: 0.22)) {
-            self.tab = tab
-            stack = []
+            // Tapping the tab you are already on returns to its root, as every other iOS
+            // app does. Switching to a different one leaves that tab where you left it.
+            if self.tab == tab {
+                paths[tab] = []
+            } else {
+                self.tab = tab
+            }
         }
         persist()
     }
 
     func push(_ screen: PushedScreen) {
-        stack.append(screen)
+        paths[tab, default: []].append(screen)
     }
 
     func pop() {
-        _ = stack.popLast()
+        _ = paths[tab]?.popLast()
     }
 
     /// A door for screenshots: `-tab discover`, `-open-park arch`.
@@ -276,7 +297,8 @@ final class AppState {
                 || value("wpBuilder") != nil || value("wpStateParks") != nil
                 || value("wpEmpty") != nil || value("wpSheet") != nil
                 || value("wpFind") != nil || value("wpTint") != nil
-                || value("wpDemoTrip") != nil || value("wpPlanAround") != nil else { return }
+                || value("wpDemoTrip") != nil || value("wpPlanAround") != nil
+                || value("wpPopTest") != nil else { return }
 
         // Applied after the scene has settled. SwiftUI restores the tab view's own
         // selection on launch and writes it back through the binding, and `go` clears
@@ -304,8 +326,16 @@ final class AppState {
                       })?.park.code ?? self.directory.hits.first?.park.code
 
                 if let code {
-                    for _ in 0..<5 where self.stack.isEmpty {
-                        self.openPark(code, segment: segment)
+                    // Push until it sticks, then stop. Re-checking "is the stack empty"
+                    // on every pass meant a Back tapped within the first two seconds was
+                    // undone by the next one.
+                    var pushed = false
+                    for _ in 0..<5 where !pushed {
+                        if self.stack.isEmpty {
+                            self.openPark(code, segment: segment)
+                        } else {
+                            pushed = true
+                        }
                         try? await Task.sleep(for: .milliseconds(500))
                     }
                 }
@@ -326,6 +356,11 @@ final class AppState {
                 self.startBuilder()
                 // Steps two and three need parks picked before they will show anything.
                 if let typed = value("wpBuilderQuery") { self.builder?.query = typed }
+            // Opens a park, then pops it, so the back path can be photographed.
+            if value("wpPopTest") != nil {
+                try? await Task.sleep(for: .seconds(4))
+                self.pop()
+            }
             if let around = value("wpPlanAround") {
                 if self.park(around) == nil, self.directory.hits.isEmpty {
                     self.directory.search(around)
