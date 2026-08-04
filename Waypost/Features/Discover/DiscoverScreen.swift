@@ -338,7 +338,7 @@ struct StateParkList: View {
 
             ForEach(rows, id: \.n) { row in
                 Button {
-                    app.show("\(row.n) — a name and a location is all any nationwide source publishes")
+                    app.openPark(CuratedPark(stateRow: row).code)
                 } label: {
                     DividedRow(vertical: 13) {
                         HStack(spacing: 12) {
@@ -402,7 +402,7 @@ struct StateParkList: View {
                     .font(WP.bodyItalic(11.5)).opacity(0.55).padding(.top, 18)
             }
 
-            Text("ParkHop holds a name and a location for every state-park unit, and nothing else. Hours, fees and campsites come from the park's own site — so those are a link, not a number.")
+            Text("Opening one gives you its photograph, today's weather, and what is around it. Fees, hours and campsites come from the park itself.")
                 .font(WP.body(11.5)).lineSpacing(3).opacity(0.6)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 16)

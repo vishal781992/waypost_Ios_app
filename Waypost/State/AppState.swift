@@ -452,7 +452,8 @@ final class AppState {
         if let found = directory.hits.first(where: { $0.park.code == code })?.park { return found }
         // A park saved from the on-device list still opens after a relaunch, when the
         // search that found it is long gone.
-        return NationalParks.park(code: code).map(CuratedPark.init(bundled:))
+        if let national = NationalParks.park(code: code) { return CuratedPark(bundled: national) }
+        return Datasets.shared.statePark(code: code)
     }
 
     func openPark(_ code: String, segment: ParkSegment = .overview) {

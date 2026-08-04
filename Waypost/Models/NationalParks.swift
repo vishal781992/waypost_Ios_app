@@ -97,3 +97,57 @@ extension CuratedPark {
         )
     }
 }
+
+
+extension CuratedPark {
+    /// One of the three thousand state parks that ship with the app.
+    ///
+    /// These rows carried a name, a state and coordinates and opened nothing — tapping
+    /// one produced a toast explaining that a name and a location is all anybody
+    /// publishes. That was true of the row and untrue of the park: with coordinates it
+    /// gets a photograph, today's weather, the chargers and shops around it, and a way
+    /// into the trip builder, all from sources that answer for anywhere.
+    init(stateRow row: StateParkRow) {
+        let short = CuratedPark.shortName(row.n)
+        self.init(
+            code: "sp-" + row.n.lowercased()
+                .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "-")),
+            name: short,
+            full: row.n,
+            state: row.s,
+            lat: row.lat,
+            lon: row.lon,
+            tag: "Fees, hours and closures come from the park.",
+            gw: "",
+            region: CuratedPark.region(for: row.n),
+            crowd: ParkDesignation.inName(row.n) ?? "State Park",
+            fee: "Not published",
+            hours: "Not published",
+            res: false,
+            resNote: "Entry reservations are not listed here. Check with the park before you travel.",
+            c: CuratedPark.palette(for: row.n),
+            pack: "Not downloaded",
+            wx: .unpublished,
+            gates: [],
+            parking: "",
+            airports: [],
+            camping: [],
+            lodging: [],
+            fuel: CuratedFuel(gas: [], fast: [], slow: []),
+            alerts: [],
+            days: [],
+            stamps: [],
+            source: .onDevice,
+            designation: ParkDesignation.inName(row.n) ?? "State Park"
+        )
+    }
+}
+
+extension Datasets {
+    /// A shipped state park by the code the app gives it.
+    func statePark(code: String) -> CuratedPark? {
+        guard code.hasPrefix("sp-") else { return nil }
+        return stateParks.lazy.map(CuratedPark.init(stateRow:)).first { $0.code == code }
+    }
+}
