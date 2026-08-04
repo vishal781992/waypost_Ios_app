@@ -35,7 +35,7 @@ final class Recommender {
     private(set) var placeName: String?
     private(set) var fix: (lat: Double, lon: Double)?
 
-    private let location = LocationService()
+    private let location = LocationService.shared
     private let failures = FailureLog()
     private var weather: WeatherService { WeatherService(failures: failures) }
 
@@ -58,17 +58,11 @@ final class Recommender {
             defer { isWorking = false }
 
             // A precise fix takes as long as it takes; the recommendation should not.
-            // Four seconds, then whatever the IP lookup says, then nothing.
-            let fix = await withTaskGroup(of: LocationService.Fix?.self) { group in
-                group.addTask { @MainActor in await self.location.currentFix() }
-                group.addTask {
-                    try? await Task.sleep(for: .seconds(4))
-                    return nil
-                }
-                let first = await group.next() ?? nil
-                group.cancelAll()
-                return first
-            }
+            // The deadline lives in LocationService now — the task group that used to be
+            // here could never enforce one, and because `defer { isWorking = false }`
+            // then never ran, one slow launch killed recommendations for the whole
+            // process.
+            let fix = await location.currentFix()
 
             if let fix {
                 self.fix = (fix.lat, fix.lon)

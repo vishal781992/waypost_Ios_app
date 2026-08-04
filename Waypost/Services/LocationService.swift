@@ -18,8 +18,19 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         var region: String?
     }
 
+    /// One manager for the whole app. Four services each held their own instance, so a
+    /// single unanswered callback stranded several screens at once and each one prompted
+    /// separately.
+    static let shared = LocationService()
+
     private let manager = CLLocationManager()
-    private var pending: CheckedContinuation<Fix?, Never>?
+    /// Every caller waiting on the same fix. A single slot meant a second caller
+    /// overwrote the first, whose continuation was then never resumed at all.
+    private var pending: [CheckedContinuation<Fix?, Never>] = []
+    private var deadline: Task<Void, Never>?
+    /// Set while the system permission alert is on screen — a `requestLocation()` issued
+    /// before the user answers is dropped, and no callback ever arrives.
+    private var awaitingAuthorization = false
 
     override init() {
         super.init()
@@ -44,29 +55,39 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     private func deviceFix() async -> Fix? {
         let status = manager.authorizationStatus
         if status == .denied || status == .restricted { return nil }
-        if status == .notDetermined { manager.requestWhenInUseAuthorization() }
 
-        return await withTaskGroup(of: Fix?.self) { group in
-            group.addTask { @MainActor in
-                await withCheckedContinuation { (c: CheckedContinuation<Fix?, Never>) in
-                    self.pending = c
-                    self.manager.requestLocation()
-                }
-            }
-            // The web app gives the browser 8 seconds before falling back; same here.
-            group.addTask {
+        return await withCheckedContinuation { (c: CheckedContinuation<Fix?, Never>) in
+            pending.append(c)
+            // A request is already in flight; this caller shares its answer rather than
+            // starting a second one.
+            guard pending.count == 1 else { return }
+
+            // The deadline resumes the continuation itself. This used to be a second task
+            // in a `withTaskGroup`, which cannot work: the group waits for *every* child,
+            // and `cancelAll()` never resumes a `CheckedContinuation` — so the timeout
+            // elapsed, and then the group blocked forever on Core Location anyway.
+            deadline = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(8))
-                return nil
+                guard !Task.isCancelled else { return }
+                self?.resume(nil)
             }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
+
+            if status == .notDetermined {
+                awaitingAuthorization = true
+                manager.requestWhenInUseAuthorization()
+            } else {
+                manager.requestLocation()
+            }
         }
     }
 
     private func resume(_ fix: Fix?) {
-        pending?.resume(returning: fix)
-        pending = nil
+        deadline?.cancel()
+        deadline = nil
+        awaitingAuthorization = false
+        let waiting = pending
+        pending = []
+        for continuation in waiting { continuation.resume(returning: fix) }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -77,6 +98,27 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in self.resume(nil) }
+    }
+
+    /// The fix request has to wait for the permission alert to be answered. Without this
+    /// the app asked for a location while the status was still `.notDetermined`, iOS
+    /// discarded the request, and no delegate callback ever came — a permanent hang on
+    /// the very first launch.
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in self.authorizationChanged() }
+    }
+
+    private func authorizationChanged() {
+        guard awaitingAuthorization else { return }
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            return // The alert is still on screen.
+        case .denied, .restricted:
+            resume(nil)
+        default:
+            awaitingAuthorization = false
+            manager.requestLocation()
+        }
     }
 
     /// IP lookups often answer with a township ("Southwest Arapahoe"), so the caller

@@ -53,7 +53,7 @@ final class ParkDirectory {
 
     private var inFlight: Task<Void, Never>?
     private let failures = FailureLog()
-    private let location = LocationService()
+    private let location = LocationService.shared
 
     private var nps: NPSService { NPSService(proxy: ProxyConfig(), failures: failures) }
 

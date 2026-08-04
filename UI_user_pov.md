@@ -611,3 +611,82 @@ The AI must validate these user stories, not only isolated controls:
 
 ## AI completion report
 When changing an item in this document, cite its pain-point number in the implementation summary and commit/PR description. Do not mark it complete based on a screenshot alone. Include the tested user journey, source/freshness behavior, accessibility result, failure/offline result, and remaining limitations.
+---
+
+# Implementation log
+
+## Phase 1 — Reliability: the app can load forever (Pain point 50)
+
+Partially advances Pain point 6 (independent load states) and Pain point 51 (errors offer recovery). Does **not** close either.
+
+### User pain removed
+Three of the app's location-dependent surfaces could spin indefinitely, and on a first
+launch they always did. The Today hero never resolved, the Discover "Brief me" card span
+forever, and "near me" search stayed on `Searching…` with no terminal state. Once the
+Today hero stalled, recommendations were dead for the rest of the process.
+
+### Root cause
+`LocationService.deviceFix()` raced Core Location against a sleeping task inside
+`withTaskGroup`. That cannot work: a task group waits for *every* child before returning,
+and `cancelAll()` does not resume a `CheckedContinuation`. The 8-second budget elapsed,
+computed `nil`, and then the group blocked forever on Core Location anyway. Compounding
+it, `requestLocation()` was issued while authorization was still `.notDetermined` — iOS
+discards that request, and with no `locationManagerDidChangeAuthorization` implementation
+no callback ever arrived. The same task-group pattern was duplicated in `Recommender`
+with a 4-second budget.
+
+### Files and symbols changed
+- `Waypost/Services/LocationService.swift` — `deviceFix()` rewritten to a single
+  continuation with a `deadline` task that resumes it; `pending` changed from one slot to
+  an array so concurrent callers share one fix instead of orphaning each other's
+  continuations; `resume(_:)` now cancels the deadline and resumes all waiters; added
+  `locationManagerDidChangeAuthorization(_:)` and `authorizationChanged()`; added
+  `static let shared`.
+- `Waypost/Services/Recommender.swift` — removed the duplicated `withTaskGroup` racer;
+  calls `location.currentFix()` directly.
+- `Waypost/Services/TripRouting.swift`, `NearbyBriefing.swift`, `ParkDirectory.swift` —
+  `LocationService()` → `LocationService.shared` (was four managers, four prompts, four
+  independent hangs).
+- `Waypost/Services/Network.swift` — `timeoutIntervalForResource = 120` (was unset, i.e.
+  the 7-day default); `HTTP.any(_ url:)` now sets `request.timeoutInterval = 15`, which
+  a hand-built `URLRequest` otherwise overrode with its own 60-second default.
+
+### Before / after
+| Scenario | Before | After |
+|---|---|---|
+| First launch, permission granted | Today hero spins forever | Resolves after the grant |
+| First launch, permission denied | Today hero spins forever | Resolves immediately |
+| "Brief me" with location off | Infinite spinner | "Location is off, so there is nothing to measure from. Turn it on in Settings and try again." |
+| Core Location silent | Never returns | Returns `nil` at 8s |
+| Two callers at once | First continuation orphaned, hangs | Both share one fix |
+
+### Platform APIs used
+`CLLocationManager` with `locationManagerDidChangeAuthorization(_:)` gating
+`requestLocation()`; `withCheckedContinuation` with a `Task.sleep` deadline;
+`URLSessionConfiguration.timeoutIntervalForResource`.
+
+### State handling
+Terminal states only: every `deviceFix()` call now ends in a fix, `nil` at denial, or
+`nil` at the 8-second deadline. The IP fallback remains gated behind
+`allowsNetworkFallback` — a refusal still triggers no third-party lookup, so Pain point 3's
+privacy contract is unchanged. `timeoutIntervalForResource` was set to 120s deliberately,
+clear of the intentional 90-second Overpass budget, so state-wide sweeps are not cut short.
+
+### Accessibility and localization
+No changes. Both remain open — Journey 11 is untouched.
+
+### Verified
+iPhone 17 Pro simulator, iOS 26.4, Debug build. `xcodebuild` succeeds with no new
+warnings. Scenarios run: clean install → grant → Today hero resolves; permission revoked
+via `simctl privacy revoke` → relaunch → resolves with no alert and no spinner; Discover →
+"Brief me" with location denied → named error state with recovery instruction.
+
+### Remaining limitations
+- No automated test covers the deadline path; verification was manual on simulator.
+- The 8-second deadline is still a constant, not surfaced to the user, and there is no
+  Retry affordance on the Today hero (Pain point 6 remains open).
+- `ParkDirectory`'s Overpass fallback can still run three hosts × 90s; the swallowed
+  `CancellationError` at `ParkDirectory.swift:468` is untouched and remains a slow-search
+  cause, distinct from the hangs fixed here.
+- `Recommender.choose` still guards on `pick == nil`, so a session gets one
+  recommendation; a failed attempt no longer latches, but there is no explicit refresh.

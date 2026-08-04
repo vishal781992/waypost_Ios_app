@@ -40,7 +40,7 @@ final class TripRouting {
     private(set) var phase: [String: Phase] = [:]
 
     private let failures = FailureLog()
-    private let location = LocationService()
+    private let location = LocationService.shared
     private var routing: RoutingService { RoutingService(failures: failures) }
     private var inFlight: Set<String> = []
 

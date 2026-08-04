@@ -127,7 +127,7 @@ final class NearbyBriefing {
     private(set) var candidates: [NearbyCandidate] = []
     private(set) var placeName: String?
 
-    private let location = LocationService()
+    private let location = LocationService.shared
     private let library = CuratedLibrary.shared
 
     /// Whether the device can write a brief at all. Checked before anything is offered,

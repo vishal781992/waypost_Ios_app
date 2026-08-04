@@ -119,6 +119,10 @@ enum HTTP {
     static let session: URLSession = {
         let c = URLSessionConfiguration.default
         c.timeoutIntervalForRequest = 15
+        // Without a resource ceiling a response that trickles bytes never trips the idle
+        // timeout above — the default is seven days. Set well clear of the deliberate
+        // 90-second Overpass budget so this does not cut those sweeps short.
+        c.timeoutIntervalForResource = 120
         c.waitsForConnectivity = false
         return URLSession(configuration: c)
     }()
@@ -133,7 +137,12 @@ enum HTTP {
 
     /// For the feeds whose shape varies by endpoint (NPS, the proxy), decoded loosely.
     static func any(_ url: URL) async throws -> [String: Any] {
-        try await any(URLRequest(url: url))
+        var request = URLRequest(url: url)
+        // A request built by hand carries its own 60-second default, which wins over the
+        // session configuration — so the 15-second budget above only ever applied to the
+        // calls that did not construct a URLRequest.
+        request.timeoutInterval = 15
+        return try await any(request)
     }
 
     /// Nominatim and a few others answer with a bare array rather than an object.
