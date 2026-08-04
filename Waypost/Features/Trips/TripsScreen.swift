@@ -164,7 +164,7 @@ struct TripCard: View {
 
     private var points: [(lat: Double, lon: Double)] {
         let origin = app.library.city(trip.origin)
-        let parks = trip.codes.compactMap { app.library.park($0) }
+        let parks = trip.codes.compactMap { app.park($0) }
         return ([origin.map { (lat: $0.lat, lon: $0.lon) }].compactMap { $0 })
             + parks.map { (lat: $0.lat, lon: $0.lon) }
     }
@@ -234,7 +234,7 @@ struct TripCard: View {
                                 Text(["I", "II", "III", "IV", "V"][min(index, 4)])
                                     .font(WP.display(13))
                                     .foregroundStyle(WP.accent400)
-                                Text(app.library.park(code)?.name ?? code)
+                                Text(app.park(code)?.name ?? code)
                                     .font(WP.body(12)).opacity(0.92)
                             }
                         }

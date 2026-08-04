@@ -209,7 +209,7 @@ struct NewTripSheet: View {
     private func pickChip(code: String, index: Int) -> some View {
         HStack(spacing: 8) {
             Text("\(index + 1)").font(WP.headingUI(13))
-            Text(app.library.park(code)?.name ?? code).font(WP.body(12.5)).lineLimit(1)
+            Text(app.park(code)?.name ?? code).font(WP.body(12.5)).lineLimit(1)
             Button { builder.adjustDays(code, by: -1) } label: {
                 Image(systemName: "minus").font(.system(size: 10, weight: .bold))
                     .frame(width: 22, height: 22)

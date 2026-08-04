@@ -35,12 +35,15 @@ enum TodayTake: String, CaseIterable {
 /// A pushed screen. The design keeps its own stack rather than a NavigationStack so the
 /// tab bar stays put and the push animation is its own.
 enum PushedScreen: Hashable, Identifiable {
-    case park(code: String, segment: ParkSegment = .overview)
+    /// `date` is the day the park is being opened *for* — a trip's arrival date, say. Nil
+    /// means today. Without it the weather panel had no way to know it was being read for
+    /// a trip next month, so it always asked for today's forecast.
+    case park(code: String, segment: ParkSegment = .overview, date: Date? = nil)
     case trip(id: String)
 
     var id: String {
         switch self {
-        case .park(let code, _): return "park:" + code
+        case .park(let code, _, _): return "park:" + code
         case .trip(let id): return "trip:" + id
         }
     }
@@ -491,9 +494,9 @@ final class AppState {
         return Datasets.shared.statePark(code: code)
     }
 
-    func openPark(_ code: String, segment: ParkSegment = .overview) {
+    func openPark(_ code: String, segment: ParkSegment = .overview, date: Date? = nil) {
         parkSegment[code] = segment
-        push(.park(code: code, segment: segment))
+        push(.park(code: code, segment: segment, date: date))
     }
 
     func show(_ text: String) {
@@ -629,6 +632,9 @@ final class AppState {
             guard let self else { return }
             self.directory.search(query)
         }
+        // `park(_:)` resolves the curated eight, the live directory, the bundled sixty-two
+        // and the state list — every code the picker can produce.
+        builder.resolvePark = { [weak self] code in self?.park(code) }
         self.builder = builder
     }
 
@@ -729,6 +735,24 @@ struct SavedTrip: Codable, Hashable, Identifiable {
     var tag: String
     var live: Bool
 
+    /// The day the trip starts, recovered from its display label.
+    ///
+    /// `dates` being a formatted English string rather than a `Date` is its own problem,
+    /// but the weather panel needs a real day to ask about — otherwise a park opened from
+    /// a trip next month reports today's forecast. Handles both "12 September 2026" and
+    /// the seed's "5 – 14 August 2026", taking the first day number in either.
+    var startDate: Date? {
+        let parts = dates.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+        guard let day = parts.first(where: { $0.allSatisfy(\.isNumber) }),
+              let month = parts.first(where: { $0.allSatisfy(\.isLetter) }),
+              let year = parts.last(where: { $0.count == 4 && $0.allSatisfy(\.isNumber) })
+        else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "d MMMM yyyy"
+        return formatter.date(from: "\(day) \(month) \(year)")
+    }
+
     /// The trip that is already under way when the app opens — the design's seed.
     static func seed(dayNumber: Int) -> SavedTrip {
         SavedTrip(
@@ -763,6 +787,14 @@ final class TripBuilder {
     }
     /// Set by `AppState` so the builder can reach the shared directory without owning it.
     var onQueryChanged: ((String) -> Void)?
+    /// Set by `AppState` so a pick can be named whatever source it came from. Without it
+    /// the builder only knows the curated eight, and every `np-…` or `sp-…` pick resolved
+    /// to nothing — a blank review row and a trip titled " to ".
+    var resolvePark: ((String) -> CuratedPark?)?
+
+    private func resolve(_ code: String) -> CuratedPark? {
+        resolvePark?(code) ?? library.park(code)
+    }
     var composeProgress: Double = 0
     var composing = false
 
@@ -873,13 +905,31 @@ final class TripBuilder {
     var reviewRows: [(label: String, value: String)] {
         let originName = library.city(origin)?.name ?? origin
         return [
-            ("Parks", picks.compactMap { library.park($0)?.name }.joined(separator: " → ")),
+            ("Parks", picks.compactMap { resolve($0)?.name }.joined(separator: " → ")),
             ("Days afield", "\(totalDays) in the parks, plus travel"),
             ("First day", startLabel),
             ("Setting out from", originName),
             ("Between stops", flyWhenFaster ? "Fly when it is faster" : "Drive"),
             ("Vehicle", vehicleIsElectric ? "Electric — charge stops added to every leg" : "Gasoline"),
         ]
+    }
+
+    /// Names the trip from the parks that actually resolved.
+    ///
+    /// Never composes a title out of empty strings: with nothing resolved the trip is
+    /// named rather than left as " to ". The single-park case also stops assuming the date
+    /// label has a second word — "Zion in " was the result when it did not.
+    private static func title(parks: [CuratedPark], startLabel: String) -> String {
+        let names = parks.map(\.name)
+        switch names.count {
+        case 0:
+            return "Untitled trip"
+        case 1:
+            guard let month = startLabel.split(separator: " ").dropFirst().first else { return names[0] }
+            return "\(names[0]) in \(month)"
+        default:
+            return "\(names[0]) to \(names[names.count - 1])"
+        }
     }
 
     static let composeSteps = [
@@ -890,14 +940,20 @@ final class TripBuilder {
         "Sizing the offline packs",
     ]
 
+    /// Composes the trip, resolving each pick through the caller's resolver.
+    ///
+    /// This used to call `library.park`, which only knows the curated eight — but the
+    /// picker offers the sixty-two bundled parks (`np-…`) and the state list (`sp-…`) too.
+    /// Every pick outside the eight resolved to nothing, so `parks` came back empty and
+    /// the title was composed out of two empty strings: a trip literally called " to ".
     func compose() -> SavedTrip {
-        let parks = picks.compactMap { library.park($0) }
+        let parks = picks.compactMap(resolve)
         let originName = library.city(origin)?.shortName ?? "Home"
         return SavedTrip(
-            id: "trip-\(picks.joined(separator: "-"))-\(startLabel.hashValue)",
-            title: parks.count == 1
-                ? "\(parks[0].name) in \(startLabel.split(separator: " ").dropFirst().first.map(String.init) ?? "")"
-                : "\(parks.first?.name ?? "") to \(parks.last?.name ?? "")",
+            // The origin belongs in the identity: without it, changing where a trip starts
+            // produced the same id, and the routing cache handed back the old city's legs.
+            id: "trip-\(picks.joined(separator: "-"))-\(origin)-\(startLabel.hashValue)",
+            title: Self.title(parks: parks, startLabel: startLabel),
             dates: startLabel,
             route: ([originName] + parks.map(\.name)).joined(separator: " · "),
             codes: picks,

@@ -29,6 +29,12 @@ struct WeatherService {
         if let nws = await nationalWeatherService(lat: lat, lon: lon, iso: iso) {
             day = merge(openMeteo: day, nws: nws)
         }
+        // Past the ~16-day horizon Open-Meteo answers with an empty `daily.time`, so this
+        // returned nothing at all for a trip more than a fortnight out — while the ten-year
+        // climatology written for exactly that case sat below, called from nowhere.
+        if day == nil {
+            day = await normals(lat: lat, lon: lon, iso: iso)
+        }
         return day
     }
 

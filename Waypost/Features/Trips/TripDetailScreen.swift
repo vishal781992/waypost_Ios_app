@@ -56,10 +56,16 @@ struct TripDetailScreen: View {
         .background(WP.bg)
         .onAppear {
             segment = app.tripSegment[trip.id] ?? .route
-            if let first = parks.first {
-                app.routing.routeApproach(trip, to: first)
-            }
-            if !isSeed {
+            if isSeed {
+                // The seed trip carries its own legs from Denver onwards, so the only one
+                // missing is the drive from wherever the traveller is right now. A composed
+                // trip starts from the origin it was planned with, and `route` already
+                // draws that leg — asking for an approach leg too added a second, contra-
+                // dictory "Getting there" row measured from the device.
+                if let first = parks.first {
+                    app.routing.routeApproach(trip, to: first)
+                }
+            } else {
                 app.routing.route(trip, parks: parks, originCity: app.library.city(trip.origin))
             }
         }
@@ -82,11 +88,16 @@ struct TripDetailScreen: View {
     private var routingNote: String {
         switch app.routing.phase(for: trip) {
         case .idle, .routing:
-            return "Routing the legs from where you are…"
-        case .routed(let origin, let precise):
-            return precise
-                ? "Legs routed by OSRM from your location — \(origin) — through the parks in visiting order."
-                : "Legs routed by OSRM from \(origin). This iPhone did not give a precise location, so the first leg starts from there."
+            return "Routing the legs…"
+        case .routed(let origin, let source):
+            switch source {
+            case .chosen:
+                return "Legs routed by OSRM from \(origin), the origin this trip was planned from, through the parks in visiting order."
+            case .device:
+                return "Legs routed by OSRM from your location — \(origin) — through the parks in visiting order."
+            case .approximate:
+                return "Legs routed by OSRM from \(origin). This iPhone did not give a precise location, so the first leg starts from there."
+            }
         case .unrouted(let why):
             return why
         }
@@ -241,7 +252,9 @@ struct TripDetailScreen: View {
 
     private func parkRow(_ park: CuratedPark, date: String, days: Int, numeral: String) -> some View {
         Button {
-            app.openPark(park.code)
+            // Opened for the day the trip reaches it, so the weather panel answers for
+            // then rather than for today.
+            app.openPark(park.code, date: trip.startDate)
         } label: {
             DividedRow(vertical: 14) {
                 HStack(spacing: 13) {
@@ -258,7 +271,13 @@ struct TripDetailScreen: View {
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text(park.name).font(WP.rowTitle(18))
-                        Text("\(date) · \(days) day\(days == 1 ? "" : "s") · \(park.wx.hi)°")
+                        // A park the curated library has no weather for reported "0°" here,
+                        // which reads as a freezing forecast rather than as no forecast.
+                        Text([date,
+                              "\(days) day\(days == 1 ? "" : "s")",
+                              park.wx.isPublished ? "\(park.wx.hi)°" : ""]
+                                .filter { !$0.isEmpty }
+                                .joined(separator: " · "))
                             .font(WP.body(12)).opacity(0.62).tnum()
                     }
                     Spacer(minLength: 0)

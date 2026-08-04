@@ -690,3 +690,83 @@ via `simctl privacy revoke` → relaunch → resolves with no alert and no spinn
   cause, distinct from the hangs fixed here.
 - `Recommender.choose` still guards on `pick == nil`, so a session gets one
   recommendation; a failed attempt no longer latches, but there is no explicit refresh.
+
+## Phase 2 — The plan matches what was planned (Pain points 15, 27, 19)
+
+Partially advances Pain points 21, 23 and 28. Does **not** close 22 or 23.
+
+### User pain removed
+Three separate failures made a composed trip describe something other than what the user
+asked for: a trip planned from Seattle was routed from wherever the phone was, a trip
+built around any park outside the curated eight was titled " to " with a blank review row,
+and the weather panel answered for today no matter which day the trip fell on.
+
+### Root causes
+1. **Origin.** `TripRouting.route` asked Core Location first and read `originCity` only in
+   the `else if` — the chosen origin was a fallback for a refused permission, not an
+   instruction. `routeApproach` took no origin at all, so trip detail also drew a second
+   "Getting there" leg measured from the device.
+2. **Titles.** `TripBuilder.compose` and `reviewRows` resolved picks through
+   `library.park`, which knows only the eight codes in `curated.json`. The picker offers
+   the sixty-two bundled parks (`np-…`) and the state list (`sp-…`), so `parks` came back
+   empty and the title was built from two empty strings.
+3. **Weather.** `WeatherSection` called `WPDate.iso(Date())` unconditionally and the route
+   carried no date, so a trip date could not reach it. Past ~16 days Open-Meteo returns an
+   empty day; `normals(lat:lon:iso:)` existed to cover exactly that and was called from
+   nowhere in the codebase.
+
+### Files and symbols changed
+- `Waypost/Services/TripRouting.swift` — `Phase.routed` carries `OriginSource`
+  (`.chosen` / `.device` / `.approximate`) instead of a `precise` Bool; `route` prefers
+  `originCity` and only falls back to the device.
+- `Waypost/Features/Trips/TripDetailScreen.swift` — `routingNote` says which of the three
+  it used; `routeApproach` is now called only for the seed trip; the park row no longer
+  prints `0°` for a park with no published weather.
+- `Waypost/State/AppState.swift` — `TripBuilder.resolvePark` closure, set by
+  `startBuilder`, used by both `compose()` and `reviewRows`; `TripBuilder.title(parks:startLabel:)`
+  replaces the inline title expression; trip `id` now includes `origin` so changing it
+  cannot hit the previous route cache; `SavedTrip.startDate` parses the display label;
+  `PushedScreen.park` and `openPark` carry `date`.
+- `Waypost/Features/Park/ParkScreen.swift` — `ParkScreen` and `WeatherSection` take
+  `date`; the `.task` is keyed on park *and* day; "August normal" / "Today at this park"
+  replaced with the actual day.
+- `Waypost/Services/WeatherService.swift` — `forecast` falls back to `normals`.
+- `SavedScreen.swift`, `TripsScreen.swift`, `NewTripSheet.swift` — `library.park` →
+  `app.park` at the four sites that render user-chosen codes.
+
+### Before / after
+| Scenario | Before | After |
+|---|---|---|
+| Trip from Seattle, phone in Denver | `Denver → Acadia` | `Seattle → Acadia`, home leg `Acadia → Seattle` |
+| Routing note | "from your location — Denver" | "from Seattle, the origin this trip was planned from" |
+| Trip around Acadia (`np-acadia`) | Title `" to "`, blank review row, `np-acadia` on chips | "Acadia in September", review row "Acadia" |
+| Weather for 12 Sept 2026 | Today's forecast, labelled "today" | "September 12", 10-year average, labelled "from Open-Meteo archive" |
+| Park with no published weather | `0°` in the trip row | omitted |
+
+### Source and freshness behavior
+`OriginSource` distinguishes a chosen origin from a device fix from a loose fix, and the
+note names which. The weather panel states the day it is reporting and its source; beyond
+the forecast horizon it says "Averaged from N years of M/D (±3 days) at this location"
+rather than presenting climatology as a forecast.
+
+### Accessibility and localization
+No changes. `SavedTrip.startDate` parses with a fixed `en_US_POSIX` format because the
+stored label is itself English — correct for the current data, and one more reason the
+underlying string-dates problem (Pain point 22) still needs fixing.
+
+### Verified
+iPhone 17 Pro simulator, device location pinned to Denver via `simctl location`, location
+permission granted. Built a trip around Acadia from a Seattle origin for 12 September
+2026: title, review row, route line, map polyline, both routed legs, the routing note and
+the weather panel all checked on screen.
+
+### Remaining limitations
+- **Pain point 23 is not closed.** The origin list is still the six cities in
+  `curated.json` (`den, slc, las, phx, sea, chi`). There is no free-text or geocoded
+  origin, so a trip from Dallas still cannot be planned at all — the reported bug was two
+  faults, and only the substitution is fixed.
+- **Pain point 22 is untouched.** Dates are still cycled hard-coded English strings;
+  `startDate` recovers a `Date` from one rather than storing it properly.
+- The route cache is keyed by trip id, which now includes origin, but there is still no
+  explicit re-route action (Pain point 29).
+- `WeatherSection` still has no retry affordance when both forecast and normals fail.

@@ -7,10 +7,9 @@ import Foundation
 /// actually is. The parks were there; the travelling was not.
 ///
 /// This routes it. Every leg is a real query to OSRM, which is open and needs no key, so
-/// it works on a phone that has never been given the proxy. The first leg starts from
-/// the device's own position when it will give one, because "how far is it from here" is
-/// the question being asked; when location is refused it starts from the trip's origin
-/// city instead, and says which of the two it used.
+/// it works on a phone that has never been given the proxy. The first leg starts from the
+/// origin the traveller chose for the trip; only a trip with no origin measures from the
+/// device instead. Every phase says which of the two it used.
 @MainActor
 @Observable
 final class TripRouting {
@@ -28,10 +27,21 @@ final class TripRouting {
         }
     }
 
+    /// Where the first leg actually started, so the screen can say so rather than
+    /// implying every trip was measured from the phone.
+    enum OriginSource: Equatable {
+        /// The city the traveller picked for this trip.
+        case chosen
+        /// A precise fix from the device.
+        case device
+        /// A loose fix, so the first leg is only roughly placed.
+        case approximate
+    }
+
     enum Phase: Equatable {
         case idle
         case routing
-        case routed(origin: String, precise: Bool)
+        case routed(origin: String, source: OriginSource)
         /// OSRM did not answer. The trip still lists its parks; it just has no distances.
         case unrouted(String)
     }
@@ -57,21 +67,22 @@ final class TripRouting {
             guard let self else { return }
             defer { inFlight.remove(trip.id) }
 
-            // Where the traveller is, if the phone will say. This is the whole point of
-            // the first leg, so it is worth waiting for.
-            let fix = await location.currentFix()
+            // The origin the traveller chose is an instruction, not a fallback for a
+            // refused permission. This asked the device first and read `originCity` only
+            // when Core Location said nothing — so a trip planned from Dallas was routed
+            // from wherever the phone happened to be, and the phase label reported that
+            // city as though it had been chosen.
             let start: (name: String, lat: Double, lon: Double)?
-            let precise: Bool
-            if let fix {
-                let name = fix.city ?? (fix.precise ? "Where you are" : "Your area")
-                start = (name, fix.lat, fix.lon)
-                precise = fix.precise
-            } else if let originCity {
+            let source: OriginSource
+            if let originCity {
                 start = (originCity.shortName, originCity.lat, originCity.lon)
-                precise = false
+                source = .chosen
+            } else if let fix = await location.currentFix() {
+                start = (fix.city ?? (fix.precise ? "Where you are" : "Your area"), fix.lat, fix.lon)
+                source = fix.precise ? .device : .approximate
             } else {
                 start = nil
-                precise = false
+                source = .device
             }
 
             var built: [Leg] = []
@@ -94,7 +105,7 @@ final class TripRouting {
             legs[trip.id] = built
             phase[trip.id] = built.isEmpty
                 ? .unrouted("The routing service did not answer, so this trip has no distances yet.")
-                : .routed(origin: start?.name ?? "the origin", precise: precise)
+                : .routed(origin: start?.name ?? "the origin", source: source)
         }
     }
 
@@ -121,7 +132,7 @@ final class TripRouting {
             legs[key] = built.map { [$0] } ?? []
             phase[key] = built == nil
                 ? .unrouted("The routing service did not answer, so the drive to the first park has no distance yet.")
-                : .routed(origin: name, precise: fix.precise)
+                : .routed(origin: name, source: fix.precise ? .device : .approximate)
         }
     }
 

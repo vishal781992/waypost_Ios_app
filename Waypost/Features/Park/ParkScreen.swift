@@ -6,6 +6,8 @@ struct ParkScreen: View {
     @Environment(AppState.self) private var app
     var park: CuratedPark
     var initialSegment: ParkSegment
+    /// The day this park is being read for — a trip's arrival date. Nil means today.
+    var date: Date?
 
     @State private var segment: ParkSegment = .overview
 
@@ -42,7 +44,7 @@ struct ParkScreen: View {
                     Group {
                         switch segment {
                         case .overview: OverviewSection(park: park)
-                        case .weather: WeatherSection(park: park)
+                        case .weather: WeatherSection(park: park, date: date)
                         case .stay: StaySection(park: park)
                         case .plan: PlansSection(park: park)
                         case .near: NearbySection(park: park)
@@ -329,12 +331,21 @@ struct OverviewSection: View {
 
 struct WeatherSection: View {
     var park: CuratedPark
+    /// The day being asked about. Nil means today.
+    var date: Date?
+
+    private var day: Date { date ?? Date() }
+    private var isToday: Bool { Calendar.current.isDateInToday(day) }
+
+    /// How the day reads in a sentence: "today", or the date itself when it is not.
+    private var dayLabel: String {
+        isToday ? "today" : day.formatted(.dateTime.day().month(.wide))
+    }
 
     /// Live weather for a park the curated library has never heard of — and, once it has
     /// come back, for the eight it has. Open-Meteo needs no key, so this works on any
     /// phone with a network; blended with the National Weather Service where it covers.
     @State private var live: WeatherDay?
-    @State private var asked = false
 
     /// What the panel is actually reading: the live forecast if one arrived, otherwise
     /// the curated normals — and if the park has neither, nothing at all.
@@ -354,7 +365,7 @@ struct WeatherSection: View {
 
     private var cells: [(label: String, value: String, sub: String, dot: Color)] {
         [
-            ("High", value("\(wx.hi)°"), live == nil ? "August normal" : "today", light.color),
+            ("High", value("\(wx.hi)°"), live == nil ? "bundled normal" : dayLabel, light.color),
             ("Low", value("\(wx.lo)°"), "overnight", wx.lo <= 32 ? Color(oklch: 0.66, 0.13, 70) : Color(oklch: 0.60, 0.13, 150)),
             ("UV index", value(wx.uvIndex), wx.uvWord, uvColor),
             ("Wind", value(wx.wind), "max sustained", windColor),
@@ -413,20 +424,23 @@ struct WeatherSection: View {
             SourceLine(sourceLine)
                 .padding(.top, 16)
         }
-        .task(id: park.code) {
-            guard !asked else { return }
-            asked = true
-            let service = WeatherService(failures: FailureLog())
-            live = await service.forecast(lat: park.lat, lon: park.lon, iso: WPDate.iso(Date()))
+        // Keyed on the day as well as the park: this asked for `Date()` regardless, so a
+        // trip being planned for next month still read today's forecast.
+        .task(id: "\(park.code)|\(WPDate.iso(day))") {
+
+            live = await WeatherService(failures: FailureLog())
+                .forecast(lat: park.lat, lon: park.lon, iso: WPDate.iso(day))
         }
     }
 
     private var sourceLine: String {
         if let live {
-            return "Today at this park, from \(live.source)."
+            return isToday
+                ? "Today at this park, from \(live.source)."
+                : "\(dayLabel) at this park, from \(live.source)."
         }
         if park.wx.isPublished || park.source == nil {
-            return "August normals. The live forecast is being fetched; when it answers, this panel says so."
+            return "Bundled normals. The forecast for \(dayLabel) is being fetched; when it answers, this panel says so."
         }
         return "\(park.sourceName) does not publish weather. Open-Meteo is being asked for this park's forecast — until it answers there is nothing here to read."
     }

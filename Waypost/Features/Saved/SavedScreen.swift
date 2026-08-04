@@ -44,7 +44,7 @@ struct SavedParksList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(app.saved, id: \.self) { code in
-                if let park = app.library.park(code) {
+                if let park = app.park(code) {
                     VStack(spacing: 0) {
                         HStack(spacing: 13) {
                             Button { app.openPark(code) } label: {
