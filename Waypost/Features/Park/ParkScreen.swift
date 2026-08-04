@@ -20,6 +20,13 @@ struct ParkScreen: View {
     private var liveFee: String? { facts?.fee }
     private var liveHours: String? { facts?.hours }
 
+    /// The parks the state-park list shows — by designation rather than by how the screen
+    /// was reached, so the button is the same whether it was opened from that list, from
+    /// a search, or from Saved.
+    private var isStatePark: Bool {
+        park.designationLabel.localizedCaseInsensitiveContains("State")
+    }
+
     var body: some View {
         // The photograph runs to the very top of the display — under the status bar and
         // around the island — so opening a park feels like arriving at it rather than
@@ -144,6 +151,22 @@ struct ParkScreen: View {
                         .glassControl()
                 }
                 .buttonStyle(PressStyle(scale: 0.98))
+            }
+
+            // A state park has no day plans, no passport stamp and no offline pack worth
+            // the name — what somebody looking at one wants is to put it in a trip. The
+            // national parks reach the builder from their own screens already.
+            if isStatePark {
+                Button {
+                    app.startBuilder(around: park)
+                } label: {
+                    Text("Plan a trip here")
+                        .font(WP.headingUI(14))
+                        .frame(maxWidth: .infinity, minHeight: 46)
+                        .glassControl()
+                }
+                .buttonStyle(PressStyle(scale: 0.98))
+                .padding(.top, 9)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 12) {

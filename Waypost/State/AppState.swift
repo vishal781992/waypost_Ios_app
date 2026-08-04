@@ -276,7 +276,7 @@ final class AppState {
                 || value("wpBuilder") != nil || value("wpStateParks") != nil
                 || value("wpEmpty") != nil || value("wpSheet") != nil
                 || value("wpFind") != nil || value("wpTint") != nil
-                || value("wpDemoTrip") != nil else { return }
+                || value("wpDemoTrip") != nil || value("wpPlanAround") != nil else { return }
 
         // Applied after the scene has settled. SwiftUI restores the tab view's own
         // selection on launch and writes it back through the binding, and `go` clears
@@ -289,9 +289,25 @@ final class AppState {
                 // The tab view writes its restored selection back through the binding at
                 // an unpredictable moment after launch, and `go` clears the stack — so
                 // the push is repeated until it sticks.
-                for _ in 0..<5 where self.stack.isEmpty {
-                    self.openPark(wantedPark, segment: segment)
-                    try? await Task.sleep(for: .milliseconds(500))
+                // A code the app already knows, or — for a park that only exists once a
+                // search has found it, like any state park — the name of one.
+                if self.park(wantedPark) == nil {
+                    self.directory.search(wantedPark)
+                    for _ in 0..<20 where self.directory.hits.isEmpty {
+                        try? await Task.sleep(for: .milliseconds(400))
+                    }
+                }
+                let code = self.park(wantedPark) != nil
+                    ? wantedPark
+                    : self.directory.hits.first(where: {
+                        $0.park.name.localizedCaseInsensitiveContains(wantedPark)
+                      })?.park.code ?? self.directory.hits.first?.park.code
+
+                if let code {
+                    for _ in 0..<5 where self.stack.isEmpty {
+                        self.openPark(code, segment: segment)
+                        try? await Task.sleep(for: .milliseconds(500))
+                    }
                 }
             }
             // A trip to look at. Debug only, like everything in this function — the
@@ -310,6 +326,19 @@ final class AppState {
                 self.startBuilder()
                 // Steps two and three need parks picked before they will show anything.
                 if let typed = value("wpBuilderQuery") { self.builder?.query = typed }
+            if let around = value("wpPlanAround") {
+                if self.park(around) == nil, self.directory.hits.isEmpty {
+                    self.directory.search(around)
+                }
+                for _ in 0..<20 where self.directory.hits.isEmpty {
+                    try? await Task.sleep(for: .milliseconds(400))
+                }
+                if let park = self.directory.hits.first(where: {
+                    $0.park.name.localizedCaseInsensitiveContains(around)
+                })?.park ?? self.park(around) {
+                    self.startBuilder(around: park)
+                }
+            }
                 if let wanted = Int(step), wanted > 1 {
                     self.builder?.picks = ["romo", "arch", "zion"]
                     self.builder?.step = wanted
@@ -543,6 +572,18 @@ final class AppState {
     }
 
     func trip(_ id: String) -> SavedTrip? { trips.first { $0.id == id } }
+
+    /// A trip built around one park, from that park's own screen.
+    ///
+    /// The park is the answer to step one, so the builder opens on step two — when, and
+    /// from where. More parks can still be added by stepping back.
+    func startBuilder(around park: CuratedPark) {
+        startBuilder()
+        builder?.liveResults = [park]
+        builder?.picks = [park.code]
+        builder?.step = 2
+        Haptics.tap()
+    }
 
     func startBuilder() {
         let builder = TripBuilder(vehicleIsElectric: vehicleIsElectric)

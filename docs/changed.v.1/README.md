@@ -167,3 +167,27 @@ stated. Say the word and it goes too.
 
 Recaptured for this: **A1.1.1**, **A1.1.2**, **B1.1.1**, and — outside changed.v.1's
 usual scope, because the copy appears there too — **C3.1** and **F1.2**.
+
+
+---
+
+# D4.1 — Plan a trip from the park you are looking at
+
+A third action on the park screen, under Save and Offline Pack, in the same ink glass:
+**Plan a trip here**. It opens the new-trip sheet with that park already picked and jumps
+to step two — when, and from where — because the park was the answer to step one. Stepping
+back adds more.
+
+It shows for state parks, which is what D4.1 lists. The national parks reach the builder
+from their own screens already, and adding it there would be a third way to do the same
+thing rather than a new one.
+
+![D4.1](D4.1.png)
+
+**Feedback:**
+-
+
+**Not captured:** the builder as it opens from that button. The screen is built and the
+action is wired; what failed is the launch hook that reaches a state park's screen without
+a tap — a state park has no stable code until a search has found it. The button itself is
+in the frame above.
