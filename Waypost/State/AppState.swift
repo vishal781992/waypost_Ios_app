@@ -725,6 +725,16 @@ final class AppState {
 
 // MARK: - Trips
 
+/// Somewhere a trip starts from, as coordinates rather than as one of six codes.
+struct TripOrigin: Codable, Hashable {
+    /// "Dallas, TX"
+    var name: String
+    var lat: Double
+    var lon: Double
+
+    var shortName: String { name.split(separator: ",").first.map(String.init) ?? name }
+}
+
 struct SavedTrip: Codable, Hashable, Identifiable {
     var id: String
     var title: String
@@ -734,6 +744,22 @@ struct SavedTrip: Codable, Hashable, Identifiable {
     var origin: String
     var tag: String
     var live: Bool
+    /// The origin as chosen by search. Absent on trips saved before origins could be
+    /// anything but the shipped six, and on those `origin` alone still resolves — so an
+    /// old snapshot decodes and keeps working rather than losing its starting point.
+    var originName: String? = nil
+    var originLat: Double? = nil
+    var originLon: Double? = nil
+
+    /// Where this trip actually starts. Prefers the searched city; falls back to the code.
+    func resolvedOrigin(_ library: CuratedLibrary) -> TripOrigin? {
+        if let originName, let originLat, let originLon {
+            return TripOrigin(name: originName, lat: originLat, lon: originLon)
+        }
+        return library.city(origin).map {
+            TripOrigin(name: $0.shortName, lat: $0.lat, lon: $0.lon)
+        }
+    }
 
     /// The day the trip starts, recovered from its display label.
     ///
@@ -776,7 +802,18 @@ final class TripBuilder {
     var picks: [String] = []
     var days: [String: Int] = [:]
     var startLabel = "12 September 2026"
+    /// One of the shipped six. Ignored once `pickedOrigin` is set.
     var origin = "den"
+    /// A city found by search, which is any city in the country rather than one of six.
+    var pickedOrigin: TripOrigin?
+
+    /// Where this trip will start: the searched city if there is one, else the code.
+    var resolvedOrigin: TripOrigin? {
+        if let pickedOrigin { return pickedOrigin }
+        return library.city(origin).map {
+            TripOrigin(name: $0.shortName, lat: $0.lat, lon: $0.lon)
+        }
+    }
     var flyWhenFaster = false
     var vehicleIsElectric: Bool
     var query = "" {
@@ -903,7 +940,7 @@ final class TripBuilder {
     var isNextDisabled: Bool { step == 1 && picks.isEmpty }
 
     var reviewRows: [(label: String, value: String)] {
-        let originName = library.city(origin)?.name ?? origin
+        let originName = resolvedOrigin?.name ?? origin
         return [
             ("Parks", picks.compactMap { resolve($0)?.name }.joined(separator: " → ")),
             ("Days afield", "\(totalDays) in the parks, plus travel"),
@@ -948,18 +985,22 @@ final class TripBuilder {
     /// the title was composed out of two empty strings: a trip literally called " to ".
     func compose() -> SavedTrip {
         let parks = picks.compactMap(resolve)
-        let originName = library.city(origin)?.shortName ?? "Home"
+        let start = resolvedOrigin
+        let originName = start?.shortName ?? "Home"
         return SavedTrip(
             // The origin belongs in the identity: without it, changing where a trip starts
             // produced the same id, and the routing cache handed back the old city's legs.
-            id: "trip-\(picks.joined(separator: "-"))-\(origin)-\(startLabel.hashValue)",
+            id: "trip-\(picks.joined(separator: "-"))-\(start?.name ?? origin)-\(startLabel.hashValue)",
             title: Self.title(parks: parks, startLabel: startLabel),
             dates: startLabel,
             route: ([originName] + parks.map(\.name)).joined(separator: " · "),
             codes: picks,
             origin: origin,
             tag: "Planned",
-            live: false
+            live: false,
+            originName: start?.name,
+            originLat: start?.lat,
+            originLon: start?.lon
         )
     }
 }

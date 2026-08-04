@@ -7,6 +7,11 @@ struct NewTripSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var builder: TripBuilder
 
+    /// The origin field's own text. It is not the builder's, because clearing it must not
+    /// clear the city already chosen.
+    @State private var originQuery = ""
+    @State private var cities = CitySearch()
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -238,6 +243,121 @@ struct NewTripSheet: View {
         .foregroundStyle(WP.accent800)
     }
 
+    // MARK: Step 2 — where the trip starts
+
+    /// Any city in the country, not the six in `curated.json`. Two characters bring the
+    /// matches down; with the field empty the shipped six stay as one-tap shortcuts, and a
+    /// city already chosen by search sits above them so it can be seen and re-picked.
+    @ViewBuilder
+    private var originField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            fieldLabel("Setting out from")
+
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 13, weight: .semibold)).opacity(0.45)
+                TextField("Type a city, or pick one below", text: $originQuery)
+                    .font(WP.body(15))
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                if cities.isResolving {
+                    ProgressView().controlSize(.small)
+                } else if !originQuery.isEmpty {
+                    Button {
+                        originQuery = ""
+                        cities.clear()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 15)).opacity(0.4)
+                            .frame(width: 30, height: 30)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear the city")
+                }
+            }
+            .padding(.horizontal, 15)
+            .frame(minHeight: 46)
+            .glassControl(shadow: false)
+            .contentShape(Capsule())
+            .onChange(of: originQuery) { _, new in cities.update(new) }
+
+            Grouped {
+                if !cities.matches.isEmpty {
+                    ForEach(Array(cities.matches.enumerated()), id: \.element.id) { index, match in
+                        originRow(title: match.city,
+                                  trailing: match.state,
+                                  isChosen: builder.pickedOrigin?.name == "\(match.city), \(match.state)") {
+                            Task {
+                                if let origin = await cities.resolve(match) {
+                                    builder.pickedOrigin = origin
+                                    originQuery = ""
+                                    cities.clear()
+                                    Haptics.tap()
+                                } else {
+                                    app.show("That city could not be placed on the map")
+                                }
+                            }
+                        }
+                        if index < cities.matches.count - 1 { Hairline() }
+                    }
+                } else {
+                    // A searched city is not in the shipped list, so it is shown above it —
+                    // otherwise choosing one made the selection disappear from the screen.
+                    if let picked = builder.pickedOrigin {
+                        originRow(title: picked.name, trailing: "", isChosen: true) {}
+                        Hairline()
+                    }
+                    ForEach(Array(app.library.cities.enumerated()), id: \.element.id) { index, city in
+                        originRow(title: city.name,
+                                  trailing: city.air,
+                                  isChosen: builder.pickedOrigin == nil && builder.origin == city.id) {
+                            builder.origin = city.id
+                            builder.pickedOrigin = nil
+                            Haptics.tap()
+                        }
+                        if index < app.library.cities.count - 1 { Hairline() }
+                    }
+                }
+            }
+
+            if originQuery.count == 1 {
+                Text("One more character and the cities appear.")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55)
+            } else if originQuery.count >= 2 && cities.matches.isEmpty {
+                Text("No US city by that name yet — keep typing, or pick one below.")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55)
+            }
+        }
+    }
+
+    private func originRow(title: String, trailing: String, isChosen: Bool,
+                           action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Text(title).font(WP.body(14)).lineLimit(1)
+                Spacer(minLength: 0)
+                if !trailing.isEmpty {
+                    Text(trailing).font(WP.mono(11)).tracking(1.8)
+                        .foregroundStyle(WP.accent800).opacity(0.7)
+                }
+                if isChosen {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(WP.accent)
+                } else {
+                    Color.clear.frame(width: 15, height: 1)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle(scale: 0.995))
+        .accessibilityAddTraits(isChosen ? [.isSelected] : [])
+    }
+
     // MARK: Step 2 — when and from where
 
     private var stepWhen: some View {
@@ -261,36 +381,7 @@ struct NewTripSheet: View {
                         .font(WP.bodyItalic(11.5)).opacity(0.55)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    fieldLabel("Setting out from")
-                    Grouped {
-                        ForEach(Array(app.library.cities.enumerated()), id: \.element.id) { index, city in
-                            Button {
-                                builder.origin = city.id
-                                Haptics.tap()
-                            } label: {
-                                HStack(spacing: 10) {
-                                    Text(city.name).font(WP.body(14))
-                                    Spacer(minLength: 0)
-                                    Text(city.air).font(WP.mono(11)).tracking(1.8)
-                                        .foregroundStyle(WP.accent800).opacity(0.7)
-                                    if builder.origin == city.id {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundStyle(WP.accent)
-                                    } else {
-                                        Color.clear.frame(width: 15, height: 1)
-                                    }
-                                }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 11)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(PressStyle(scale: 0.995))
-                            if index < app.library.cities.count - 1 { Hairline() }
-                        }
-                    }
-                }
+                originField
 
                 VStack(alignment: .leading, spacing: 6) {
                     fieldLabel("Between stops")

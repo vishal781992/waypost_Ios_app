@@ -58,7 +58,7 @@ final class TripRouting {
     func phase(for trip: SavedTrip) -> Phase { phase[trip.id] ?? .idle }
 
     /// Routes a trip once. Re-opening it costs nothing.
-    func route(_ trip: SavedTrip, parks: [CuratedPark], originCity: CuratedCity?) {
+    func route(_ trip: SavedTrip, parks: [CuratedPark], origin originCity: TripOrigin?) {
         guard legs[trip.id] == nil, !inFlight.contains(trip.id), !parks.isEmpty else { return }
         inFlight.insert(trip.id)
         phase[trip.id] = .routing
@@ -77,6 +77,7 @@ final class TripRouting {
             if let originCity {
                 start = (originCity.shortName, originCity.lat, originCity.lon)
                 source = .chosen
+
             } else if let fix = await location.currentFix() {
                 start = (fix.city ?? (fix.precise ? "Where you are" : "Your area"), fix.lat, fix.lon)
                 source = fix.precise ? .device : .approximate

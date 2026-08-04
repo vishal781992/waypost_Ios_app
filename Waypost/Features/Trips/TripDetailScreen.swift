@@ -66,7 +66,7 @@ struct TripDetailScreen: View {
                     app.routing.routeApproach(trip, to: first)
                 }
             } else {
-                app.routing.route(trip, parks: parks, originCity: app.library.city(trip.origin))
+                app.routing.route(trip, parks: parks, origin: trip.resolvedOrigin(app.library))
             }
         }
         .onChange(of: segment) { _, new in app.tripSegment[trip.id] = new }
@@ -106,7 +106,7 @@ struct TripDetailScreen: View {
     /// For a trip the app composed, the legs are estimated from coordinates — and the
     /// stat row says "est." so the number is never read as a routed one.
     private var estimatedMiles: Int {
-        guard let origin = app.library.city(trip.origin) else { return 0 }
+        guard let origin = trip.resolvedOrigin(app.library) else { return 0 }
         var previous = (lat: origin.lat, lon: origin.lon)
         var sum = 0.0
         for park in parks {

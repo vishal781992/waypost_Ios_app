@@ -770,3 +770,65 @@ the weather panel all checked on screen.
 - The route cache is keyed by trip id, which now includes origin, but there is still no
   explicit re-route action (Pain point 29).
 - `WeatherSection` still has no retry affordance when both forecast and normals fail.
+
+## Phase 2b — Any city in the country as an origin (Pain point 23)
+
+### User pain removed
+`curated.json` shipped six origin cities — Denver, Salt Lake City, Las Vegas, Phoenix,
+Seattle, Chicago — and the builder offered no other way to answer "from where". A trip
+from Dallas, or from anywhere else in the country, could not be expressed at all. Phase 2
+stopped the app substituting the device's location for the chosen origin; this makes the
+choice itself unrestricted.
+
+### Change
+A search field above the origin list. Two characters bring down up to six matching US
+cities; picking one resolves it to coordinates and pins it above the shipped six, which
+stay as one-tap shortcuts. Clearing the field does not clear the chosen city.
+
+`MKLocalSearchCompleter` (iOS 9.3+, no key, no entitlement — works on a free developer
+account) rather than Nominatim: completions keep pace with typing, and they do not queue
+behind the park search on `NominatimGate`'s one-per-1.1-second door. Street addresses are
+filtered out — a leading digit, or a second component that is not a US state code, is not
+a city. Coordinates come from `MKLocalSearch.Response.boundingRegion.center`;
+`mapItems.first?.placemark` says the same thing but is deprecated from iOS 26 and would
+need an availability branch on the iOS 17 target.
+
+### Files and symbols changed
+- **New** `Waypost/Services/CitySearch.swift` — `CitySearch`, `CitySearch.Match`,
+  `update(_:)`, `resolve(_:)`.
+- `Waypost/State/AppState.swift` — new `TripOrigin` (name/lat/lon); `SavedTrip` gains
+  `originName`/`originLat`/`originLon` and `resolvedOrigin(_:)`; `TripBuilder.pickedOrigin`
+  and `resolvedOrigin`; `compose()` and `reviewRows` read the resolved origin.
+- `Waypost/Services/TripRouting.swift` — `route(_:parks:origin:)` takes `TripOrigin?`
+  rather than `CuratedCity?`.
+- `Waypost/Features/Trips/NewTripSheet.swift` — `originField`, `originRow(…)`.
+- `TripDetailScreen.swift`, `TripsScreen.swift` — three call sites read
+  `trip.resolvedOrigin(app.library)`.
+
+### Persistence
+The three new `SavedTrip` fields are optional with `nil` defaults, so a snapshot written
+before this change still decodes, and `resolvedOrigin` falls back to the `origin` code for
+those trips. No migration and no silent reset — the failure mode Pain point 52 warns about.
+
+### Before / after
+| | Before | After |
+|---|---|---|
+| Origin choices | 6 cities from `curated.json` | any US city, plus the 6 as shortcuts |
+| Planning from Dallas | impossible | `Dallas → Rocky Mountain`, 842 mi |
+| Drive home | — | `Rocky Mountain → Dallas`, 859 mi via TX-354, Loop-335 |
+
+### Accessibility
+Rows are ≥44pt and carry `.isSelected` when chosen; the clear control has a label. Text
+sizes follow the existing tokens, so the Dynamic Type work in Journey 11 still applies.
+
+### Verified
+iPhone 17 Pro simulator with the device location pinned to **Denver** throughout. Typed
+"da" → `Dallas TX`, `Dayton OH`; picked Dallas; review read "Dallas, TX"; composed; both
+routed legs and the routing note name Dallas, and Denver appears nowhere on the screen.
+
+### Remaining limitations
+- Matches need a network; there is no offline city list and no explicit error state when
+  the completer fails, only an empty list under a "keep typing" line.
+- The six shipped cities keep their airport codes; a searched city has none.
+- Pain point 22 (hard-coded date strings) is still untouched.
+- No recent-origins list and no saved home (the rest of Pain point 23's suggestion).

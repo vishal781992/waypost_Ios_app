@@ -163,7 +163,7 @@ struct TripCard: View {
     var trip: SavedTrip
 
     private var points: [(lat: Double, lon: Double)] {
-        let origin = app.library.city(trip.origin)
+        let origin = trip.resolvedOrigin(app.library)
         let parks = trip.codes.compactMap { app.park($0) }
         return ([origin.map { (lat: $0.lat, lon: $0.lon) }].compactMap { $0 })
             + parks.map { (lat: $0.lat, lon: $0.lon) }
