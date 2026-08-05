@@ -8,7 +8,10 @@ struct DetailSheet: View {
     /// The day this drive is actually being made, when one of the saved trips starts
     /// today. Nil otherwise, and the stops and traffic stay unasked-for.
     private var driveDate: Date? {
-        app.myTrips.compactMap(\.startDate).first { Calendar.current.isDateInToday($0) }
+        var trips = app.myTrips
+        // The seed trip lives outside `myTrips` but is still a trip the user has.
+        if !app.seedTripHidden { trips.append(SavedTrip.seed(dayNumber: app.day)) }
+        return trips.compactMap(\.startDate).first { LegStops.isLive($0) }
     }
     @Environment(\.dismiss) private var dismiss
     var sheet: ActiveSheet
@@ -169,14 +172,14 @@ struct DetailSheet: View {
                         } label: {
                             DividedRow(vertical: 11) {
                                 HStack(spacing: 12) {
-                                    Image(systemName: stop.kind == .charger ? "bolt.car" : "fuelpump")
+                                    Image(systemName: stop.glyph)
                                         .font(.system(size: 14))
                                         .foregroundStyle(WP.accent700)
                                         .frame(width: 22)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(stop.name).font(WP.rowTitle(15))
                                             .multilineTextAlignment(.leading)
-                                        Text("mile \(stop.mile) · \(stop.kind == .charger ? "charging" : "fuel")")
+                                        Text("mile \(stop.mile) · \(stop.kind.title.lowercased())")
                                             .font(WP.body(11.5)).opacity(0.62).tnum()
                                     }
                                     Spacer(minLength: 0)
@@ -191,7 +194,7 @@ struct DetailSheet: View {
             }
         }
         .task(id: leg.id) {
-            guard LegStops.isDriveDay(driveDate) else { return }
+            guard LegStops.isLive(driveDate) else { return }
             LegStops.shared.load(leg, electric: app.vehicleIsElectric)
         }
     }

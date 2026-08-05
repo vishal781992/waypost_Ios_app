@@ -26,6 +26,14 @@ final class LegStops {
         var lon: Double
         var id: String { "\(kind.rawValue):\(name):\(mile)" }
 
+        var glyph: String {
+            switch kind {
+            case .charger: return "bolt.car"
+            case .food: return "fork.knife"
+            default: return "fuelpump"
+            }
+        }
+
         var mapItem: MKMapItem {
             let item = MKMapItem(placemark: MKPlacemark(
                 coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)))
@@ -59,15 +67,33 @@ final class LegStops {
     /// quarter of driving, and comfortably inside the 50 km search radius on either side.
     private static let spacingMiles: Double = 80
 
+    /// A ceiling on how many places to ask about. Eighty miles across a 2,275-mile drive is
+    /// twenty-eight stops, which is not a list anybody reads — and eighty-four searches,
+    /// which is not a wait anybody sits through. Beyond this the spacing widens instead.
+    private static let maxSamples = 10
+
     private init() {}
 
     func state(for leg: TripRouting.Leg) -> State { states[leg.id] ?? .idle }
 
-    /// Only worth asking on the day. Traffic three weeks out is not a forecast of
-    /// anything, and a list of open petrol stations is no better.
-    static func isDriveDay(_ date: Date?) -> Bool {
+    /// How long before departure this becomes worth asking. A trip's start is a date with
+    /// no time on it, so five hours before it means the evening before the drive — which is
+    /// when the packing happens and the question first gets asked.
+    static let liveWindow: TimeInterval = 5 * 3600
+
+    /// Live from five hours before the drive until the end of the day it is driven.
+    ///
+    /// Not `isDateInToday`, which was the first cut: that shows nothing at eleven at night
+    /// for a drive starting at six the next morning, and keeps showing traffic all day for
+    /// a drive that has already happened.
+    static func isLive(_ date: Date?) -> Bool {
         guard let date else { return false }
-        return Calendar.current.isDateInToday(date)
+        let calendar = Calendar.current
+        let opens = date.addingTimeInterval(-liveWindow)
+        guard let closes = calendar.date(byAdding: .day, value: 1,
+                                         to: calendar.startOfDay(for: date)) else { return false }
+        let now = Date()
+        return now >= opens && now < closes
     }
 
     func load(_ leg: TripRouting.Leg, electric: Bool) {
@@ -83,20 +109,43 @@ final class LegStops {
 
         Task { [weak self] in
             guard let self else { return }
-            let samples = Self.samples(along: leg.coordinates, everyMiles: Self.spacingMiles)
+            // Eighty miles as asked, widened only when a leg is long enough that eighty
+            // would produce more stops than anyone would read.
+            let spacing = max(Self.spacingMiles,
+                              Double(leg.miles) / Double(Self.maxSamples))
+            let samples = Self.samples(along: leg.coordinates, everyMiles: spacing)
             // Charging first for an electric vehicle, fuel first otherwise — the one that
             // decides whether the drive is possible goes at the top of each stop.
-            let kinds: [PlacesService.Kind] = electric ? [.charger, .fuel] : [.fuel, .charger]
+            let kinds: [PlacesService.Kind] = electric
+                ? [.charger, .fuel, .food]
+                : [.fuel, .charger, .food]
 
-            var stops: [Stop] = []
-            for sample in samples {
-                for kind in kinds {
-                    if let stop = await Self.nearest(kind, to: sample) { stops.append(stop) }
+            // Concurrently, and grouped so the list still reads in travel order. Run one
+            // after another this was 84 searches end to end on a 2,275-mile leg, which is
+            // most of a minute of staring at a spinner.
+            var stops: [Stop] = await withTaskGroup(of: [Stop].self) { group in
+                for sample in samples {
+                    group.addTask { @MainActor in
+                        var found: [Stop] = []
+                        for kind in kinds {
+                            if let stop = await Self.nearest(kind, to: sample) { found.append(stop) }
+                        }
+                        return found
+                    }
                 }
+                var all: [Stop] = []
+                for await batch in group { all += batch }
+                return all
             }
+            stops.sort { $0.mile == $1.mile ? kindOrder(kinds, $0) < kindOrder(kinds, $1) : $0.mile < $1.mile }
             let traffic = await Self.traffic(from: leg.coordinates.first, to: leg.coordinates.last)
             states[leg.id] = .ready(stops, traffic)
         }
+    }
+
+    /// Keeps each mile's stops in the order the kinds were asked for.
+    private func kindOrder(_ kinds: [PlacesService.Kind], _ stop: Stop) -> Int {
+        kinds.firstIndex(of: stop.kind) ?? kinds.count
     }
 
     // MARK: Sampling
