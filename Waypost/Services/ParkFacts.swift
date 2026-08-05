@@ -25,6 +25,10 @@ final class ParkFacts {
         var campgrounds: [Campground]
         var thingsToDo: [Activity]
         var parking: [String]
+        /// The timed-entry or reservation requirement, in the park's own words — or nil
+        /// where the park has none. Lives in the `feespasses` endpoint, not `parks`, which
+        /// is why the app never had it and the screen fell back to a hard-coded line.
+        var reservation: String?
         var fetchedAt: Date
         /// Which of the park service's per-park endpoints refused. A section listed here
         /// has nothing to show because the app could not ask, not because the park
@@ -113,10 +117,14 @@ final class ParkFacts {
                 async let camps = proxy.rows("campgrounds", code: code)
                 async let things = proxy.rows("thingstodo", code: code)
                 async let lots = proxy.rows("parkinglots", code: code)
+                // Where the timed-entry and free-park facts live. The park record does not
+                // carry them; this endpoint does.
+                async let feespasses = proxy.rows("feespasses", code: code)
                 states[park.code] = .loaded(Self.facts(
                     from: row, code: code,
                     alerts: await alerts, camps: await camps,
-                    things: await things, lots: await lots
+                    things: await things, lots: await lots,
+                    feespasses: await feespasses
                 ))
             } catch {
                 states[park.code] = .failed(String(describing: error).prefix(80).description)
@@ -226,7 +234,23 @@ final class ParkFacts {
                               alerts alertRows: [[String: Any]]?,
                               camps campRows: [[String: Any]]? = [],
                               things thingRows: [[String: Any]]? = [],
-                              lots lotRows: [[String: Any]]? = []) -> Facts {
+                              lots lotRows: [[String: Any]]? = [],
+                              feespasses feesRows: [[String: Any]]? = []) -> Facts {
+        let feesPasses = feesRows?.first
+        // The reservation line, in the park's words. A heading with no description still
+        // says the useful thing ("Timed entry reservations may be needed…").
+        let reservation: String? = {
+            let heading = (feesPasses?["timedEntryHeading"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let heading, !heading.isEmpty else { return nil }
+            let detail = (feesPasses?["timedEntryDescription"] as? String)
+                .map { Self.sentences($0, within: 220) } ?? ""
+            return detail.isEmpty ? heading : "\(heading) \(detail)"
+        }()
+        // The park service's own boolean, preferred over inferring "Free" from an empty
+        // fee list — it is the authoritative answer and covers a park whose fee list did
+        // not come back at all.
+        let isFeeFree = feesPasses?["isFeeFreePark"] as? Bool
         var unavailable: Set<String> = []
         for (name, rows) in [("alerts", alertRows), ("campgrounds", campRows),
                              ("thingstodo", thingRows), ("parkinglots", lotRows)]
@@ -239,7 +263,10 @@ final class ParkFacts {
         let lots = lotRows ?? []
         let feeRows = row["entranceFees"] as? [[String: Any]]
         let fee: String?
-        if let first = feeRows?.first {
+        if isFeeFree == true {
+            // The authoritative answer, whatever the fee list did or did not carry.
+            fee = "Free"
+        } else if let first = feeRows?.first {
             let cost = (first["cost"] as? String).flatMap(Double.init)
             let title = first["title"] as? String
             fee = (cost ?? 0) > 0 ? "$\(Int(cost ?? 0)) · \(title ?? "entrance")" : "Free"
@@ -293,6 +320,7 @@ final class ParkFacts {
                 )
             },
             parking: lots.compactMap { $0["name"] as? String },
+            reservation: reservation,
             fetchedAt: Date(),
             unavailable: unavailable
         )

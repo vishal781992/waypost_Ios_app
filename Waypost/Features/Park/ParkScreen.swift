@@ -366,19 +366,14 @@ struct OverviewSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            if park.res {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Reserve before you arrive".uppercased())
-                        .font(WP.body(10)).tracking(1.4)
-                        .foregroundStyle(WP.accent800)
-                    Text(park.resNote)
-                        .font(WP.body(13)).lineSpacing(3)
-                        .foregroundStyle(WP.accent900)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 14).padding(.vertical, 13)
-                .background(WP.accent100, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(WP.accent300, lineWidth: 1))
+            // The park service's own timed-entry line when it has one — the real answer, in
+            // the park's words. It reads from the `feespasses` endpoint, which the app did
+            // not call before, so this used to be a hard-coded "reservations not listed"
+            // note whatever the park actually required.
+            if let reservation = facts?.reservation {
+                reserveBlock(reservation, label: "Timed entry · NPS")
+            } else if park.res {
+                reserveBlock(park.resNote, label: "Reserve before you arrive")
             } else {
                 Text(park.resNote)
                     .font(WP.bodyItalic(13)).lineSpacing(3).opacity(0.75)
@@ -500,6 +495,22 @@ struct OverviewSection: View {
     private var facts: ParkFacts.Facts? {
         if case .loaded(let facts) = ParkFacts.shared.state(for: park) { return facts }
         return nil
+    }
+
+    private func reserveBlock(_ text: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label.uppercased())
+                .font(WP.body(10)).tracking(1.4)
+                .foregroundStyle(WP.accent800)
+            Text(text)
+                .font(WP.body(13)).lineSpacing(3)
+                .foregroundStyle(WP.accent900)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14).padding(.vertical, 13)
+        .background(WP.accent100, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(WP.accent300, lineWidth: 1))
     }
 
     /// The fee the park service publishes today, in preference to anything bundled.
