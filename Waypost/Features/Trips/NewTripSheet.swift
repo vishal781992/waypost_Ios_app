@@ -100,8 +100,11 @@ struct NewTripSheet: View {
         }
         .padding(.horizontal, WP.gutter)
         .padding(.top, 9)
-        .padding(.bottom, 8)
-        .background(WP.bg.opacity(0.92))
+        // Negative, to sit down inside the home indicator's safe area rather than stacking
+        // padding on top of it. The indicator still has its own clearance underneath, and
+        // what this reclaims goes to the list.
+        .padding(.bottom, -12)
+        .background(WP.bg.opacity(0.92).ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) { Hairline() }
     }
 
