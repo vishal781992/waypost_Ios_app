@@ -20,18 +20,27 @@ struct WaypostApp: App {
 struct RootShell: View {
     @Environment(AppState.self) private var app
 
-    /// Selection is routed through `AppState` so the dashboard tiles and the passport
-    /// nudge can still change tabs, and so the last one is remembered across launches.
-    private var selection: Binding<AppTab> {
-        Binding(get: { app.tab }, set: { app.go($0) })
-    }
-
     /// Shared by every card that can be opened and every screen it opens into, so the
     /// zoom transition knows which pair belongs together.
     @Namespace private var zoom
 
     var body: some View {
         @Bindable var app = app
+
+        // These are read here, in the body, on purpose — the same reason the path is, and
+        // the comment below explains why. A hand-built `Binding` whose `get` reads state
+        // registers no Observation dependency, because the closure runs after the body has
+        // finished. `app.sheet`, `app.builder` and `app.tab` were all read only inside
+        // such closures, so a button that set one of them changed the value and nothing
+        // redrew: the sheet opened later, when some *other* observed property happened to
+        // re-evaluate the shell. That is the second tap.
+        let currentTab = app.tab
+        let currentSheet = app.sheet
+        let openBuilder = app.builder
+
+        /// Selection is routed through `AppState` so the dashboard tiles and the passport
+        /// nudge can still change tabs, and so the last one is remembered across launches.
+        let selection = Binding<AppTab>(get: { currentTab }, set: { app.go($0) })
 
         // A real TabView, so the tab bar is the system's: Liquid Glass with its own
         // scroll-edge response, the selection morphing between items, and the bar
@@ -67,12 +76,13 @@ struct RootShell: View {
                     .allowsHitTesting(false)
             }
         }
-        .sheet(item: Binding(get: { app.sheet }, set: { app.sheet = $0 })) { sheet in
+        .sheet(item: Binding(get: { currentSheet }, set: { app.sheet = $0 })) { sheet in
             DetailSheet(sheet: sheet)
         }
-        .sheet(isPresented: Binding(get: { app.builder != nil }, set: { if !$0 { app.builder = nil } })) {
-            if let builder = app.builder {
-                NewTripSheet(builder: builder)
+        .sheet(isPresented: Binding(get: { openBuilder != nil },
+                                    set: { if !$0 { app.builder = nil } })) {
+            if let openBuilder {
+                NewTripSheet(builder: openBuilder)
             }
         }
     }

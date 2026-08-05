@@ -123,24 +123,48 @@ private struct LiquidGlass: ViewModifier {
         // their own hairline at the bottom, which is the only edge that means anything.
         let wantsEdge = radius > 0
 
-        if style == .onPhoto {
-            content
-                .background(style.tint, in: shape)
-                .overlay { if wantsEdge { GlassEdge(style: style, radius: radius) } }
-        } else if #available(iOS 26.0, *) {
-            content
-                .glassEffect(
-                    interactive
-                        ? .regular.tint(style.tint).interactive()
-                        : .regular.tint(style.tint),
-                    in: shape
-                )
-                .overlay { if wantsEdge { GlassEdge(style: style, radius: radius) } }
+        Group {
+            if style == .onPhoto {
+                content
+                    .background(style.tint, in: shape)
+                    .overlay { if wantsEdge { GlassEdge(style: style, radius: radius) } }
+            } else if #available(iOS 26.0, *) {
+                content
+                    .glassEffect(
+                        interactive
+                            ? .regular.tint(style.tint).interactive()
+                            : .regular.tint(style.tint),
+                        in: shape
+                    )
+                    .overlay { if wantsEdge { GlassEdge(style: style, radius: radius) } }
+            } else {
+                content
+                    .background(style.material, in: shape)
+                    .background(style.tint, in: shape)
+                    .overlay { if wantsEdge { GlassEdge(style: style, radius: radius) } }
+            }
+        }
+        .modifier(ControlHitArea(shape: shape, active: interactive))
+    }
+}
+
+/// A control has to answer a tap anywhere on its surface, not only where its label sits.
+///
+/// The two `.background(…)` branches above give the glass a hit-testable shape as a side
+/// effect; `glassEffect` does not. So from iOS 26 every button in the app — which is every
+/// view wearing `glassControl` — was tappable only on its own text, and the padding that
+/// makes it look like a button was dead. Applied only to `interactive` glass: a header or
+/// a panel is a surface, and giving one a hit area would have it swallow taps and scrolls
+/// meant for what sits on top of it.
+private struct ControlHitArea: ViewModifier {
+    var shape: RoundedRectangle
+    var active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.contentShape(shape)
         } else {
             content
-                .background(style.material, in: shape)
-                .background(style.tint, in: shape)
-                .overlay { if wantsEdge { GlassEdge(style: style, radius: radius) } }
         }
     }
 }
@@ -490,6 +514,12 @@ struct DividedRow<Content: View>: View {
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, vertical)
+                // Layout is not hit-testing. `frame` and `padding` make the row look full
+                // width, but a `Button` wrapping it answered only where the glyphs actually
+                // are — the vertical padding, the gap before a trailing chevron and the
+                // whole `Spacer` were dead. Tapping such a row two or three times before it
+                // works is not the app being slow; it is the second tap landing on a letter.
+                .contentShape(Rectangle())
             Hairline()
         }
     }
@@ -523,7 +553,12 @@ struct SelectedControl: ViewModifier {
         if active {
             content.glassControl(shadow: false)
         } else {
-            content.foregroundStyle(WP.text.opacity(0.62))
+            // The active branch gets a hit-testable background from `glassControl`. Without
+            // one here an *unselected* segment was tappable only on its letters — and an
+            // unselected segment is the only kind anyone ever taps.
+            content
+                .foregroundStyle(WP.text.opacity(0.62))
+                .contentShape(Capsule())
         }
     }
 }

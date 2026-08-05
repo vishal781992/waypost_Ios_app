@@ -832,3 +832,94 @@ routed legs and the routing note name Dallas, and Denver appears nowhere on the 
 - The six shipped cities keep their airport codes; a searched city has none.
 - Pain point 22 (hard-coded date strings) is still untouched.
 - No recent-origins list and no saved home (the rest of Pain point 23's suggestion).
+
+## Phase 3 — A button answers a tap anywhere on it (Pain points 18, 9)
+
+Partially advances Pain point 6 and Pain point 7.
+
+### User pain removed
+"None of the buttons work on the first tap." They did work — but only where the label's
+glyphs actually were. Every button in the app is a rounded surface much larger than its
+text, and the rest of that surface was dead, so a tap landed on nothing and the second or
+third attempt happened to hit a letter. Back had a separate fault that emptied the
+navigation stack underneath it.
+
+### Root causes
+1. **`LiquidGlass` gave interactive glass no hit area on iOS 26.** The `onPhoto` and
+   pre-iOS-26 branches call `.background(…, in: shape)`, which makes the shape hit-testable
+   as a side effect. The iOS 26 branch calls `.glassEffect(…, in: shape)`, which does not.
+   Every control in the app wears `glassControl` → `liquidGlass(interactive: true)`, so
+   from iOS 26 every button was tappable only on its own text. This is the main fault.
+2. **`DividedRow` had no `contentShape`.** `frame` and `padding` are layout, not
+   hit-testing, so list rows answered only on their glyphs — the padding, the gap before
+   the trailing chevron and the whole `Spacer` were dead.
+3. **`SelectedControl`'s inactive branch had no background.** The active branch gets one
+   from `glassControl`; the unselected one had nothing — and unselected is the only kind
+   anyone taps.
+4. **Sheets needed a second tap.** `app.sheet`, `app.builder` and `app.tab` were read only
+   inside hand-built `Binding` `get` closures, which run after the body has finished and so
+   register no Observation dependency. Setting one changed the value and nothing redrew;
+   the sheet appeared later, when some other observed property re-evaluated the shell.
+5. **`go()` emptied the navigation stack.** `TabView` writes its selection back through the
+   binding at moments that are not user taps, each carrying the current tab, which took the
+   "re-tap returns to root" branch and wiped a stack the user was standing in, mid
+   view-update.
+6. **A 426 KB decode on the main thread.** `state-parks.json` was decoded lazily on first
+   access, from `AppState.park(_:)` during rendering and from the Discover list's `body` —
+   between a finger going down and coming up, which cancels the gesture.
+
+### Files and symbols changed
+- `Waypost/Design/Glass.swift` — new `ControlHitArea` modifier applied by `LiquidGlass`
+  when `interactive`; `contentShape` on `DividedRow` and on `SelectedControl`'s inactive
+  branch.
+- `Waypost/App/WaypostApp.swift` — `currentTab`, `currentSheet`, `openBuilder` hoisted into
+  `body`; the `selection` computed property became a local binding over the hoisted read.
+- `Waypost/State/AppState.swift` — `go(_:)` no longer clears the path; `Datasets.stateParks`
+  warmed on a detached task at init.
+- `Waypost/Features/Park/ParkScreen.swift` — `isLoadingFacts` and a spinner beside fee and
+  hours.
+
+### The loading indicator
+`ParkFacts` already had a `loading` state that no screen showed: a park opened with its
+bundled fee and hours and silently swapped them when the park service answered. There is
+now a small `ProgressView` next to that row while the request is in flight, labelled for
+VoiceOver. The other slow paths already report themselves — offline packs show a
+percentage, search shows its phase, composition its stages, and the origin field spins
+while a picked city is resolved.
+
+### Before / after
+Every case below was tested by tapping **away from the label**, on the part of the control
+that used to be dead.
+
+| Control | Before | After |
+|---|---|---|
+| "Save this park", far left edge | nothing | Saved |
+| "Plan a trip here", far right edge | nothing | sheet opens |
+| Discover "State" segment, padding | nothing | switches, 470 parks |
+| State park row, gap before chevron | nothing | opens |
+| Any sheet | opened on the second tap | opens on the first |
+| Back after a spurious selection write-back | did nothing | returns |
+
+### Deliberate regression
+Tapping the tab you are already on no longer returns that tab to its root. That behaviour
+is what read the spurious write-backs as re-taps and wiped live stacks. It is a
+convenience; Back working every time is not.
+
+### Accessibility
+Hit areas now match the visible control, so the ≥44pt targets the design already draws are
+real rather than nominal — the substance of Pain point 18's touch-target half. Text sizes
+and contrast in that pain point are untouched.
+
+### Verified
+iPhone 17 Pro simulator, iOS 26.4. Each row of the table above was tapped once, at a point
+outside the label, and screenshotted.
+
+### Remaining limitations
+- `.contextMenu` still sits on the Discover and Saved card buttons, which can still absorb
+  a first touch inside a scroll view; not reproduced during this pass, so not changed.
+- `panelTransition` still uses `.id()`, which tears down a subtree and cancels any press
+  inside it when the segment changes.
+- The Discover state list still filters 470 rows in `body` on every keystroke; the decode
+  no longer blocks, but the filtering is not cached.
+- Pain point 7 (per-tab navigation restoration) is only partly served: paths survive now,
+  but scroll position is not restored.

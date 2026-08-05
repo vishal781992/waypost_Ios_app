@@ -208,6 +208,15 @@ final class AppState {
     init() {
         restore()
         applyLaunchArguments()
+
+        // `state-parks.json` is 426 KB, decoded lazily behind a lock the first time
+        // anything asks for it — and the things that ask are `AppState.park(_:)`, which
+        // the shell calls while rendering a pushed screen, and the Discover state list,
+        // which reads it from `body`. Either way the decode landed on the main thread
+        // between a finger going down and coming up, which cancels the gesture: the tap
+        // is eaten and the one after it works because the cache is warm. Warm it off the
+        // main thread instead, so the first tap is the one that counts.
+        Task.detached(priority: .utility) { _ = Datasets.shared.stateParks }
     }
 
     // MARK: Derived
@@ -257,14 +266,20 @@ final class AppState {
     // MARK: Actions
 
     func go(_ tab: AppTab) {
+        // This used to empty `paths[tab]` when the incoming tab was the one already
+        // showing, to return that tab to its root the way other iOS apps do on a re-tap.
+        // But `TabView` writes its selection back through this binding at moments that are
+        // not user taps — scene restoration, and re-establishing selection after an update
+        // — and each of those carries the *current* tab, so it took the same branch and
+        // wiped a stack the user was standing in, mid view-update. That is what made Back
+        // do nothing and a push vanish, and it is why `applyLaunchArguments` below has to
+        // re-push until the push sticks.
+        //
+        // Losing re-tap-to-root is the smaller cost: it is a convenience, and Back working
+        // every time is not.
+        guard self.tab != tab else { return }
         withAnimation(.snappy(duration: 0.22)) {
-            // Tapping the tab you are already on returns to its root, as every other iOS
-            // app does. Switching to a different one leaves that tab where you left it.
-            if self.tab == tab {
-                paths[tab] = []
-            } else {
-                self.tab = tab
-            }
+            self.tab = tab
         }
         persist()
     }

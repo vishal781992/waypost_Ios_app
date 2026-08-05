@@ -22,6 +22,13 @@ struct ParkScreen: View {
     private var liveFee: String? { facts?.fee }
     private var liveHours: String? { facts?.hours }
 
+    /// True while the park service is still being asked. The fee and hours row shows the
+    /// bundled figures until it answers, and there was nothing at all to say the app was
+    /// still checking — so the values appeared to change on their own a moment later.
+    private var isLoadingFacts: Bool {
+        ParkFacts.shared.state(for: park) == .loading
+    }
+
     var body: some View {
         // The photograph runs to the very top of the display — under the status bar and
         // around the island — so opening a park feels like arriving at it rather than
@@ -166,6 +173,11 @@ struct ParkScreen: View {
                 Text(liveFee ?? park.fee).font(WP.body(12.5)).opacity(0.85)
                 Text("|").opacity(0.28)
                 Text(liveHours ?? park.hours).font(WP.body(12.5)).opacity(0.85)
+                if isLoadingFacts {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Checking this park's current fees and hours")
+                }
             }
             .padding(.top, 13)
 
