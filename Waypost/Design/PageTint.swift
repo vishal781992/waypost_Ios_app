@@ -15,7 +15,7 @@ final class PageTint {
     static let shared = PageTint()
 
     /// What the app ships with.
-    static let defaultHex = "D1CFA5"
+    static let defaultHex = "EFF2F0"
 
     private static let key = "parkhop-page-tint"
 
