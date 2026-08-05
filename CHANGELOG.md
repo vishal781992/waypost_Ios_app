@@ -11,6 +11,178 @@ Guiding rule, inherited from the web app: **never show an invented value.** If a
 cannot be reached or publishes nothing, the interface says so rather than substituting a
 plausible-looking number.
 
+Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETING_VERSION`
+followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
+so a tester can say which build they were looking at.
+
+
+## 2.27.0 — What the sources actually say
+
+The longest run in the log, and most of it is the same argument applied in new places: the
+app may show what a source published, or say it could not ask, and nothing in between.
+
+**The profile stops inventing a person** (.14). Every install opened on "Miriam Halloran —
+Trips synced by iCloud · 3 devices": a name nobody entered, a device count nobody has, and
+a sync that does not exist — there is no account in this app and nothing leaves the phone.
+It now counts what is actually held (trips, visited parks, saved parks, stored on this
+iPhone; "nothing yet" on a clean install) and derives the monogram from the first parks on
+the rail, falling back to a compass rose.
+
+**Six parks stop getting hand-written facts** (.16). `parks.json` carries editorial for
+arch, grte, cany, yell, zion and romo and for nobody else — a fee, hours and an August
+temperature, written by hand, undated, confirmed by no source. Those six printed
+"$30 / vehicle · 7 days · 73° in August" on Discover while the other fifty-six said "Not
+published", and the park screen already preferred NPS, so one fee had two strings
+depending which screen you opened. The privilege is taken away rather than extended.
+
+**Parks visited with ParkHop** (.12), the rail on Profile. Visits are the union of three
+real sources deduplicated by code — a trip whose dates have passed, a passport stamp, and
+anything added by hand. Nothing is seeded, so a clean install shows an empty tile beside
+the add control, in the rail rather than under it, and the empty state is the same shape
+as the full one. A park added by hand carries no date and says so by saying nothing.
+
+**No driving-day card without a trip** (.25). Today drew "Denver to Estes Park, with
+charge stops" on a clean install, reading its leg from a curated fixture pinned to day
+one — which would have shown forever, unrelated to any real date. Gated on a real trip in
+`myTrips` being under way today, by the trip's own dates.
+
+**Fuel, charging, restaurants and traffic on the driving day** (.13, .15, .26). The leg
+sheet said "no traffic, no departure time — this is the road, not the day". Apple Maps
+supplies both: points of interest sampled along the OSRM polyline the router was already
+fetching and discarding, nearest of each kind kept and labelled with the mile it falls at,
+charging first for an electric vehicle; and an MKDirections estimate with a departure date,
+shown beside OSRM's rather than silently replacing it — OSRM has no traffic data at all.
+Only inside the window the drive is real: from the evening before to the end of the day it
+is driven, not `isDateInToday`, which showed nothing at eleven at night for a six a.m.
+start. Sampling scales to the leg — a 72-mile drive was blank because the first sample sat
+at mile 80, and a 2,275-mile leg fired eighty-four searches end to end.
+
+**State parks get an address, a page and a photograph** (.17, .18, .19, .20). NPS covers
+its own units and nothing else, so a state park read "Not published" and the screen had
+nowhere to send anybody. `state-parks.json` had the answers on disk all along: `w`, the
+park's own published page, for 2,299 of them, and `i`, a Wikimedia Commons filename, for
+1,821 — both decoded on the way in and dropped before they reached `CuratedPark`, so the
+app went and asked Apple Maps for a website it already had and drew a generated colour
+tile over a photograph it could have built an address for. Both carried through, Apple Maps
+kept as the fallback for the rows with neither. Of what `MKMapItem` does vend, the phone
+number and the time zone are now shown (hours, ratings and photographs on the Maps place
+card are licensed from Tripadvisor, Foursquare and Wikipedia and are not reachable through
+MapKit) and there is a hand-off to Maps for the rest. Commons filenames are stale for some
+parks; `ParkImage` draws the colour field beneath the photograph, so a 404 leaves what was
+there before.
+
+**Which campground counts come from Recreation.gov** (.21). The record is the park
+service's, the "1 free tonight" chip beside it is not. The row carries the label only when
+the campground has a Recreation.gov facility id, which is exactly when the chip can exist.
+
+**Discover and the builder open on what is near** (.9, .11), ranked by distance from the
+device, keeping the curated order when location is refused — both showed the same
+hard-coded eight whether the phone was in Denver or in Maine, and Discover did not offer
+the other fifty-four bundled parks until something was typed. The + on Trips now goes
+straight to the builder instead of asking "which park?" first.
+
+**Onboarding** (.22, .23, .24): Welcome and the identity choice over the Monument Valley
+moonrise, the hero held in the flow rather than in either screen so moving between them
+changes the text and not the background. Guest is a real state and the only path that
+fully works — it needs no server and everything it stores is already local. Sign in with
+Apple stays on screen and reports why it cannot run: the entitlement needs a paid
+developer account, the same reason WeatherKit is off in `project.yml`. The app is gated on
+an identity now, so a clean install sees these rather than going straight to Today.
+
+**Chrome** (.9, .10, .12): sheet close discs struck from the same centre as the corner
+they sit in, the builder footer sitting into the home indicator's clearance rather than
+above it (a seventh row shows), and a larger profile monogram.
+
+
+## 2.26.0 — NPS data actually arrives
+
+Not the proxy, not the key, not the network — all three verified with curl against the
+app's own backend. `ParkFacts` looked a code up by *name* and sent the park's full name as
+the query. NPS matches on any word, so "Badlands National Park" asked for every unit
+containing "National" or "Park" — 452 of them, alphabetically, and the ten rows requested
+were Abraham Lincoln through Alibates. All sixty-two bundled parks failed this way. The
+park service's own code now ships in the bundled data, matched against the live register
+and verified 62/62 (Haleakalā by diacritic folding, Denali and Katmai across "& Preserve",
+Sequoia and Kings Canyon both to `seki`), so resolution needs no network at all. The name
+lookup stays for unbundled parks but asks properly, and the cache is cleared — a miss had
+been remembered as "" so it would not repeat, which is correct behaviour applied to a
+permanently wrong answer.
+
+**An empty answer stops meaning "there are none"** (.7, .8). Three faults of one shape,
+found by asking where else that bug lived. NPS returns `entranceFees: []` for a park that
+charges nothing, and Congaree read "Not published" — nobody knows, about a park that is
+simply free. Alerts turned a refused request into an empty array and the screen then hid
+"Know before you go" entirely, so a park with a closure the app failed to fetch looked
+exactly like a park with nothing to report — the one mistake `NPSService` documents as
+unacceptable, made for the most safety-relevant field on the screen. And a Recreation.gov
+join was parsed by splitting the whole URL on "/" and requiring digits, which works until
+the link carries a query string. Fee and hours are stacked and labelled now, each saying
+whether that particular value came from NPS, because the service can answer with hours and
+no fee. Descriptions end on a whole sentence rather than a character count, which had cut
+Congaree's hours on "Please review the par".
+
+
+## 2.25.0 — A button answers a tap anywhere on it
+
+Controls worked only where their label's glyphs were. Every control in the app is a
+rounded surface much larger than its text, and the rest of it was dead — so a tap landed
+on nothing and the second or third attempt happened to hit a letter. The fault is in
+`LiquidGlass`: the pre-iOS-26 branches call `.background(…, in: shape)`, which makes the
+shape hit-testable as a side effect, while the iOS 26 branch calls `.glassEffect(…, in:
+shape)`, which does not. Interactive glass gets an explicit `contentShape`; surfaces that
+are not controls get none, so a header cannot swallow taps meant for what sits on it.
+Same shape in `DividedRow`, in `SelectedControl`'s inactive branch, and in the sheet,
+builder and tab bindings, which read state only inside closures that run after the body
+and so registered no Observation dependency — which is why a sheet opened on the second
+tap. Search fields got it worst (a `TextField` is tappable only where its text is, and an
+empty one is almost entirely empty) and now take a tap anywhere on the pill, simultaneous
+so a tap on the text still places the caret where it was aimed. Back stopped being eaten
+by `TabView` writing its own selection back at moments that are not user taps.
+
+**The near-you brief reads against the park it is about** (.4): one line per park, in that
+park's row under its measured figures, rather than a bullet list five rows above the
+shortlist it corresponded to. **A build badge on Profile** (.2), `vX.Y.Z.a` read from the
+bundle so it cannot drift from what shipped, selectable so it can be copied into a report.
+
+
+## 2.24.0 — Set out from any city in the country
+
+`curated.json` shipped six origin cities and the builder offered no other way to answer
+"from where", so a trip from Dallas could not be expressed at all. A search field above
+the list now brings down US cities from `MKLocalSearchCompleter` — completions keep pace
+with typing and do not queue behind the park search on Nominatim's one-per-1.1-second
+door — and the shipped six stay as shortcuts. Origins become `TripOrigin` (name, lat, lon)
+throughout; the new `SavedTrip` fields are optional, so trips saved before this still
+decode.
+
+
+## 2.23.0 — A trip describes the trip that was planned
+
+Three faults made a composed trip report something other than what was asked for. **The
+origin** was read only in an else-if after Core Location, so a trip planned from Seattle
+was routed from wherever the phone happened to be — and the note reported that city as
+though it had been chosen. **The titles** resolved picks through `library.park`, which
+knows only the eight codes in `curated.json`, while the picker offers the bundled sixty-two
+and three thousand state parks — so every pick outside the eight resolved to nothing and
+the trip was called " to ". **The weather** asked for `Date()` unconditionally, so a trip
+next month read today's forecast; the date is threaded through the route now, falling back
+to the ten-year climatology that had been written for dates past the forecast horizon and
+called from nowhere.
+
+
+## 2.22.0 — The app stops loading forever
+
+Every location-dependent surface could spin indefinitely, and on a first launch all of
+them did. `deviceFix()` raced Core Location against a sleeping task inside a
+`withTaskGroup`, but a group waits for every child and `cancelAll()` never resumes a
+`CheckedContinuation` — so the 8-second budget elapsed and the group then blocked on Core
+Location anyway. `requestLocation()` was also issued while authorization was still
+`.notDetermined`, which iOS discards, with no
+`locationManagerDidChangeAuthorization` to reissue it. Rewritten around a single
+continuation with a deadline task that resumes it, waiters held in an array so concurrent
+callers share one fix, four `LocationService` instances collapsed into one. The network
+layer is bounded too: `timeoutIntervalForResource` was unset, which is a seven-day default.
+
 
 ## 2.3.0 — Reachable
 
