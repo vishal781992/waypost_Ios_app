@@ -955,7 +955,12 @@ struct LiveCampgroundRow: View {
                     }
                 }
 
-                Text([camp.sites.map { "\($0) sites" }, camp.fee]
+                // The record is the park service's; the nightly count beside it is not.
+                // A facility id means this campground books through Recreation.gov, and
+                // that is where the chip above came from — said here rather than left to
+                // a footnote at the bottom of the panel covering four different sources.
+                Text([camp.sites.map { "\($0) sites" }, camp.fee,
+                      camp.facilityID != nil ? "Availability from Recreation.gov" : nil]
                         .compactMap { $0 }.joined(separator: " · "))
                     .font(WP.body(12)).opacity(0.7).tnum()
 
