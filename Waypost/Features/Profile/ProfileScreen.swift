@@ -5,13 +5,35 @@ struct ProfileScreen: View {
     @Environment(AppState.self) private var app
 
 
+    /// Which build this is, for a tester writing it into a bug report — selectable so it
+    /// can be copied rather than transcribed.
+    private var versionBadge: some View {
+        Text(AppVersion.full)
+            .font(WP.mono(11))
+            .tracking(0.6)
+            .foregroundStyle(WP.accent800)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(WP.accent100, in: Capsule())
+            .textSelection(.enabled)
+            .accessibilityLabel("Version \(AppVersion.full)")
+    }
+
     var body: some View {
         @Bindable var app = app
 
         VStack(spacing: 0) {
             ScreenHeader {
-                Text("ParkHop \(AppVersion.short) · a field planner").kickerStyle()
-                Text("Profile").font(WP.displayBold(44)).tracking(-0.4).padding(.top, 2)
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // The version moved to the badge on the right, so it is not stated
+                        // twice on one header.
+                        Text("ParkHop · a field planner").kickerStyle()
+                        Text("Profile").font(WP.displayBold(44)).tracking(-0.4).padding(.top, 2)
+                    }
+                    Spacer(minLength: 0)
+                    versionBadge
+                }
             }
 
             ScrollView(.vertical) {

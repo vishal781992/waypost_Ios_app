@@ -363,8 +363,19 @@ private extension View {
 }
 
 /// The version badge the Profile screen shows, read from the bundle so it can never drift.
+///
+/// Four parts, `vX.Y.Z.a`: `X` a major release, `Y` and `Z` iterations on it, and `a` the
+/// smallest change worth telling a tester apart. The first three are `MARKETING_VERSION`
+/// in `project.yml`; the last is `CURRENT_PROJECT_VERSION`, so both are bumped in the one
+/// place the build already reads them from and neither can drift from what shipped.
 enum AppVersion {
-    static var short: String {
-        "v" + ((Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.0.0")
+    private static func value(_ key: String, fallback: String) -> String {
+        (Bundle.main.object(forInfoDictionaryKey: key) as? String) ?? fallback
     }
+
+    /// "v2.24.0"
+    static var short: String { "v" + value("CFBundleShortVersionString", fallback: "0.0.0") }
+
+    /// "v2.24.0.2" — what a tester quotes in a bug report.
+    static var full: String { short + "." + value("CFBundleVersion", fallback: "0") }
 }
