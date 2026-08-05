@@ -20,7 +20,13 @@ final class TripRouting {
         var drive: String
         /// The numbered highways actually driven, e.g. "I-70 → US-191".
         var road: String
+        /// The shape of the drive. OSRM returns it and this threw it away, so nothing
+        /// downstream could ask what was *on* the route — only where it started and ended.
+        var coordinates: [(lat: Double, lon: Double)] = []
         var id: String { from + to }
+
+        static func == (a: Leg, b: Leg) -> Bool { a.id == b.id && a.miles == b.miles }
+        func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
         var curated: CuratedLeg {
             CuratedLeg(from: from, to: to, mi: miles, drive: drive, date: "", road: road, ev: [], fly: nil)
@@ -150,7 +156,8 @@ final class TripRouting {
             miles: route.miles,
             drive: route.drive,
             // No corridor means OSRM returned no numbered roads, not that there are none.
-            road: route.corridor ?? "Roads not named by the routing service"
+            road: route.corridor ?? "Roads not named by the routing service",
+            coordinates: route.coordinates
         )
     }
 }

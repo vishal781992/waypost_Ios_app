@@ -1,8 +1,15 @@
+import MapKit
 import SwiftUI
 
 /// The four bottom sheets: a park alert, a permit window, a driving leg, a passport stamp.
 struct DetailSheet: View {
     @Environment(AppState.self) private var app
+
+    /// The day this drive is actually being made, when one of the saved trips starts
+    /// today. Nil otherwise, and the stops and traffic stay unasked-for.
+    private var driveDate: Date? {
+        app.myTrips.compactMap(\.startDate).first { Calendar.current.isDateInToday($0) }
+    }
     @Environment(\.dismiss) private var dismiss
     var sheet: ActiveSheet
 
@@ -115,12 +122,88 @@ struct DetailSheet: View {
     // flight alternative and no charging plan, and no arrival time — an arrival needs a
     // departure, and nobody has said when they are leaving.
 
+    /// Fuel, charging and today's traffic, for the day it is actually driven.
+    ///
+    /// Only on the day: Apple's traffic estimate for a drive three weeks out is not a
+    /// forecast of anything, and neither is a list of petrol stations that may not be open.
+    /// Stops come every eighty miles along the route the app already holds — roughly an
+    /// hour and a quarter apart, and inside Apple Maps' 50 km search radius either side.
+    @ViewBuilder
+    private func legStops(_ leg: TripRouting.Leg) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            switch LegStops.shared.state(for: leg) {
+            case .idle:
+                EmptyView()
+            case .loading:
+                HStack(spacing: 9) {
+                    ProgressView().controlSize(.small)
+                    Text("Asking Apple Maps about today's road…")
+                        .font(WP.bodyItalic(12.5)).opacity(0.7)
+                }
+                .padding(.top, 16)
+            case .failed(let why):
+                Text(why).font(WP.bodyItalic(12.5)).opacity(0.6).padding(.top, 16)
+            case .ready(let stops, let traffic):
+                if let traffic {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("Leaving now".uppercased())
+                            .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent800)
+                        Text(traffic.wheelTime).font(WP.statValue(20)).tnum()
+                        Text("with traffic, from Apple Maps")
+                            .font(WP.bodyItalic(11.5)).opacity(0.6)
+                    }
+                    .padding(.top, 16)
+                }
+                if stops.isEmpty {
+                    Text("Apple Maps lists no fuel or charging along this route.")
+                        .font(WP.bodyItalic(12.5)).opacity(0.6).padding(.top, 14)
+                } else {
+                    Text("On the way".uppercased())
+                        .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent800)
+                        .padding(.top, 18).padding(.bottom, 2)
+                    ForEach(stops) { stop in
+                        Button {
+                            stop.mapItem.openInMaps(launchOptions: [
+                                MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
+                            ])
+                        } label: {
+                            DividedRow(vertical: 11) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: stop.kind == .charger ? "bolt.car" : "fuelpump")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(WP.accent700)
+                                        .frame(width: 22)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(stop.name).font(WP.rowTitle(15))
+                                            .multilineTextAlignment(.leading)
+                                        Text("mile \(stop.mile) · \(stop.kind == .charger ? "charging" : "fuel")")
+                                            .font(WP.body(11.5)).opacity(0.62).tnum()
+                                    }
+                                    Spacer(minLength: 0)
+                                    Image(systemName: "arrow.triangle.turn.up.right.circle")
+                                        .font(.system(size: 14)).foregroundStyle(WP.accent700)
+                                }
+                            }
+                        }
+                        .buttonStyle(PressStyle(scale: 0.995))
+                    }
+                }
+            }
+        }
+        .task(id: leg.id) {
+            guard LegStops.isDriveDay(driveDate) else { return }
+            LegStops.shared.load(leg, electric: app.vehicleIsElectric)
+        }
+    }
+
     private func routedLegBody(_ leg: TripRouting.Leg, label: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(label.uppercased())
                 .font(WP.body(12)).tracking(1.5).foregroundStyle(WP.accent700)
             Text("\(leg.from) → \(leg.to)").font(WP.heading(23)).padding(.top, 9)
                 .multilineTextAlignment(.leading)
+
+            legStops(leg)
 
             HStack(spacing: 0) {
                 legStat("Distance", "\(leg.miles) mi")
