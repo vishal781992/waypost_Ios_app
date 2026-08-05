@@ -50,10 +50,11 @@ enum PushedScreen: Hashable, Identifiable {
 }
 
 enum ParkSegment: String, CaseIterable, Hashable {
-    case overview, weather, stay, plan, near
+    case brief, overview, weather, stay, plan, near
 
     var label: String {
         switch self {
+        case .brief: return "AI Overview"
         case .overview: return "Overview"
         case .weather: return "Weather"
         case .stay: return "Stay"

@@ -220,6 +220,7 @@ struct ParkScreen: View {
 
                     Group {
                         switch segment {
+                        case .brief: AIBriefSection(park: park, date: date)
                         case .overview: OverviewSection(park: park)
                         case .weather: WeatherSection(park: park, date: date)
                         case .stay: StaySection(park: park)
