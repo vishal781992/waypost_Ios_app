@@ -153,7 +153,8 @@ extension CuratedPark {
             stamps: [],
             source: .onDevice,
             designation: ParkDesignation.inName(row.n) ?? "State Park",
-            website: site
+            website: site,
+            photoFile: row.i
         )
     }
 }

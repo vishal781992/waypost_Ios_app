@@ -37,12 +37,33 @@ final class ParkPhotos {
 
     private init() { restore() }
 
+    /// Commons serves a file by name through `Special:FilePath`, which redirects to the
+    /// real upload URL and will resize on the way — the same address the web app builds.
+    static func commonsURL(_ file: String, width: Int = 1000) -> URL? {
+        guard !file.isEmpty,
+              let encoded = file.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)
+        else { return nil }
+        return URL(string:
+            "https://commons.wikimedia.org/wiki/Special:FilePath/\(encoded)?width=\(width)")
+    }
+
     func photo(for park: CuratedPark) -> Photo? { photos[park.code] }
 
     /// Asks for a park's photograph once. Repeat calls are free, and a park that has no
     /// photograph anywhere is not asked about again this launch.
     func load(_ park: CuratedPark) {
         guard photos[park.code] == nil, !inFlight.contains(park.code) else { return }
+
+        // The bundled row names a photograph for 1,821 of the state parks, on Wikimedia
+        // Commons — the same picture the web app draws. No search needed, no request to
+        // find it, and it is the right park rather than the nearest name match.
+        if let file = park.photoFile, let url = Self.commonsURL(file) {
+            photos[park.code] = Photo(url: url,
+                                      credit: "Wikimedia Commons",
+                                      source: "Wikimedia Commons")
+            persist()
+            return
+        }
         inFlight.insert(park.code)
 
         Task { [weak self] in

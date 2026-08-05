@@ -107,6 +107,10 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     /// `StateParkRow` even decoded it — and it was dropped on the way into this type, so
     /// the app went and asked Apple Maps for something it already had on disk.
     var website: URL? = nil
+    /// The park's photograph on Wikimedia Commons, by filename, where the bundled record
+    /// knows one. 1,821 of the 3,003 state parks carry one and the app was drawing a
+    /// generated colour tile for every one of them.
+    var photoFile: String? = nil
 
     var id: String { code }
 
