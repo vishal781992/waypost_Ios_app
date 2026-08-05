@@ -93,6 +93,7 @@ struct DiscoverScreen: View {
                     .frame(minHeight: 42)
                     .liquidGlass(.pill, radius: 999)
                     .focused($searchFocused)
+                    .searchFieldSurface(focus: $searchFocused)
                     .submitLabel(.search)
                     .onSubmit { app.suggestions.clear() }
 

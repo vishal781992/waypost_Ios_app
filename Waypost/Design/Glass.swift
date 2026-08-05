@@ -148,6 +148,22 @@ private struct LiquidGlass: ViewModifier {
     }
 }
 
+extension View {
+    /// Makes a whole search pill focus the field inside it.
+    ///
+    /// A `TextField` is tappable only where its text is, and the pill drawn around it is
+    /// not part of the field — so tapping the empty three-quarters of a search bar did
+    /// nothing. It is the same fault as the buttons had, in the one control where an empty
+    /// target is the *normal* state: an empty search field is mostly empty.
+    ///
+    /// `simultaneousGesture` rather than `onTapGesture`, so a tap that lands on the text
+    /// still reaches the field itself and puts the caret where it was aimed.
+    func searchFieldSurface(radius: CGFloat = 999, focus: FocusState<Bool>.Binding) -> some View {
+        contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .simultaneousGesture(TapGesture().onEnded { focus.wrappedValue = true })
+    }
+}
+
 /// A control has to answer a tap anywhere on its surface, not only where its label sits.
 ///
 /// The two `.background(…)` branches above give the glass a hit-testable shape as a side

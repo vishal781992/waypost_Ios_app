@@ -37,6 +37,7 @@ struct QuickSearchSheet: View {
                 .liquidGlass(.pill, radius: 999)
                 .shadow(color: Color(hex: 0x181008, opacity: 0.06), radius: 10, y: 4)
                 .focused($focused)
+                .searchFieldSurface(focus: $focused)
                 .submitLabel(.search)
                 .padding(.horizontal, WP.gutter)
                 .onChange(of: query) { _, new in

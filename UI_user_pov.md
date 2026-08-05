@@ -964,3 +964,56 @@ untested at runtime and should be looked at on hardware before it is trusted.
   space than before; not a problem at the current cap of four, worth revisiting if it grows.
 - The note is not truncated, so an unusually long sentence from the model will make one row
   much taller than its neighbours.
+
+## Phase 3c — The search bar, and honest NPS status (Pain points 18, 11, 21)
+
+### Search bar
+Same fault as the buttons, in the control where it bites hardest. Every search field is a
+`TextField` with a glass pill drawn around it — and the pill is not part of the field, so
+only the text was tappable. An *empty* search field is almost entirely empty, so almost
+all of it did nothing.
+
+`searchFieldSurface(focus:)` in `Glass.swift` gives the pill a `contentShape` and a
+`simultaneousGesture` that focuses the field. Simultaneous rather than `onTapGesture` so a
+tap landing on the text still reaches the field and puts the caret where it was aimed.
+Applied to all four fields: Discover, Quick Search, the trip builder's park search, and the
+origin field.
+
+### NPS status
+A park whose bundled record carries nothing and whose NPS record never arrived read
+`Not published · Not published`. That is a claim — it says the park publishes no fees and
+no hours — when what actually happened is that the app failed to ask. Badlands, a national
+park, read exactly that.
+
+`ParkScreen.factsRow` now switches on `ParkFacts.State`:
+- `.loading` → a spinner and "Pulling NPS data…"
+- `.failed` → "Unable to pull NPS data — fees and hours are not available for this park
+  right now."
+- `.notCovered` **and** the designation contains "National" → the same unavailable line,
+  because NPS answering "no such park" about a National anything means this app could not
+  work out its code, not that the unit is absent from the register.
+- otherwise → the fee and hours as before. A state park not being covered by NPS is simply
+  true and says nothing here.
+
+### Files and symbols changed
+- `Waypost/Design/Glass.swift` — `searchFieldSurface(radius:focus:)`.
+- `DiscoverScreen.swift`, `QuickSearchSheet.swift`, `NewTripSheet.swift` — applied; the
+  builder gained `parkFieldFocused` and `originFocused`.
+- `Waypost/Features/Park/ParkScreen.swift` — `isLoadingFacts` replaced by `factsRow` and
+  `factsUnavailable`.
+
+### Verified
+iPhone 17 Pro simulator. The Discover field focused from a tap at the far right of the
+pill, well clear of the placeholder. Badlands then showed "Unable to pull NPS data" in
+place of "Not published · Not published".
+
+### Remaining limitations
+- **This labels the fault; it does not fix it.** Badlands still has no NPS data. The cause
+  is Phase 4's: `isNPSCode` requires `^[a-z]{4}$` and every bundled park is an `np-…` slug,
+  so no park matches directly and the name search behind it is doing all the work. The
+  screen is now honest about failing rather than silently wrong, which is the smaller half
+  of the problem.
+- "Unable to pull NPS data" does not distinguish no proxy configured from a proxy that
+  refused from a park that could not be matched. `ParkFacts.failed` carries the reason and
+  it is still not shown anywhere.
+- There is no Retry on that line.

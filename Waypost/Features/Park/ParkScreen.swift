@@ -22,11 +22,47 @@ struct ParkScreen: View {
     private var liveFee: String? { facts?.fee }
     private var liveHours: String? { facts?.hours }
 
-    /// True while the park service is still being asked. The fee and hours row shows the
-    /// bundled figures until it answers, and there was nothing at all to say the app was
-    /// still checking — so the values appeared to change on their own a moment later.
-    private var isLoadingFacts: Bool {
-        ParkFacts.shared.state(for: park) == .loading
+    /// Fees and hours, and where the park service stands on them.
+    ///
+    /// This showed `park.fee` and `park.hours` whatever happened, so a national park whose
+    /// bundled record carries nothing and whose NPS record never arrived read "Not
+    /// published · Not published" — which states that the park publishes no fees and no
+    /// hours, when what actually happened is that the app failed to ask. A request in
+    /// flight now says so, and one that failed says so instead of inventing an absence.
+    @ViewBuilder
+    private var factsRow: some View {
+        switch ParkFacts.shared.state(for: park) {
+        case .loading:
+            HStack(spacing: 9) {
+                ProgressView().controlSize(.small)
+                Text("Pulling NPS data…").font(WP.bodyItalic(12.5)).opacity(0.7)
+            }
+        case .failed:
+            factsUnavailable
+        case .notCovered where park.designationLabel.localizedCaseInsensitiveContains("National"):
+            // NPS answering "no such park" about a National anything — park, monument,
+            // seashore — means this app could not work out its code, not that the unit is
+            // absent from the register. A state park not being covered is simply true, and
+            // says nothing here.
+            factsUnavailable
+        default:
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(liveFee ?? park.fee).font(WP.body(12.5)).opacity(0.85)
+                Text("|").opacity(0.28)
+                Text(liveHours ?? park.hours).font(WP.body(12.5)).opacity(0.85)
+            }
+        }
+    }
+
+    private var factsUnavailable: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(WP.accent700)
+            Text("Unable to pull NPS data — fees and hours are not available for this park right now.")
+                .font(WP.bodyItalic(12.5)).lineSpacing(2).opacity(0.75)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     var body: some View {
@@ -169,17 +205,7 @@ struct ParkScreen: View {
             .buttonStyle(PressStyle(scale: 0.98))
             .padding(.top, 9)
 
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(liveFee ?? park.fee).font(WP.body(12.5)).opacity(0.85)
-                Text("|").opacity(0.28)
-                Text(liveHours ?? park.hours).font(WP.body(12.5)).opacity(0.85)
-                if isLoadingFacts {
-                    ProgressView()
-                        .controlSize(.small)
-                        .accessibilityLabel("Checking this park's current fees and hours")
-                }
-            }
-            .padding(.top, 13)
+            factsRow.padding(.top, 13)
 
             // A live record often has no gateway town, and "Gateway town" followed by
             // nothing reads as a bug rather than as an absence.

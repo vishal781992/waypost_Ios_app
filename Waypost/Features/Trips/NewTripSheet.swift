@@ -11,6 +11,8 @@ struct NewTripSheet: View {
     /// clear the city already chosen.
     @State private var originQuery = ""
     @State private var cities = CitySearch()
+    @FocusState private var parkFieldFocused: Bool
+    @FocusState private var originFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -134,6 +136,8 @@ struct NewTripSheet: View {
                     .frame(minHeight: 46)
                     .background(WP.neutral200, in: Capsule())
                     .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
+                    .focused($parkFieldFocused)
+                    .searchFieldSurface(focus: $parkFieldFocused)
 
                 if !builder.picks.isEmpty {
                     ScrollView(.horizontal) {
@@ -261,6 +265,7 @@ struct NewTripSheet: View {
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
                     .submitLabel(.search)
+                    .focused($originFocused)
                 if cities.isResolving {
                     ProgressView().controlSize(.small)
                 } else if !originQuery.isEmpty {
@@ -279,7 +284,7 @@ struct NewTripSheet: View {
             .padding(.horizontal, 15)
             .frame(minHeight: 46)
             .glassControl(shadow: false)
-            .contentShape(Capsule())
+            .searchFieldSurface(focus: $originFocused)
             .onChange(of: originQuery) { _, new in cities.update(new) }
 
             Grouped {
