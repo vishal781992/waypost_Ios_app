@@ -336,9 +336,31 @@ struct ProfileScreen: View {
         return Array(out.prefix(6))
     }
 
+    /// Initials of the parks on the rail, or a compass rose before there are any. Derived,
+    /// because there is no account and therefore no name to show.
+    private var monogram: String {
+        let initials = app.visitRail.prefix(2).compactMap { $0.park.name.first }
+        return initials.isEmpty ? "◆" : String(initials).uppercased()
+    }
+
+    /// What the phone is actually holding, counted rather than claimed.
+    private var holdings: String {
+        let trips = app.myTrips.count
+        let parks = app.visitRail.count
+        let saved = app.saved.count
+        let parts = [
+            trips > 0 ? "\(trips) \(trips == 1 ? "trip" : "trips")" : nil,
+            parks > 0 ? "\(parks) visited" : nil,
+            saved > 0 ? "\(saved) saved" : nil,
+        ].compactMap { $0 }
+        return parts.isEmpty
+            ? "Stored on this iPhone · nothing yet"
+            : parts.joined(separator: " · ") + " · stored on this iPhone"
+    }
+
     private var identity: some View {
         HStack(spacing: 13) {
-            Text("MH")
+            Text(monogram)
                 // 82 from 54, with the initials scaled by the same factor so the monogram
                 // keeps its proportions rather than sitting small in a bigger circle.
                 .font(WP.heading(32))
@@ -346,8 +368,12 @@ struct ProfileScreen: View {
                 .frame(width: 82, height: 82)
                 .background(WP.accent100, in: Circle())
             VStack(alignment: .leading, spacing: 3) {
-                Text("Miriam Halloran").font(WP.heading(20))
-                Text("Trips synced by iCloud · 3 devices").font(WP.body(12)).opacity(0.6)
+                Text("Your parks").font(WP.heading(20))
+                // Was "Miriam Halloran · Trips synced by iCloud · 3 devices" on every
+                // install — a name nobody entered, and a sync that does not exist. There is
+                // no account and nothing leaves the phone, so this counts what is actually
+                // held and says where it is held.
+                Text(holdings).font(WP.body(12)).opacity(0.6)
             }
             Spacer(minLength: 0)
         }
