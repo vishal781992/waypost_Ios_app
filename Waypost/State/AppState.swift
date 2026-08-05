@@ -194,6 +194,10 @@ final class AppState {
     // Trip building
     var builder: TripBuilder?
     var myTrips: [SavedTrip] = []
+    /// Parks the traveller added to the visited rail by hand. Codes only: a park added
+    /// this way carries no date, because stamping it with today would be inventing when
+    /// they went.
+    var manualVisits: [String] = []
     /// The seed trip ships with the app rather than living in `myTrips`, so removing it
     /// is remembered as a flag.
     var seedTripHidden = false
@@ -677,6 +681,55 @@ final class AppState {
 
     // MARK: Persistence
 
+    /// A park the traveller has been to, for the Profile rail.
+    struct Visit: Identifiable, Hashable {
+        var park: CuratedPark
+        /// Absent on a park added by hand — see `manualVisits`.
+        var date: Date?
+        var id: String { park.code }
+
+        /// "October 2025", or nothing at all rather than a guess.
+        var when: String? {
+            date.map { $0.formatted(.dateTime.month(.wide).year()) }
+        }
+    }
+
+    /// Everywhere they have been, newest first.
+    ///
+    /// Three sources, deduplicated by park code: a trip whose dates have passed, a
+    /// passport stamp, and anything added by hand. Nothing is invented — a clean install
+    /// has none of the three and the rail is empty, which is the true answer.
+    var visitRail: [Visit] {
+        var seen = Set<String>()
+        var out: [Visit] = []
+
+        func add(_ code: String, _ date: Date?) {
+            guard !seen.contains(code), let park = park(code) else { return }
+            seen.insert(code)
+            out.append(Visit(park: park, date: date))
+        }
+
+        for trip in myTrips {
+            guard let start = trip.startDate, start < Date() else { continue }
+            for code in trip.codes { add(code, start) }
+        }
+        for code in stamps { add(code, nil) }
+        for code in manualVisits { add(code, nil) }
+
+        return out.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+    }
+
+    /// Adds a park to the rail by hand. Already-visited parks are not added twice.
+    func addVisit(_ code: String) {
+        guard !visitRail.contains(where: { $0.id == code }) else { return }
+        manualVisits.append(code)
+        persist()
+        if let park = park(code) {
+            ParkPhotos.shared.load(park)
+            show("\(park.name) added")
+        }
+    }
+
     private struct Snapshot: Codable {
         var day: Int
         var done: [String]
@@ -695,6 +748,8 @@ final class AppState {
         var tab: String?
         var passport: Bool?
         var seedHidden: Bool?
+        /// Optional, so a snapshot written before the visited rail existed still decodes.
+        var visits: [String]?
     }
 
     private static let key = "waypost-app"
@@ -716,7 +771,8 @@ final class AppState {
             trips: myTrips,
             tab: tab.rawValue,
             passport: savedShowsPassport,
-            seedHidden: seedTripHidden
+            seedHidden: seedTripHidden,
+            visits: manualVisits
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             UserDefaults.standard.set(data, forKey: Self.key)
@@ -727,6 +783,7 @@ final class AppState {
         guard let data = UserDefaults.standard.data(forKey: Self.key),
               let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else { return }
         day = snapshot.day
+        manualVisits = snapshot.visits ?? []
         doneItems = Set(snapshot.done)
         saved = snapshot.saved
         stamps = Set(snapshot.stamps)

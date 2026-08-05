@@ -4,6 +4,10 @@ import SwiftUI
 struct ProfileScreen: View {
     @Environment(AppState.self) private var app
 
+    @State private var adding = false
+    @State private var parkQuery = ""
+    @FocusState private var parkFieldFocused: Bool
+
 
     /// Which build this is, for a tester writing it into a bug report — selectable so it
     /// can be copied rather than transcribed.
@@ -39,6 +43,8 @@ struct ProfileScreen: View {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
                     identity
+
+                    visited
 
                     sectionLabel("Tell me when")
                     Grouped {
@@ -139,6 +145,195 @@ struct ProfileScreen: View {
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }
+    }
+
+    // MARK: Parks visited
+
+    /// Everywhere they have been, newest first, with the control to add one by hand at the
+    /// end of the same rail. The rail always renders — with nothing in it there is a single
+    /// empty tile beside the add control, so the empty state and the full one are the same
+    /// shape.
+    private var visited: some View {
+        let visits = app.visitRail
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Text("Parks visited with ParkHop".uppercased())
+                    .font(WP.body(11)).tracking(1.3).opacity(0.55)
+                Rectangle().fill(WP.divider).frame(height: 1)
+                Text("\(visits.count) \(visits.count == 1 ? "park" : "parks")")
+                    .font(WP.display(17))
+                    .foregroundStyle(WP.accent700)
+            }
+            .padding(.top, 22)
+            .padding(.bottom, 12)
+
+            ScrollView(.horizontal) {
+                HStack(spacing: 10) {
+                    ForEach(visits) { visit in
+                        Button { app.openPark(visit.park.code) } label: {
+                            visitTile(visit)
+                        }
+                        .buttonStyle(PressStyle(scale: 0.97))
+                    }
+                    if visits.isEmpty { emptyTile }
+                    addControl
+                }
+                .padding(.horizontal, WP.gutter)
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
+            .padding(.horizontal, -WP.gutter)
+
+            if adding {
+                addField.padding(.top, 12)
+            }
+        }
+    }
+
+    private func visitTile(_ visit: AppState.Visit) -> some View {
+        ParkImage(park: visit.park, showsScrim: false, topLight: false)
+            .frame(width: 132, height: 104)
+            .overlay(alignment: .bottom) {
+                LinearGradient(colors: [.black.opacity(0.62), .clear],
+                               startPoint: .bottom, endPoint: .top)
+                    .frame(height: 74)
+                    .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(visit.park.name)
+                        .font(WP.display(17))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    // Only where it is known. A park added by hand has no date and says so
+                    // by saying nothing, rather than by claiming today.
+                    if let when = visit.when {
+                        Text(when)
+                            .font(WP.body(11.5))
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 9)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .accessibilityElement(children: .combine)
+    }
+
+    private var emptyTile: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(WP.divider, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+            .frame(width: 132, height: 104)
+            .overlay {
+                Text("No parks yet")
+                    .font(WP.bodyItalic(12)).opacity(0.5)
+            }
+    }
+
+    private var addControl: some View {
+        Button {
+            withAnimation(.snappy(duration: 0.2)) { adding.toggle() }
+            if !adding { parkQuery = "" }
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: "plus").font(.system(size: 17, weight: .medium))
+                Text("Add manually").font(WP.body(12))
+            }
+            .foregroundStyle(WP.accent700)
+            .frame(width: 132, height: 104)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(WP.accent.opacity(0.55), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(PressStyle(scale: 0.97))
+    }
+
+    /// The search that appears under the rail once the add control is tapped.
+    private var addField: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 13, weight: .semibold)).opacity(0.45)
+                TextField("Search a national park", text: $parkQuery)
+                    .font(WP.body(15))
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .focused($parkFieldFocused)
+                Button("Done") {
+                    withAnimation(.snappy(duration: 0.2)) { adding = false }
+                    parkQuery = ""
+                }
+                .font(WP.headingUI(14))
+                .foregroundStyle(WP.accent700)
+            }
+            .padding(.horizontal, 15)
+            .frame(minHeight: 46)
+            .background(WP.neutral200, in: Capsule())
+            .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
+            .searchFieldSurface(focus: $parkFieldFocused)
+
+            if parkQuery.trimmingCharacters(in: .whitespaces).count == 1 {
+                Text("One more character and the parks appear.")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55).padding(.top, 8)
+            } else if !parkMatches.isEmpty {
+                Grouped {
+                    ForEach(Array(parkMatches.enumerated()), id: \.element.code) { index, park in
+                        let already = app.visitRail.contains { $0.id == park.code }
+                        Button {
+                            guard !already else { return }
+                            app.addVisit(park.code)
+                            parkQuery = ""
+                            withAnimation(.snappy(duration: 0.2)) { adding = false }
+                            Haptics.tap()
+                        } label: {
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(park.name).font(WP.body(14)).lineLimit(1)
+                                    Text([park.state, park.designationLabel]
+                                            .filter { !$0.isEmpty }.joined(separator: " · "))
+                                        .font(WP.body(11)).opacity(0.55)
+                                }
+                                Spacer(minLength: 0)
+                                if already {
+                                    Text("Added")
+                                        .font(WP.body(11)).tracking(1.1)
+                                        .foregroundStyle(WP.accent700).opacity(0.7)
+                                }
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 11)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressStyle(scale: 0.995))
+                        .disabled(already)
+                        if index < parkMatches.count - 1 { Hairline() }
+                    }
+                }
+                .padding(.top, 8)
+            }
+        }
+    }
+
+    /// The bundled sixty-two first — instant and offline — then anything the live
+    /// directory has found for the same words, so a unit that is not on the phone can
+    /// still be added.
+    private var parkMatches: [CuratedPark] {
+        let q = parkQuery.trimmingCharacters(in: .whitespaces).lowercased()
+        guard q.count >= 2 else { return [] }
+
+        var out = NationalParks.all
+            .map(CuratedPark.init(bundled:))
+            .filter { $0.name.lowercased().contains(q) || $0.state.lowercased().contains(q) }
+        var seen = Set(out.map { $0.name.lowercased() })
+        for park in app.directory.hits.map(\.park)
+        where seen.insert(park.name.lowercased()).inserted {
+            out.append(park)
+        }
+        return Array(out.prefix(6))
     }
 
     private var identity: some View {
