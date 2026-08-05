@@ -86,6 +86,40 @@ struct ParkScreen: View {
 
     private var hoursText: String { liveHours ?? "Not published" }
 
+    /// Where the park itself publishes, for the parks no register covers.
+    ///
+    /// A state park has no NPS record, so fee and hours read "Not published" and the screen
+    /// had nowhere to send anybody — two words and a dead end. The park's own page is the
+    /// answer to "then where do I look", and Apple Maps knows the address.
+    @ViewBuilder
+    private var parkWebsiteRow: some View {
+        if case .found(let url) = ParkWebsite.shared.state(for: park) {
+            Link(destination: url) {
+                HStack(spacing: 9) {
+                    Image(systemName: "safari")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(liveFee == nil
+                         ? "Fees, hours and closures — on the park's own site"
+                         : "The park's own site")
+                        .font(WP.body(12.5))
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(WP.accent700)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .background {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(WP.accent.opacity(0.45), lineWidth: 1)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .padding(.top, 12)
+            .accessibilityLabel("Open the park's own website")
+        }
+    }
+
     private var factsUnavailable: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle")
@@ -141,7 +175,10 @@ struct ParkScreen: View {
         .background(WP.bg)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { segment = app.parkSegment[park.code] ?? initialSegment }
-        .task(id: park.code) { ParkFacts.shared.load(park) }
+        .task(id: park.code) {
+            ParkFacts.shared.load(park)
+            ParkWebsite.shared.load(park)
+        }
         .onChange(of: segment) { _, new in app.parkSegment[park.code] = new }
     }
 
@@ -238,6 +275,7 @@ struct ParkScreen: View {
             .padding(.top, 9)
 
             factsRow.padding(.top, 13)
+            parkWebsiteRow
 
             // A live record often has no gateway town, and "Gateway town" followed by
             // nothing reads as a bug rather than as an absence.
