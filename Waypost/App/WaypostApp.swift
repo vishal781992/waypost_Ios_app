@@ -3,14 +3,32 @@ import SwiftUI
 @main
 struct WaypostApp: App {
     @State private var app = AppState()
+    /// Nil until somebody has chosen how to come in — including choosing not to have an
+    /// account at all. Guest is remembered, so this asks once rather than every launch.
+    @State private var identity: Identity? = StubAuthService.shared.identity
 
     var body: some Scene {
         WindowGroup {
-            RootShell()
-                .environment(app)
-                // The Classical palette is a light one and commits to it, as on the web.
-                .preferredColorScheme(.light)
-                .tint(WP.accent)
+            Group {
+                if identity == nil {
+                    // The onboarding screens are photographic and always dark; the app they
+                    // open into is neither, which is why the scheme is set per branch rather
+                    // than once around both.
+                    OnboardingFlow { chosen in
+                        withAnimation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.42)) {
+                            identity = chosen
+                        }
+                    }
+                    .transition(.opacity)
+                } else {
+                    RootShell()
+                        .environment(app)
+                        // The Classical palette is a light one and commits to it, as on the web.
+                        .preferredColorScheme(.light)
+                        .tint(WP.accent)
+                        .transition(.opacity)
+                }
+            }
         }
     }
 }
