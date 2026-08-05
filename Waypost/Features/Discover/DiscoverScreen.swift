@@ -200,6 +200,15 @@ struct DiscoverScreen: View {
 }
 
 struct DiscoverCard: View {
+    /// The fee, from the park service, for any park — not from a bundled record that
+    /// happens to exist for six of them.
+    static func feeLine(_ park: CuratedPark) -> String {
+        if case .loaded(let facts) = ParkFacts.shared.state(for: park), let fee = facts.fee {
+            return fee
+        }
+        return "Fees and hours from the park"
+    }
+
     @Environment(AppState.self) private var app
     @Environment(\.zoomNamespace) private var zoom
     var park: CuratedPark
@@ -274,11 +283,13 @@ struct DiscoverCard: View {
                 .padding(.top, 9)
 
             HStack(spacing: 10) {
-                // A live record publishes neither a fee nor a temperature; saying so is
-                // the whole point, and "0° in August" is the failure this app refuses.
-                Text(park.wx.isPublished || park.source == nil
-                     ? "\(park.fee) · \(park.wx.hi)° in August"
-                     : park.fee)
+                // `source == nil` meant "one of the six parks written by hand", and those
+                // six were the only ones that printed a fee and a temperature here — a
+                // hard-coded price and a hard-coded August average, neither dated nor
+                // checked, while every other park in the country said nothing. Same
+                // treatment for all of them now: the park service's fee when it has
+                // answered, and otherwise a line that says where the number will come from.
+                Text(Self.feeLine(park))
                     .font(WP.body(11.5)).opacity(0.6).lineLimit(1)
                 Spacer(minLength: 0)
                 Button {

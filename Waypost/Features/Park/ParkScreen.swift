@@ -76,25 +76,15 @@ struct ParkScreen: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// "Not published" on its own does not say what is not published — and it sat in two
-    /// columns, so a park missing both read "Not published · Not published" and named
-    /// neither. The label now carries the field, so the value only has to say "not
-    /// published" once.
-    private var feeText: String {
-        if let liveFee { return liveFee }
-        return Self.isUnpublished(park.fee) ? "Not published" : park.fee
-    }
+    /// The park service's figure, or nothing.
+    ///
+    /// This fell back to `park.fee`, which exists for the six parks written by hand and for
+    /// nobody else — so those six showed a hard-coded price that no source had confirmed
+    /// while every other park showed "Not published". A fee is either what the park service
+    /// says it is or it is not known.
+    private var feeText: String { liveFee ?? "Not published" }
 
-    private var hoursText: String {
-        if let liveHours { return liveHours }
-        return Self.isUnpublished(park.hours) ? "Not published" : park.hours
-    }
-
-    private static func isUnpublished(_ value: String) -> Bool {
-        let trimmed = value.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty
-            || trimmed.localizedCaseInsensitiveCompare("Not published") == .orderedSame
-    }
+    private var hoursText: String { liveHours ?? "Not published" }
 
     private var factsUnavailable: some View {
         HStack(spacing: 8) {
