@@ -144,9 +144,11 @@ struct ProfileScreen: View {
     private var identity: some View {
         HStack(spacing: 13) {
             Text("MH")
-                .font(WP.heading(21))
+                // 82 from 54, with the initials scaled by the same factor so the monogram
+                // keeps its proportions rather than sitting small in a bigger circle.
+                .font(WP.heading(32))
                 .foregroundStyle(WP.accent800)
-                .frame(width: 54, height: 54)
+                .frame(width: 82, height: 82)
                 .background(WP.accent100, in: Circle())
             VStack(alignment: .leading, spacing: 3) {
                 Text("Miriam Halloran").font(WP.heading(20))
