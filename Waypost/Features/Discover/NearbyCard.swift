@@ -19,18 +19,18 @@ struct NearbyCard: View {
             case .locating:
                 status("Measuring from where you are…")
             case .thinking:
-                shortlist
+                shortlist()
                 status("Writing the brief on this iPhone…")
             case .ready(let brief):
-                briefBody(brief)
+                headline(brief)
                     .transition(Motion.panelTransition)
-                shortlist
-                footnote("Written on this iPhone by Apple Intelligence, from the figures above. It is not allowed to state a figure of its own — every number here is measured by ParkHop — and nothing leaves the phone.")
+                shortlist(brief)
+                footnote("Written on this iPhone by Apple Intelligence, from the figures beside each park. It is not allowed to state a figure of its own — every number here is measured by ParkHop — and nothing leaves the phone.")
             case .unavailable(let reason):
-                shortlist
+                shortlist()
                 footnote(reason)
             case .failed(let reason):
-                if !briefing.candidates.isEmpty { shortlist }
+                if !briefing.candidates.isEmpty { shortlist() }
                 footnote(reason)
             }
         }
@@ -83,38 +83,33 @@ struct NearbyCard: View {
         .padding(.top, 10)
     }
 
-    private func briefBody(_ brief: NearbyBrief) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(brief.headline)
-                .font(WP.heading(20))
-                .lineSpacing(2)
-                .fixedSize(horizontal: false, vertical: true)
-
-            ForEach(Array(brief.notes.enumerated()), id: \.element.park) { index, note in
-                HStack(alignment: .top, spacing: 9) {
-                    Text("·").foregroundStyle(WP.accent)
-                    Text(note.why)
-                        .font(WP.body(12.5)).lineSpacing(2).opacity(0.85)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                // Staggered, so the brief reads as it is written rather than appearing.
-                .transition(
-                    .opacity.combined(with: .offset(y: 6))
-                        .animation(Motion.panel.delay(Double(index) * 0.07))
-                )
-            }
-        }
-        .padding(.bottom, 12)
+    /// The one sentence about the shortlist as a whole. The per-park lines used to follow
+    /// it here as a bullet list, in ranking order — but so did the parks themselves, a
+    /// little further down, so reading "why" for a given park meant counting bullets and
+    /// counting rows and hoping they matched. Each line now sits under its own park.
+    private func headline(_ brief: NearbyBrief) -> some View {
+        Text(brief.headline)
+            .font(WP.heading(20))
+            .lineSpacing(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.bottom, 12)
     }
 
-    /// The measured answer — always shown, whatever the model does.
-    private var shortlist: some View {
+    /// The measured answer — always shown, whatever the model does. When a brief has a line
+    /// about one of these parks, it reads underneath that park rather than in a list
+    /// further up, so "why this one" sits with the park it is about.
+    private func shortlist(_ brief: NearbyBrief? = nil) -> some View {
         VStack(spacing: 0) {
-            ForEach(briefing.candidates) { candidate in
+            ForEach(Array(briefing.candidates.enumerated()), id: \.element.id) { index, candidate in
+                // `validate` writes each note's park as the candidate's own name, so this
+                // matches exactly. A park the model wrote nothing usable about simply has
+                // no line, and the row still reads.
+                let why = brief?.notes.first { $0.park == candidate.park.name }?.why
+
                 Button {
                     app.openPark(candidate.park.code)
                 } label: {
-                    HStack(spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
                         ParkImage(park: candidate.park, blur: 7, saturation: 1.15,
                                   showsScrim: false, topLight: false)
                         .frame(width: 40, height: 40)
@@ -125,17 +120,33 @@ struct NearbyCard: View {
                             Text(candidate.factLine)
                                 .font(WP.body(11.5)).opacity(0.62).tnum()
                                 .lineLimit(1)
+                            if let why {
+                                Text(why)
+                                    .font(WP.body(12.5)).lineSpacing(2).opacity(0.85)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .multilineTextAlignment(.leading)
+                                    .padding(.top, 3)
+                                    // Staggered, so the brief reads as it is written
+                                    // rather than appearing all at once.
+                                    .transition(
+                                        .opacity.combined(with: .offset(y: 6))
+                                            .animation(Motion.panel.delay(Double(index) * 0.07))
+                                    )
+                            }
                         }
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(WP.accent700)
+                            // Kept on the park's own line as the row grows taller.
+                            .padding(.top, 5)
                     }
                     .padding(.vertical, 9)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(PressStyle(scale: 0.99))
                 .overlay(alignment: .bottom) { Hairline() }
+                .accessibilityElement(children: .combine)
             }
         }
     }

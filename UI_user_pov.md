@@ -923,3 +923,44 @@ outside the label, and screenshotted.
   no longer blocks, but the filtering is not cached.
 - Pain point 7 (per-tab navigation restoration) is only partly served: paths survive now,
   but scroll position is not restored.
+
+## Phase 3b — The brief reads against the park it is about (Pain point 12, 16)
+
+### User pain removed
+The "Near you" card wrote one line per park as a bullet list above the shortlist, and the
+shortlist repeated the same parks in the same order below it. Both were ranked, so the
+bullets did correspond — but nothing on screen said so, and reading "why this park" meant
+counting bullets, counting rows, and trusting the two lists matched. With four parks the
+bullet for Yellowstone sat five rows above Yellowstone.
+
+### Change
+The headline stays at the top of the card. Each per-park line now renders inside its own
+row, under that park's measured fact line, so the reason and the numbers it is a reading
+of are in the same place. A park the model wrote nothing usable about simply has no line
+and the row still reads. The stagger animation moved with the lines.
+
+`validate(_:)` already rewrote each note's `park` to the candidate's own `name` before
+storing it, so the row-to-note match is an exact string comparison rather than the fuzzy
+`localizedCaseInsensitiveContains` used when parsing the model's output.
+
+### Files and symbols changed
+- `Waypost/Features/Discover/NearbyCard.swift` — `briefBody(_:)` became `headline(_:)` and
+  no longer renders notes; `shortlist` became `shortlist(_ brief:)` and renders the
+  matching note under each row; rows gained `.accessibilityElement(children: .combine)` so
+  VoiceOver reads park, figures and reason as one element; footnote reworded from "the
+  figures above" to "the figures beside each park".
+
+### Verified — and what was not
+The card's layout, rows, fact lines and footnote were checked on the iPhone 17 Pro
+simulator. **The per-park lines themselves were not seen rendered**: Apple Intelligence
+does not run on this simulator, so `NearbyBriefing` fails with
+`FoundationModels.LanguageModelSession.GenerationError error -1` and the card takes its
+`.failed` branch, which has no notes by design. The `.ready` path needs a device with
+Apple Intelligence enabled. The change to that path is small and type-checked, but it is
+untested at runtime and should be looked at on hardware before it is trusted.
+
+### Remaining limitations
+- Rows are taller when a note is present, so a four-park shortlist takes more vertical
+  space than before; not a problem at the current cap of four, worth revisiting if it grows.
+- The note is not truncated, so an unusually long sentence from the model will make one row
+  much taller than its neighbours.
