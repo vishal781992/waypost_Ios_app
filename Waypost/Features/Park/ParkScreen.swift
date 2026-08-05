@@ -86,6 +86,74 @@ struct ParkScreen: View {
 
     private var hoursText: String { liveHours ?? "Not published" }
 
+    /// The two things Apple Maps will hand a third-party app, and a way to the rest.
+    ///
+    /// `MKMapItem` carries a phone number and a time zone and nothing else of substance —
+    /// the hours, ratings and photographs on the Maps place card are licensed from
+    /// Tripadvisor, Foursquare and Wikipedia and are not vended through MapKit. So: offer
+    /// the number, which answers "what are the hours" better than any guess would, note
+    /// the park's own clock when it differs from the phone's, and hand the park to Maps
+    /// for everything this app is not allowed to draw.
+    @ViewBuilder
+    private var parkContactRow: some View {
+        if let details = ParkWebsite.shared.details(for: park) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let phone = details.phone,
+                   let dial = URL(string: "tel://" + phone.filter { $0.isNumber || $0 == "+" }) {
+                    Link(destination: dial) {
+                        contactRow(glyph: "phone", text: phone, trailing: "arrow.up.right")
+                    }
+                    .accessibilityLabel("Call the park on \(phone)")
+                }
+
+                if let zone = details.timeZone, zone.identifier != TimeZone.current.identifier {
+                    // A park two zones away opens and closes on its own clock, and the
+                    // sunrise and sunset this screen shows are its, not the phone's.
+                    contactRow(glyph: "clock",
+                               text: "Park time \(Self.clock(in: zone)) · \(zone.abbreviation() ?? zone.identifier)",
+                               trailing: nil)
+                }
+
+                Button {
+                    details.mapItem.openInMaps()
+                } label: {
+                    contactRow(glyph: "map", text: "See it in Apple Maps", trailing: "arrow.up.right")
+                }
+                .buttonStyle(PressStyle(scale: 0.99))
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    private func contactRow(glyph: String, text: String, trailing: String?) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: glyph)
+                .font(.system(size: 13, weight: .semibold))
+                .frame(width: 18)
+            Text(text).font(WP.body(12.5)).multilineTextAlignment(.leading)
+            Spacer(minLength: 0)
+            if let trailing {
+                Image(systemName: trailing).font(.system(size: 11, weight: .semibold))
+            }
+        }
+        .foregroundStyle(WP.accent700)
+        .padding(.horizontal, 14)
+        .frame(minHeight: 44)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(WP.accent.opacity(0.45), lineWidth: 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private static func clock(in zone: TimeZone) -> String {
+        let formatter = DateFormatter()
+        formatter.timeZone = zone
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: Date())
+    }
+
     /// Where the park itself publishes, for the parks no register covers.
     ///
     /// A state park has no NPS record, so fee and hours read "Not published" and the screen
@@ -276,6 +344,7 @@ struct ParkScreen: View {
 
             factsRow.padding(.top, 13)
             parkWebsiteRow
+            parkContactRow
 
             // A live record often has no gateway town, and "Gateway town" followed by
             // nothing reads as a bug rather than as an absence.

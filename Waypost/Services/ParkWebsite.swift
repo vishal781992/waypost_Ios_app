@@ -26,7 +26,32 @@ final class ParkWebsite {
         case none
     }
 
+    /// What Apple Maps will actually hand a third-party app about a place.
+    ///
+    /// Not hours, not ratings, not photographs — `MKMapItem` has no such properties, and
+    /// what the Maps app shows there is licensed from Tripadvisor, Foursquare and
+    /// Wikipedia and is not vended through MapKit. These four are the whole of it, and
+    /// three were being fetched and dropped.
+    struct Details: Hashable {
+        var phone: String?
+        var timeZone: TimeZone?
+        var name: String
+        var lat: Double
+        var lon: Double
+
+        /// For handing the park to the Maps app, which *can* show the rest.
+        var mapItem: MKMapItem {
+            let item = MKMapItem(placemark: MKPlacemark(
+                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)))
+            item.name = name
+            return item
+        }
+    }
+
     private(set) var states: [String: State] = [:]
+    private(set) var details: [String: Details] = [:]
+
+    func details(for park: CuratedPark) -> Details? { details[park.code] }
 
     private init() {}
 
@@ -38,11 +63,11 @@ final class ParkWebsite {
         // The bundled row already knows, for 2,300 of the 3,003 state parks. That is the
         // park's *own* published address rather than whatever Apple Maps associates with
         // the name, it needs no network, and it cannot pick the wrong Cherry Creek.
-        if let known = park.website {
-            states[park.code] = .found(known)
-            return
-        }
-        states[park.code] = .looking
+        let bundled = park.website
+        // The bundled address still answers instantly and offline. The search runs anyway,
+        // for the phone number and time zone that only Apple Maps has — it just no longer
+        // decides the website when the phone already knows it.
+        states[park.code] = bundled.map(State.found) ?? .looking
 
         Task { [weak self] in
             guard let self else { return }
@@ -56,11 +81,22 @@ final class ParkWebsite {
             )
 
             guard let response = try? await MKLocalSearch(request: request).start(),
-                  let url = response.mapItems.compactMap(\.url).first else {
-                states[park.code] = .none
+                  let item = response.mapItems.first else {
+                if bundled == nil { states[park.code] = .none }
                 return
             }
-            states[park.code] = .found(url)
+
+            details[park.code] = Details(
+                phone: item.phoneNumber,
+                timeZone: item.timeZone,
+                name: item.name ?? park.name,
+                lat: park.lat,
+                lon: park.lon
+            )
+
+            if bundled == nil {
+                states[park.code] = response.mapItems.compactMap(\.url).first.map(State.found) ?? .none
+            }
         }
     }
 }
