@@ -47,11 +47,30 @@ struct ParkScreen: View {
             factsUnavailable
         default:
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(liveFee ?? park.fee).font(WP.body(12.5)).opacity(0.85)
+                Text(feeText).font(WP.body(12.5)).opacity(0.85)
                 Text("|").opacity(0.28)
-                Text(liveHours ?? park.hours).font(WP.body(12.5)).opacity(0.85)
+                Text(hoursText).font(WP.body(12.5)).opacity(0.85)
             }
         }
+    }
+
+    /// "Not published" on its own does not say what is not published — and it sat in two
+    /// columns, so a park missing both read "Not published · Not published" and named
+    /// neither. Each column now says which of the two is missing.
+    private var feeText: String {
+        if let liveFee { return liveFee }
+        return Self.isUnpublished(park.fee) ? "Entrance fee not published" : park.fee
+    }
+
+    private var hoursText: String {
+        if let liveHours { return liveHours }
+        return Self.isUnpublished(park.hours) ? "Opening hours not published" : park.hours
+    }
+
+    private static func isUnpublished(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty
+            || trimmed.localizedCaseInsensitiveCompare("Not published") == .orderedSame
     }
 
     private var factsUnavailable: some View {

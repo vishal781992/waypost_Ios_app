@@ -1086,3 +1086,51 @@ real fees, hours and alerts.
 - "Unable to pull NPS data" still does not distinguish no proxy from a refusal from an
   unmatched park, and still has no Retry.
 - The 3,000 state parks have no NPS equivalent and correctly say nothing.
+
+## Phase 4b — Free is not "not published", and sentences finish (Pain point 21)
+
+Found while verifying Phase 4 against a South Carolina park.
+
+### Three faults, all of them the screen saying something untrue
+1. **"Free" read as "Not published".** NPS returns `entranceFees: []` for a park that
+   charges nothing. `facts(from:)` only produced a fee when a fee row existed, so an empty
+   list fell through to the bundled record and printed "Not published" — Congaree, Great
+   Smoky Mountains and others read as though nobody knew, when the answer is that they are
+   free. An empty list from a service that lists every fee is an answer, not an absence.
+2. **"Not published" did not say what.** It sat in two columns, so a park missing both read
+   "Not published · Not published" and named neither. Now "Entrance fee not published" and
+   "Opening hours not published".
+3. **Descriptions were cut mid-word.** `String($0.prefix(220))` ended Congaree's hours on
+   "Please review the par". Replaced with `sentences(_:within:)`, which keeps whole
+   sentences and only falls back to a word boundary and an ellipsis when no sentence
+   finished inside the budget. Applied to hours, directions, campground reservation notes
+   and thing-to-do notes.
+
+`sentences` is a character scan rather than a backwards regular expression: Foundation
+returned the *first* sentence end rather than the last when `.backwards` was combined with
+a lookahead, which cut Congaree after one sentence when two fitted. Verified against the
+live payload — sentence ends at 67 and 198 within a 260 budget, and 198 is now the cut.
+
+### A fourth: the name lookup still failed for parks outside the bundled 62
+`searchTerm(for:)` now trims the designation before querying. A park found through Apple
+Maps or OpenStreetMap carries its *full* name in `name`, so the designation words poisoned
+the query exactly as `full` did:
+
+| Query | Result |
+|---|---|
+| `Charles Pinckney National Historic Site` | 450 units, none of them Pinckney in the first 50 |
+| `Charles Pinckney` | 4 units, `chpi` first |
+
+Every NPS unit is "<distinctive name> National <designation>", so cutting at " National "
+and keeping the head is sufficient and needs no list of designations to maintain.
+
+### Verified
+Congaree opened from an Apple Maps record — no bundled `npsCode`, so this exercised the
+repaired name lookup — showing **Free**, two complete sentences of hours, and its live
+"Being Prepared for Excessive Heat & Humidity" alert.
+
+### Remaining limitations
+- `sentences` treats any full stop followed by whitespace as a sentence end, so a name like
+  "St. Mary" inside a description could cut early. It will always read as a finished
+  sentence, which is the failure mode worth having.
+- An abbreviation-heavy description could still be trimmed shorter than the budget allows.

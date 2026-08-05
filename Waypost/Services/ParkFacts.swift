@@ -137,14 +137,62 @@ final class ParkFacts {
         if let known = park.npsCode, NPSService.isNPSCode(known) { return known }
         if let known = resolvedCodes[park.full] { return known.isEmpty ? nil : known }
 
-        // The park's short name, not its full one. NPS matches on any word in `q`, so
-        // "Badlands National Park" asked for every unit with "National" or "Park" in its
-        // name — 452 of them, alphabetically — and the answer was never in the first page.
-        // "Badlands" asks for five.
-        let found = try? await proxy.search(name: park.name, expecting: park.full)
+        let found = try? await proxy.search(name: Self.searchTerm(for: park), expecting: park.full)
         resolvedCodes[park.full] = found ?? ""      // remember a miss too, or it repeats
         UserDefaults.standard.set(resolvedCodes, forKey: Self.codeKey)
         return found
+    }
+
+    /// What to actually ask NPS for: the distinctive part of the name, without the
+    /// designation.
+    ///
+    /// NPS matches on every word in `q`. "Badlands National Park" asks for every unit
+    /// containing "National" or "Park" — 452 of them, returned alphabetically — and the
+    /// answer is not in the first page. "Badlands" asks for five. The same is true of
+    /// "Charles Pinckney National Historic Site": 450 units, none of them Pinckney in the
+    /// first fifty, where "Charles Pinckney" returns four. A park found through Apple Maps
+    /// or OpenStreetMap carries its full name in `name`, so trimming has to happen here
+    /// rather than relying on a short name being short.
+    static func searchTerm(for park: CuratedPark) -> String {
+        let name = park.name.trimmingCharacters(in: .whitespaces)
+        // Every NPS unit is "<distinctive name> National <designation>".
+        if let marker = name.range(of: " National ") {
+            let head = name[..<marker.lowerBound].trimmingCharacters(in: .whitespaces)
+            if !head.isEmpty { return head }
+        }
+        return name
+    }
+
+    /// Trims to whole sentences.
+    ///
+    /// Cutting at a character count ended Congaree's hours on "Please review the par",
+    /// which reads as a broken app rather than as a summary. Back off to the last sentence
+    /// that finished inside the budget; only if none did does this fall back to a word
+    /// boundary and an ellipsis.
+    static func sentences(_ text: String, within limit: Int) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > limit else { return trimmed }
+
+        // Scanned rather than matched with a backwards regular expression: Foundation
+        // returned the *first* sentence end rather than the last when `.backwards` was
+        // combined with a lookahead, so Congaree's hours stopped after one sentence when
+        // two fitted. A plain walk is unambiguous.
+        let characters = Array(trimmed)
+        let bound = min(limit, characters.count)
+        var cut: Int?
+        for index in 0..<bound where ".!?".contains(characters[index]) {
+            let next = index + 1
+            // Checked against the whole text, not the truncated head, so a full stop that
+            // happens to land on the boundary is judged by what really follows it.
+            if next == characters.count || characters[next].isWhitespace { cut = next }
+        }
+        if let cut {
+            return String(characters[..<cut]).trimmingCharacters(in: .whitespaces)
+        }
+        if let space = characters[..<bound].lastIndex(where: { $0.isWhitespace }) {
+            return String(characters[..<space]) + "…"
+        }
+        return String(characters[..<bound]) + "…"
     }
 
     private static func facts(from row: [String: Any], code: String,
@@ -152,14 +200,19 @@ final class ParkFacts {
                               camps: [[String: Any]] = [],
                               things: [[String: Any]] = [],
                               lots: [[String: Any]] = []) -> Facts {
-        let fees = row["entranceFees"] as? [[String: Any]] ?? []
-        let cost = fees.first.flatMap { $0["cost"] as? String }.flatMap(Double.init)
-        let feeTitle = fees.first?["title"] as? String
+        let feeRows = row["entranceFees"] as? [[String: Any]]
         let fee: String?
-        if let cost {
-            fee = cost > 0
-                ? "$\(Int(cost)) · \(feeTitle ?? "entrance")"
-                : "Free"
+        if let first = feeRows?.first {
+            let cost = (first["cost"] as? String).flatMap(Double.init)
+            let title = first["title"] as? String
+            fee = (cost ?? 0) > 0 ? "$\(Int(cost ?? 0)) · \(title ?? "entrance")" : "Free"
+        } else if feeRows != nil {
+            // The park service lists every fee a unit charges, so an empty list is an
+            // answer and not an absence: this park charges nothing. Treating it as missing
+            // fell through to the bundled record and printed "Not published", which reads
+            // as "nobody knows" about a park that is simply free to enter — Congaree,
+            // Great Smoky Mountains and a good many others.
+            fee = "Free"
         } else {
             fee = nil
         }
@@ -170,8 +223,8 @@ final class ParkFacts {
         return Facts(
             code: code,
             fee: fee,
-            hours: hours.map { String($0.prefix(220)) },
-            directions: (row["directionsInfo"] as? String).map { String($0.prefix(220)) },
+            hours: hours.map { Self.sentences($0, within: 260) },
+            directions: (row["directionsInfo"] as? String).map { Self.sentences($0, within: 260) },
             website: (row["url"] as? String).flatMap(URL.init(string:)),
             alerts: alerts.compactMap { alert in
                 guard let title = alert["title"] as? String else { return nil }
@@ -189,7 +242,7 @@ final class ParkFacts {
                     name: name,
                     sites: sites.flatMap(Int.init),
                     fee: cost.flatMap(Double.init).map { $0 > 0 ? "$\(Int($0)) a night" : "Free" },
-                    reservationNote: (camp["reservationInfo"] as? String).map { String($0.prefix(160)) },
+                    reservationNote: (camp["reservationInfo"] as? String).map { Self.sentences($0, within: 180) },
                     // "…/camping/campgrounds/232445" — the join across to Recreation.gov.
                     facilityID: (camp["reservationUrl"] as? String)?
                         .split(separator: "/").last.map(String.init)
@@ -201,7 +254,7 @@ final class ParkFacts {
                 return Activity(
                     title: title,
                     duration: (thing["duration"] as? String).flatMap { $0.isEmpty ? nil : $0 },
-                    note: (thing["shortDescription"] as? String).map { String($0.prefix(140)) }
+                    note: (thing["shortDescription"] as? String).map { Self.sentences($0, within: 160) }
                 )
             },
             parking: lots.compactMap { $0["name"] as? String },
