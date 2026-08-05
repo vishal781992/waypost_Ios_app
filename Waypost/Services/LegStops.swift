@@ -109,10 +109,17 @@ final class LegStops {
 
         Task { [weak self] in
             guard let self else { return }
-            // Eighty miles as asked, widened only when a leg is long enough that eighty
-            // would produce more stops than anyone would read.
-            let spacing = max(Self.spacingMiles,
-                              Double(leg.miles) / Double(Self.maxSamples))
+            // How far apart to look for somewhere to stop, scaled to the leg.
+            //
+            // A fixed eighty-mile start gave a leg shorter than eighty no stop at all — a
+            // 72-mile drive showed nothing — because the first sample never arrived. Under
+            // 160 miles, halve the leg instead: one stop near the middle, which is the
+            // useful place for it and, more to the point, always exists. From 160 up, a
+            // stop every eighty miles, still widened past ~800 so a cross-country leg does
+            // not fire dozens of searches.
+            let spacing: Double = leg.miles < 160
+                ? max(1, Double(leg.miles) / 2)
+                : max(Self.spacingMiles, Double(leg.miles) / Double(Self.maxSamples))
             let samples = Self.samples(along: leg.coordinates, everyMiles: spacing)
             // Charging first for an electric vehicle, fuel first otherwise — the one that
             // decides whether the drive is possible goes at the top of each stop.
