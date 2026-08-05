@@ -234,8 +234,32 @@ final class AppState {
         today.code.flatMap { library.park($0) }
     }
 
+    /// A trip the user is genuinely on right now, by the real calendar — not a fixture.
+    ///
+    /// The driving-day card used to read its leg from `today`, a curated fixture pinned to
+    /// day one (`day` defaults to 1 and nothing moves it), so it showed the seed's Denver
+    /// leg on every launch — on a fresh install where no trip had been started, and it would
+    /// have kept showing it long after any dates had passed. A driving day is a day somebody
+    /// is actually driving, so this is a real trip in `myTrips` whose window contains today.
+    /// The pre-seeded demo does not count: nobody planned it, and the dashboard is the
+    /// user's day, not the app's showcase.
+    var activeTripToday: SavedTrip? {
+        let calendar = Calendar.current
+        let now = Date()
+        return myTrips.first { trip in
+            guard let start = trip.startDate else { return false }
+            let end = calendar.date(byAdding: .day, value: 14, to: calendar.startOfDay(for: start)) ?? start
+            return now >= calendar.startOfDay(for: start) && now < end
+        }
+    }
+
+    /// Today's driving leg, when a real trip is under way and today is one of its driving
+    /// days. Curated leg data only exists for the seed, so this is populated only when the
+    /// active trip *is* the seed by code — but the seed reaches here through `myTrips`, i.e.
+    /// only if the user kept it rather than on a pristine install.
     var todayLeg: CuratedLeg? {
-        today.leg.flatMap { library.legs.indices.contains($0) ? library.legs[$0] : nil }
+        guard let trip = activeTripToday, trip.id == "seed" else { return nil }
+        return today.leg.flatMap { library.legs.indices.contains($0) ? library.legs[$0] : nil }
     }
 
     /// The next driving day after today, and its leg — what the Today screen previews.
