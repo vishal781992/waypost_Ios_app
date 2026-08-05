@@ -1017,3 +1017,72 @@ place of "Not published · Not published".
   refused from a park that could not be matched. `ParkFacts.failed` carries the reason and
   it is still not shown anywhere.
 - There is no Retry on that line.
+
+## Phase 4 — NPS data actually arrives (Pain point 21, and the NPS half of 13)
+
+### What was wrong
+Not the proxy, not the API key, not the network. Verified with `curl` against the app's own
+configured backend, sending exactly the headers the app sends:
+
+| Request | Result |
+|---|---|
+| `/health` | `200 {"ok":true}` |
+| `q=Badlands National Park&limit=10` | 200 — **452 units**, alphabetical, no Badlands |
+| `q=Badlands&limit=10` | 200 — **5 units**, Badlands first → `badl` |
+| `parkCode=badl` | 200 — fee, hours, alerts, all of it |
+
+`ParkFacts.npsCode(for:)` had to look a code up by name, because `NPSService.isNPSCode`
+requires `^[a-z]{4}$` and every bundled park is an `np-…` slug. The lookup sent the park's
+**full** name as `q`. NPS matches on any word in `q`, so "Badlands National Park" asked for
+every unit containing "National" or "Park" — 452 of them — returned alphabetically, and the
+ten rows the app requested were Abraham Lincoln through Alibates. The exact-name filter then
+found nothing and returned `nil`. Every one of the sixty-two failed this way, for the same
+reason.
+
+The miss was then cached to `UserDefaults` as `""` so it would not repeat, which is correct
+behaviour applied to a permanently wrong answer: the park was never asked about again.
+
+### Change
+1. **The bundled data carries the real code.** `national-parks.json` gains `npsCode` on all
+   62 entries, matched against the live NPS register and verified — Haleakalā by diacritic
+   folding, Denali and Katmai across "& Preserve", and Sequoia and Kings Canyon both to
+   `seki`, which is how the park service administers them. Resolution now needs no network.
+2. **The lookup, still there for anything not bundled, asks properly.** Short name as `q`,
+   `limit` 50 rather than 10, and the confirmation match folds diacritics, `&`/`and` and
+   punctuation — so "Wrangell–St. Elias" matches "Wrangell-St. Elias".
+3. **The poisoned cache is cleared.** A generation counter alongside
+   `parkhop-nps-codes`; on a mismatch the map is dropped. Without it every install that hit
+   the bug keeps a cache saying the park service covers nothing, and the fix changes nothing
+   on exactly the phones that need it.
+
+### Files and symbols changed
+- `Waypost/Resources/national-parks.json` — `npsCode` on all 62 entries.
+- `Waypost/Models/NationalParks.swift` — `NationalPark.npsCode`; passed through
+  `CuratedPark.init(bundled:)`.
+- `Waypost/Models/Curated.swift` — `CuratedPark.npsCode`.
+- `Waypost/Services/ParkFacts.swift` — `npsCode(for:)` prefers the bundled code;
+  `ProxyService.search(name:expecting:)` replaces `search(name:)`; `comparable(_:)` added;
+  `codeGenerationKey` / `codeGeneration` and the cache reset in `init`.
+
+### Before / after
+Badlands, which read "Not published · Not published" and then "Unable to pull NPS data":
+
+| | Before | After |
+|---|---|---|
+| Fee | Not published | $30 · Entrance - Private Vehicle |
+| Hours | Not published | "open to visitors all year with the exception of weather closures" |
+| Alerts | none | "Know before you go — Navigation: do not rely on GPS…" |
+
+### Verified
+`curl` against the proxy for the diagnosis; all 62 codes checked against the live NPS
+register (`62/62 valid and present`); Badlands opened on the iPhone 17 Pro simulator showing
+real fees, hours and alerts.
+
+### Remaining limitations
+- Only the 62 bundled national parks carry a code. A park found through Apple Maps or
+  OpenStreetMap still goes through the name lookup — better than it was, but still a guess.
+- `NPSService.isNPSCode` still gates `NPSService.fetch`, so the *directory* search path has
+  the same class of problem this fixed for the park screen; it was not touched here.
+- "Unable to pull NPS data" still does not distinguish no proxy from a refusal from an
+  unmatched park, and still has no Retry.
+- The 3,000 state parks have no NPS equivalent and correctly say nothing.

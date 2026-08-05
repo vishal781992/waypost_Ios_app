@@ -1,1 +1,622 @@
-[{"code":"np-acadia","name":"Acadia","full":"Acadia National Park","state":"ME","lat":44.35,"lon":-68.2167,"designation":"National Park"},{"code":"np-arches","name":"Arches","full":"Arches National Park","state":"UT","lat":38.7281,"lon":-109.54,"designation":"National Park"},{"code":"np-badlands","name":"Badlands","full":"Badlands National Park","state":"SD","lat":43.75,"lon":-102.5,"designation":"National Park"},{"code":"np-big-bend","name":"Big Bend","full":"Big Bend National Park","state":"TX","lat":29.25,"lon":-103.25,"designation":"National Park"},{"code":"np-biscayne","name":"Biscayne","full":"Biscayne National Park","state":"FL","lat":25.5019,"lon":-80.181,"designation":"National Park"},{"code":"np-black-canyon-of-the-gunnison","name":"Black Canyon of the Gunnison","full":"Black Canyon of the Gunnison National Park","state":"CO","lat":38.58,"lon":-107.7275,"designation":"National Park"},{"code":"np-bryce-canyon","name":"Bryce Canyon","full":"Bryce Canyon National Park","state":"UT","lat":37.64,"lon":-112.17,"designation":"National Park"},{"code":"np-canyonlands","name":"Canyonlands","full":"Canyonlands National Park","state":"UT","lat":38.1669,"lon":-109.76,"designation":"National Park"},{"code":"np-capitol-reef","name":"Capitol Reef","full":"Capitol Reef National Park","state":"UT","lat":38.2,"lon":-111.167,"designation":"National Park"},{"code":"np-carlsbad-caverns","name":"Carlsbad Caverns","full":"Carlsbad Caverns National Park","state":"NM","lat":32.1753,"lon":-104.4439,"designation":"National Park"},{"code":"np-channel-islands","name":"Channel Islands","full":"Channel Islands National Park","state":"CA","lat":33.66,"lon":-119.64,"designation":"National Park"},{"code":"np-congaree","name":"Congaree","full":"Congaree National Park","state":"SC","lat":33.7833,"lon":-80.7833,"designation":"National Park"},{"code":"np-crater-lake","name":"Crater Lake","full":"Crater Lake National Park","state":"OR","lat":42.9119,"lon":-122.1481,"designation":"National Park"},{"code":"np-cuyahoga-valley","name":"Cuyahoga Valley","full":"Cuyahoga Valley National Park","state":"OH","lat":41.2417,"lon":-81.5497,"designation":"National Park"},{"code":"np-death-valley","name":"Death Valley","full":"Death Valley National Park","state":"CA","lat":36.45,"lon":-116.85,"designation":"National Park"},{"code":"np-denali","name":"Denali","full":"Denali National Park and Preserve","state":"AK","lat":63.2,"lon":-150.3,"designation":"National Park and Preserve"},{"code":"np-dry-tortugas","name":"Dry Tortugas","full":"Dry Tortugas National Park","state":"FL","lat":24.6286,"lon":-82.8733,"designation":"National Park"},{"code":"np-everglades","name":"Everglades","full":"Everglades National Park","state":"FL","lat":25.3125,"lon":-80.6875,"designation":"National Park"},{"code":"np-gates-of-the-arctic","name":"Gates of the Arctic","full":"Gates of the Arctic National Park and Preserve","state":"AK","lat":67.7833,"lon":-153.3,"designation":"National Park and Preserve"},{"code":"np-gateway-arch","name":"Gateway Arch","full":"Gateway Arch National Park","state":"MO","lat":38.6246,"lon":-90.185,"designation":"National Park"},{"code":"np-glacier","name":"Glacier","full":"Glacier National Park","state":"MT","lat":48.755,"lon":-113.8,"designation":"National Park"},{"code":"np-glacier-bay","name":"Glacier Bay","full":"Glacier Bay National Park and Preserve","state":"AK","lat":58.7,"lon":-137.0,"designation":"National Park and Preserve"},{"code":"np-grand-canyon","name":"Grand Canyon","full":"Grand Canyon National Park","state":"AZ","lat":36.0553,"lon":-112.122,"designation":"National Park"},{"code":"np-grand-teton","name":"Grand Teton","full":"Grand Teton National Park","state":"WY","lat":43.8333,"lon":-110.7008,"designation":"National Park"},{"code":"np-great-basin","name":"Great Basin","full":"Great Basin National Park","state":"NV","lat":39.0058,"lon":-114.2197,"designation":"National Park"},{"code":"np-great-sand-dunes","name":"Great Sand Dunes","full":"Great Sand Dunes National Park and Preserve","state":"CO","lat":37.7328,"lon":-105.5122,"designation":"National Park and Preserve"},{"code":"np-great-smoky-mountains","name":"Great Smoky Mountains","full":"Great Smoky Mountains National Park","state":"TN","lat":35.6111,"lon":-83.425,"designation":"National Park"},{"code":"np-guadalupe-mountains","name":"Guadalupe Mountains","full":"Guadalupe Mountains National Park","state":"TX","lat":31.9167,"lon":-104.8667,"designation":"National Park"},{"code":"np-haleakala","name":"Haleakalā","full":"Haleakalā National Park","state":"HI","lat":20.7204,"lon":-156.1551,"designation":"National Park"},{"code":"np-hawaii-volcanoes","name":"Hawaiʻi Volcanoes","full":"Hawaiʻi Volcanoes National Park","state":"HI","lat":19.4008,"lon":-155.1236,"designation":"National Park"},{"code":"np-hot-springs","name":"Hot Springs","full":"Hot Springs National Park","state":"AR","lat":34.5136,"lon":-93.0536,"designation":"National Park"},{"code":"np-indiana-dunes","name":"Indiana Dunes","full":"Indiana Dunes National Park","state":"IN","lat":41.6481,"lon":-87.1081,"designation":"National Park"},{"code":"np-isle-royale","name":"Isle Royale","full":"Isle Royale National Park","state":"MI","lat":47.9959,"lon":-88.9093,"designation":"National Park"},{"code":"np-joshua-tree","name":"Joshua Tree","full":"Joshua Tree National Park","state":"CA","lat":33.7484,"lon":-115.8193,"designation":"National Park"},{"code":"np-katmai","name":"Katmai","full":"Katmai National Park and Preserve","state":"AK","lat":58.5,"lon":-155.0,"designation":"National Park and Preserve"},{"code":"np-kenai-fjords","name":"Kenai Fjords","full":"Kenai Fjords National Park","state":"AK","lat":59.9178,"lon":-149.9875,"designation":"National Park"},{"code":"np-kings-canyon","name":"Kings Canyon","full":"Kings Canyon National Park","state":"CA","lat":36.7893,"lon":-118.6729,"designation":"National Park"},{"code":"np-kobuk-valley","name":"Kobuk Valley","full":"Kobuk Valley National Park","state":"AK","lat":67.3534,"lon":-159.1989,"designation":"National Park"},{"code":"np-lake-clark","name":"Lake Clark","full":"Lake Clark National Park","state":"AK","lat":60.97,"lon":-153.42,"designation":"National Park"},{"code":"np-lassen-volcanic","name":"Lassen Volcanic","full":"Lassen Volcanic National Park","state":"CA","lat":40.4981,"lon":-121.4275,"designation":"National Park"},{"code":"np-mammoth-cave","name":"Mammoth Cave","full":"Mammoth Cave National Park","state":"KY","lat":37.1869,"lon":-86.1011,"designation":"National Park"},{"code":"np-mesa-verde","name":"Mesa Verde","full":"Mesa Verde National Park","state":"CO","lat":37.2604,"lon":-108.4944,"designation":"National Park"},{"code":"np-mount-rainier","name":"Mount Rainier","full":"Mount Rainier National Park","state":"WA","lat":46.85,"lon":-121.75,"designation":"National Park"},{"code":"np-national-park-of-american-samoa","name":"National Park of American Samoa","full":"National Park of American Samoa","state":"AS","lat":-14.2583,"lon":-170.6833,"designation":"National Park"},{"code":"np-new-river-gorge","name":"New River Gorge","full":"New River Gorge National Park","state":"WV","lat":37.93,"lon":-81.06,"designation":"National Park"},{"code":"np-north-cascades","name":"North Cascades","full":"North Cascades National Park","state":"WA","lat":48.4831,"lon":-120.9114,"designation":"National Park"},{"code":"np-olympic","name":"Olympic","full":"Olympic National Park","state":"WA","lat":47.7,"lon":-123.75,"designation":"National Park"},{"code":"np-petrified-forest","name":"Petrified Forest","full":"Petrified Forest National Park","state":"AZ","lat":35.0881,"lon":-109.806,"designation":"National Park"},{"code":"np-pinnacles","name":"Pinnacles","full":"Pinnacles National Park","state":"CA","lat":36.4869,"lon":-121.167,"designation":"National Park"},{"code":"np-rocky-mountain","name":"Rocky Mountain","full":"Rocky Mountain National Park","state":"CO","lat":40.35,"lon":-105.6833,"designation":"National Park"},{"code":"np-saguaro","name":"Saguaro","full":"Saguaro National Park","state":"AZ","lat":32.2022,"lon":-110.6109,"designation":"National Park"},{"code":"np-sequoia","name":"Sequoia","full":"Sequoia National Park","state":"CA","lat":36.5647,"lon":-118.7728,"designation":"National Park"},{"code":"np-shenandoah","name":"Shenandoah","full":"Shenandoah National Park","state":"VA","lat":38.5333,"lon":-78.35,"designation":"National Park"},{"code":"np-theodore-roosevelt","name":"Theodore Roosevelt","full":"Theodore Roosevelt National Park","state":"ND","lat":46.9667,"lon":-103.45,"designation":"National Park"},{"code":"np-virgin-islands","name":"Virgin Islands","full":"Virgin Islands National Park","state":"VI","lat":18.3281,"lon":-64.9333,"designation":"National Park"},{"code":"np-voyageurs","name":"Voyageurs","full":"Voyageurs National Park","state":"MN","lat":48.5,"lon":-92.8833,"designation":"National Park"},{"code":"np-white-sands","name":"White Sands","full":"White Sands National Park","state":"NM","lat":32.7797,"lon":-106.1717,"designation":"National Park"},{"code":"np-wind-cave","name":"Wind Cave","full":"Wind Cave National Park","state":"SD","lat":43.5564,"lon":-103.4787,"designation":"National Park"},{"code":"np-wrangellst-elias","name":"Wrangell–St. Elias","full":"Wrangell–St. Elias National Park and Preserve","state":"AK","lat":61.435,"lon":-142.9536,"designation":"National Park and Preserve"},{"code":"np-yellowstone","name":"Yellowstone","full":"Yellowstone National Park","state":"WY","lat":44.6,"lon":-110.5,"designation":"National Park"},{"code":"np-yosemite","name":"Yosemite","full":"Yosemite National Park","state":"CA","lat":37.7425,"lon":-119.5375,"designation":"National Park"},{"code":"np-zion","name":"Zion","full":"Zion National Park","state":"UT","lat":37.2026,"lon":-112.9878,"designation":"National Park"}]
+[
+ {
+  "code": "np-acadia",
+  "npsCode": "acad",
+  "name": "Acadia",
+  "full": "Acadia National Park",
+  "state": "ME",
+  "lat": 44.35,
+  "lon": -68.2167,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-arches",
+  "npsCode": "arch",
+  "name": "Arches",
+  "full": "Arches National Park",
+  "state": "UT",
+  "lat": 38.7281,
+  "lon": -109.54,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-badlands",
+  "npsCode": "badl",
+  "name": "Badlands",
+  "full": "Badlands National Park",
+  "state": "SD",
+  "lat": 43.75,
+  "lon": -102.5,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-big-bend",
+  "npsCode": "bibe",
+  "name": "Big Bend",
+  "full": "Big Bend National Park",
+  "state": "TX",
+  "lat": 29.25,
+  "lon": -103.25,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-biscayne",
+  "npsCode": "bisc",
+  "name": "Biscayne",
+  "full": "Biscayne National Park",
+  "state": "FL",
+  "lat": 25.5019,
+  "lon": -80.181,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-black-canyon-of-the-gunnison",
+  "npsCode": "blca",
+  "name": "Black Canyon of the Gunnison",
+  "full": "Black Canyon of the Gunnison National Park",
+  "state": "CO",
+  "lat": 38.58,
+  "lon": -107.7275,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-bryce-canyon",
+  "npsCode": "brca",
+  "name": "Bryce Canyon",
+  "full": "Bryce Canyon National Park",
+  "state": "UT",
+  "lat": 37.64,
+  "lon": -112.17,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-canyonlands",
+  "npsCode": "cany",
+  "name": "Canyonlands",
+  "full": "Canyonlands National Park",
+  "state": "UT",
+  "lat": 38.1669,
+  "lon": -109.76,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-capitol-reef",
+  "npsCode": "care",
+  "name": "Capitol Reef",
+  "full": "Capitol Reef National Park",
+  "state": "UT",
+  "lat": 38.2,
+  "lon": -111.167,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-carlsbad-caverns",
+  "npsCode": "cave",
+  "name": "Carlsbad Caverns",
+  "full": "Carlsbad Caverns National Park",
+  "state": "NM",
+  "lat": 32.1753,
+  "lon": -104.4439,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-channel-islands",
+  "npsCode": "chis",
+  "name": "Channel Islands",
+  "full": "Channel Islands National Park",
+  "state": "CA",
+  "lat": 33.66,
+  "lon": -119.64,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-congaree",
+  "npsCode": "cong",
+  "name": "Congaree",
+  "full": "Congaree National Park",
+  "state": "SC",
+  "lat": 33.7833,
+  "lon": -80.7833,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-crater-lake",
+  "npsCode": "crla",
+  "name": "Crater Lake",
+  "full": "Crater Lake National Park",
+  "state": "OR",
+  "lat": 42.9119,
+  "lon": -122.1481,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-cuyahoga-valley",
+  "npsCode": "cuva",
+  "name": "Cuyahoga Valley",
+  "full": "Cuyahoga Valley National Park",
+  "state": "OH",
+  "lat": 41.2417,
+  "lon": -81.5497,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-death-valley",
+  "npsCode": "deva",
+  "name": "Death Valley",
+  "full": "Death Valley National Park",
+  "state": "CA",
+  "lat": 36.45,
+  "lon": -116.85,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-denali",
+  "npsCode": "dena",
+  "name": "Denali",
+  "full": "Denali National Park and Preserve",
+  "state": "AK",
+  "lat": 63.2,
+  "lon": -150.3,
+  "designation": "National Park and Preserve"
+ },
+ {
+  "code": "np-dry-tortugas",
+  "npsCode": "drto",
+  "name": "Dry Tortugas",
+  "full": "Dry Tortugas National Park",
+  "state": "FL",
+  "lat": 24.6286,
+  "lon": -82.8733,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-everglades",
+  "npsCode": "ever",
+  "name": "Everglades",
+  "full": "Everglades National Park",
+  "state": "FL",
+  "lat": 25.3125,
+  "lon": -80.6875,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-gates-of-the-arctic",
+  "npsCode": "gaar",
+  "name": "Gates of the Arctic",
+  "full": "Gates of the Arctic National Park and Preserve",
+  "state": "AK",
+  "lat": 67.7833,
+  "lon": -153.3,
+  "designation": "National Park and Preserve"
+ },
+ {
+  "code": "np-gateway-arch",
+  "npsCode": "jeff",
+  "name": "Gateway Arch",
+  "full": "Gateway Arch National Park",
+  "state": "MO",
+  "lat": 38.6246,
+  "lon": -90.185,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-glacier",
+  "npsCode": "glac",
+  "name": "Glacier",
+  "full": "Glacier National Park",
+  "state": "MT",
+  "lat": 48.755,
+  "lon": -113.8,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-glacier-bay",
+  "npsCode": "glba",
+  "name": "Glacier Bay",
+  "full": "Glacier Bay National Park and Preserve",
+  "state": "AK",
+  "lat": 58.7,
+  "lon": -137.0,
+  "designation": "National Park and Preserve"
+ },
+ {
+  "code": "np-grand-canyon",
+  "npsCode": "grca",
+  "name": "Grand Canyon",
+  "full": "Grand Canyon National Park",
+  "state": "AZ",
+  "lat": 36.0553,
+  "lon": -112.122,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-grand-teton",
+  "npsCode": "grte",
+  "name": "Grand Teton",
+  "full": "Grand Teton National Park",
+  "state": "WY",
+  "lat": 43.8333,
+  "lon": -110.7008,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-great-basin",
+  "npsCode": "grba",
+  "name": "Great Basin",
+  "full": "Great Basin National Park",
+  "state": "NV",
+  "lat": 39.0058,
+  "lon": -114.2197,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-great-sand-dunes",
+  "npsCode": "grsa",
+  "name": "Great Sand Dunes",
+  "full": "Great Sand Dunes National Park and Preserve",
+  "state": "CO",
+  "lat": 37.7328,
+  "lon": -105.5122,
+  "designation": "National Park and Preserve"
+ },
+ {
+  "code": "np-great-smoky-mountains",
+  "npsCode": "grsm",
+  "name": "Great Smoky Mountains",
+  "full": "Great Smoky Mountains National Park",
+  "state": "TN",
+  "lat": 35.6111,
+  "lon": -83.425,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-guadalupe-mountains",
+  "npsCode": "gumo",
+  "name": "Guadalupe Mountains",
+  "full": "Guadalupe Mountains National Park",
+  "state": "TX",
+  "lat": 31.9167,
+  "lon": -104.8667,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-haleakala",
+  "npsCode": "hale",
+  "name": "Haleakalā",
+  "full": "Haleakalā National Park",
+  "state": "HI",
+  "lat": 20.7204,
+  "lon": -156.1551,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-hawaii-volcanoes",
+  "npsCode": "havo",
+  "name": "Hawaiʻi Volcanoes",
+  "full": "Hawaiʻi Volcanoes National Park",
+  "state": "HI",
+  "lat": 19.4008,
+  "lon": -155.1236,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-hot-springs",
+  "npsCode": "hosp",
+  "name": "Hot Springs",
+  "full": "Hot Springs National Park",
+  "state": "AR",
+  "lat": 34.5136,
+  "lon": -93.0536,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-indiana-dunes",
+  "npsCode": "indu",
+  "name": "Indiana Dunes",
+  "full": "Indiana Dunes National Park",
+  "state": "IN",
+  "lat": 41.6481,
+  "lon": -87.1081,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-isle-royale",
+  "npsCode": "isro",
+  "name": "Isle Royale",
+  "full": "Isle Royale National Park",
+  "state": "MI",
+  "lat": 47.9959,
+  "lon": -88.9093,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-joshua-tree",
+  "npsCode": "jotr",
+  "name": "Joshua Tree",
+  "full": "Joshua Tree National Park",
+  "state": "CA",
+  "lat": 33.7484,
+  "lon": -115.8193,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-katmai",
+  "npsCode": "katm",
+  "name": "Katmai",
+  "full": "Katmai National Park and Preserve",
+  "state": "AK",
+  "lat": 58.5,
+  "lon": -155.0,
+  "designation": "National Park and Preserve"
+ },
+ {
+  "code": "np-kenai-fjords",
+  "npsCode": "kefj",
+  "name": "Kenai Fjords",
+  "full": "Kenai Fjords National Park",
+  "state": "AK",
+  "lat": 59.9178,
+  "lon": -149.9875,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-kings-canyon",
+  "npsCode": "seki",
+  "name": "Kings Canyon",
+  "full": "Kings Canyon National Park",
+  "state": "CA",
+  "lat": 36.7893,
+  "lon": -118.6729,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-kobuk-valley",
+  "npsCode": "kova",
+  "name": "Kobuk Valley",
+  "full": "Kobuk Valley National Park",
+  "state": "AK",
+  "lat": 67.3534,
+  "lon": -159.1989,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-lake-clark",
+  "npsCode": "lacl",
+  "name": "Lake Clark",
+  "full": "Lake Clark National Park",
+  "state": "AK",
+  "lat": 60.97,
+  "lon": -153.42,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-lassen-volcanic",
+  "npsCode": "lavo",
+  "name": "Lassen Volcanic",
+  "full": "Lassen Volcanic National Park",
+  "state": "CA",
+  "lat": 40.4981,
+  "lon": -121.4275,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-mammoth-cave",
+  "npsCode": "maca",
+  "name": "Mammoth Cave",
+  "full": "Mammoth Cave National Park",
+  "state": "KY",
+  "lat": 37.1869,
+  "lon": -86.1011,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-mesa-verde",
+  "npsCode": "meve",
+  "name": "Mesa Verde",
+  "full": "Mesa Verde National Park",
+  "state": "CO",
+  "lat": 37.2604,
+  "lon": -108.4944,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-mount-rainier",
+  "npsCode": "mora",
+  "name": "Mount Rainier",
+  "full": "Mount Rainier National Park",
+  "state": "WA",
+  "lat": 46.85,
+  "lon": -121.75,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-national-park-of-american-samoa",
+  "npsCode": "npsa",
+  "name": "National Park of American Samoa",
+  "full": "National Park of American Samoa",
+  "state": "AS",
+  "lat": -14.2583,
+  "lon": -170.6833,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-new-river-gorge",
+  "npsCode": "neri",
+  "name": "New River Gorge",
+  "full": "New River Gorge National Park",
+  "state": "WV",
+  "lat": 37.93,
+  "lon": -81.06,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-north-cascades",
+  "npsCode": "noca",
+  "name": "North Cascades",
+  "full": "North Cascades National Park",
+  "state": "WA",
+  "lat": 48.4831,
+  "lon": -120.9114,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-olympic",
+  "npsCode": "olym",
+  "name": "Olympic",
+  "full": "Olympic National Park",
+  "state": "WA",
+  "lat": 47.7,
+  "lon": -123.75,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-petrified-forest",
+  "npsCode": "pefo",
+  "name": "Petrified Forest",
+  "full": "Petrified Forest National Park",
+  "state": "AZ",
+  "lat": 35.0881,
+  "lon": -109.806,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-pinnacles",
+  "npsCode": "pinn",
+  "name": "Pinnacles",
+  "full": "Pinnacles National Park",
+  "state": "CA",
+  "lat": 36.4869,
+  "lon": -121.167,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-rocky-mountain",
+  "npsCode": "romo",
+  "name": "Rocky Mountain",
+  "full": "Rocky Mountain National Park",
+  "state": "CO",
+  "lat": 40.35,
+  "lon": -105.6833,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-saguaro",
+  "npsCode": "sagu",
+  "name": "Saguaro",
+  "full": "Saguaro National Park",
+  "state": "AZ",
+  "lat": 32.2022,
+  "lon": -110.6109,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-sequoia",
+  "npsCode": "seki",
+  "name": "Sequoia",
+  "full": "Sequoia National Park",
+  "state": "CA",
+  "lat": 36.5647,
+  "lon": -118.7728,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-shenandoah",
+  "npsCode": "shen",
+  "name": "Shenandoah",
+  "full": "Shenandoah National Park",
+  "state": "VA",
+  "lat": 38.5333,
+  "lon": -78.35,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-theodore-roosevelt",
+  "npsCode": "thro",
+  "name": "Theodore Roosevelt",
+  "full": "Theodore Roosevelt National Park",
+  "state": "ND",
+  "lat": 46.9667,
+  "lon": -103.45,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-virgin-islands",
+  "npsCode": "viis",
+  "name": "Virgin Islands",
+  "full": "Virgin Islands National Park",
+  "state": "VI",
+  "lat": 18.3281,
+  "lon": -64.9333,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-voyageurs",
+  "npsCode": "voya",
+  "name": "Voyageurs",
+  "full": "Voyageurs National Park",
+  "state": "MN",
+  "lat": 48.5,
+  "lon": -92.8833,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-white-sands",
+  "npsCode": "whsa",
+  "name": "White Sands",
+  "full": "White Sands National Park",
+  "state": "NM",
+  "lat": 32.7797,
+  "lon": -106.1717,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-wind-cave",
+  "npsCode": "wica",
+  "name": "Wind Cave",
+  "full": "Wind Cave National Park",
+  "state": "SD",
+  "lat": 43.5564,
+  "lon": -103.4787,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-wrangellst-elias",
+  "npsCode": "wrst",
+  "name": "Wrangell–St. Elias",
+  "full": "Wrangell–St. Elias National Park and Preserve",
+  "state": "AK",
+  "lat": 61.435,
+  "lon": -142.9536,
+  "designation": "National Park and Preserve"
+ },
+ {
+  "code": "np-yellowstone",
+  "npsCode": "yell",
+  "name": "Yellowstone",
+  "full": "Yellowstone National Park",
+  "state": "WY",
+  "lat": 44.6,
+  "lon": -110.5,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-yosemite",
+  "npsCode": "yose",
+  "name": "Yosemite",
+  "full": "Yosemite National Park",
+  "state": "CA",
+  "lat": 37.7425,
+  "lon": -119.5375,
+  "designation": "National Park"
+ },
+ {
+  "code": "np-zion",
+  "npsCode": "zion",
+  "name": "Zion",
+  "full": "Zion National Park",
+  "state": "UT",
+  "lat": 37.2026,
+  "lon": -112.9878,
+  "designation": "National Park"
+ }
+]

@@ -63,10 +63,25 @@ final class ParkFacts {
 
     /// Park code by park name, once resolved, so the search is paid for once per park.
     private static let codeKey = "parkhop-nps-codes"
-    private var resolvedCodes: [String: String] =
-        (UserDefaults.standard.dictionary(forKey: ParkFacts.codeKey) as? [String: String]) ?? [:]
+    /// Bumped when the resolver changes. A miss is remembered as `""` so it does not
+    /// repeat, which was right — but the resolver used to miss *every* park, so every
+    /// install carries a cache saying the park service covers nothing. Without this those
+    /// misses outlive the fix and the panels stay empty on exactly the phones that hit the
+    /// bug.
+    private static let codeGenerationKey = "parkhop-nps-codes-generation"
+    private static let codeGeneration = 2
 
-    private init() {}
+    private var resolvedCodes: [String: String] = [:]
+
+    private init() {
+        let defaults = UserDefaults.standard
+        if defaults.integer(forKey: Self.codeGenerationKey) == Self.codeGeneration {
+            resolvedCodes = (defaults.dictionary(forKey: Self.codeKey) as? [String: String]) ?? [:]
+        } else {
+            defaults.removeObject(forKey: Self.codeKey)
+            defaults.set(Self.codeGeneration, forKey: Self.codeGenerationKey)
+        }
+    }
 
     func state(for park: CuratedPark) -> State { states[park.code] ?? .idle }
 
@@ -116,9 +131,17 @@ final class ParkFacts {
         // The curated eight already carry NPS codes; everything else has to be looked up
         // by name, once.
         if NPSService.isNPSCode(park.code) { return park.code }
+        // The bundled sixty-two now carry the park service's own code, so they need no
+        // lookup at all — which matters because the lookup was failing for every one of
+        // them, and because this way it also works with no signal.
+        if let known = park.npsCode, NPSService.isNPSCode(known) { return known }
         if let known = resolvedCodes[park.full] { return known.isEmpty ? nil : known }
 
-        let found = try? await proxy.search(name: park.full)
+        // The park's short name, not its full one. NPS matches on any word in `q`, so
+        // "Badlands National Park" asked for every unit with "National" or "Park" in its
+        // name — 452 of them, alphabetically — and the answer was never in the first page.
+        // "Badlands" asks for five.
+        let found = try? await proxy.search(name: park.name, expecting: park.full)
         resolvedCodes[park.full] = found ?? ""      // remember a miss too, or it repeats
         UserDefaults.standard.set(resolvedCodes, forKey: Self.codeKey)
         return found
@@ -203,16 +226,33 @@ private struct ProxyService {
         (try? await rows("/nps", ["endpoint": endpoint, "parkCode": code])) ?? []
     }
 
-    /// The unit code for a park's full name, or nil when the service does not cover it.
-    func search(name: String) async throws -> String? {
-        let rows = try await rows("/nps", ["endpoint": "parks", "q": name, "limit": "10"])
-        let wanted = name.lowercased()
-        let match = rows.first { ($0["fullName"] as? String)?.lowercased() == wanted }
+    /// The unit code for a park, searched by short name and confirmed against the full one.
+    ///
+    /// `limit` is 50 rather than 10 because NPS returns matches alphabetically, not by
+    /// relevance — a short name that collides with many units would otherwise be truncated
+    /// before the right one appeared.
+    func search(name: String, expecting full: String) async throws -> String? {
+        let rows = try await rows("/nps", ["endpoint": "parks", "q": name, "limit": "50"])
+        let wanted = Self.comparable(full)
+        let match = rows.first { Self.comparable($0["fullName"] as? String ?? "") == wanted }
             ?? rows.first { row in
-                guard let full = (row["fullName"] as? String)?.lowercased() else { return false }
-                return full.hasPrefix(wanted) || wanted.hasPrefix(full)
+                let candidate = Self.comparable(row["fullName"] as? String ?? "")
+                guard !candidate.isEmpty else { return false }
+                return candidate.hasPrefix(wanted) || wanted.hasPrefix(candidate)
             }
         return match?["parkCode"] as? String
+    }
+
+    /// Names for comparing. NPS writes "Sequoia & Kings Canyon" and "Wrangell-St. Elias"
+    /// with an ampersand and a hyphen where the bundled list writes "and" and an en dash,
+    /// so a literal comparison misses parks that are plainly the same one.
+    private static func comparable(_ raw: String) -> String {
+        let folded = raw.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+            .replacingOccurrences(of: "&", with: "and")
+        let simplified = folded.unicodeScalars.map { scalar -> Character in
+            CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : " "
+        }
+        return String(simplified).split(separator: " ").joined(separator: " ")
     }
 
     private func rows(_ path: String, _ query: [String: String]) async throws -> [[String: Any]] {

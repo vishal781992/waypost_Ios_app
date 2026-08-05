@@ -13,6 +13,15 @@ import Foundation
 /// them: no fees, no hours, no conditions. Those still come from the park.
 struct NationalPark: Decodable, Hashable, Identifiable {
     let code: String
+    /// The park service's own four-letter unit code — `badl`, `acad`, `seki`.
+    ///
+    /// Carried in the bundled data rather than looked up, because looking it up did not
+    /// work: the app searched NPS for the park's *full* name, and that search matches on
+    /// any word in it, so "Badlands National Park" came back as 452 units in alphabetical
+    /// order and the ten the app asked for were Abraham Lincoln through Alibates. Every
+    /// park failed the same way. Sequoia and Kings Canyon share `seki`, which is how the
+    /// park service administers them.
+    let npsCode: String?
     let name: String
     let full: String
     let state: String
@@ -93,7 +102,8 @@ extension CuratedPark {
             days: [],
             stamps: [],
             source: .onDevice,
-            designation: park.designation
+            designation: park.designation,
+            npsCode: park.npsCode
         )
     }
 }

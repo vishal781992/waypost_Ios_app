@@ -98,6 +98,9 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     /// in `curated.json`, where every entry is a national park, so it is read off the
     /// full name for those.
     var designation: String? = nil
+    /// The park service's own four-letter unit code, when this park is one of its units
+    /// and the code is already known. Saves a lookup that did not work anyway.
+    var npsCode: String? = nil
 
     var id: String { code }
 
