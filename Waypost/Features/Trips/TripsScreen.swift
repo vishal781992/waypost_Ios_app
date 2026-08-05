@@ -98,17 +98,15 @@ struct TripsScreen: View {
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }
-        .sheet(isPresented: Binding(get: { app.showsQuickSearch },
-                                    set: { app.showsQuickSearch = $0 })) {
-            QuickSearchSheet()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
     }
 
     private var newTripButton: some View {
         Button {
-            app.showsQuickSearch = true
+            // Straight into the builder. This opened the park finder, so `+` on the Trips
+            // tab answered "which park?" and then needed "Plan a trip instead" to get to
+            // what was being asked for — while the empty state's own button on this very
+            // screen already went directly. Planning a trip is what this tab is for.
+            app.startBuilder()
         } label: {
             ZStack {
                 WP.ink

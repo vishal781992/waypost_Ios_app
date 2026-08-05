@@ -160,6 +160,21 @@ enum WP {
 
     /// The design's page gutter on every screen.
     static let gutter: CGFloat = 20
+
+    /// How round a sheet's top corners are.
+    static let sheetCorner: CGFloat = 34
+
+    /// Where a round close control sits so that it and the corner it sits in are drawn
+    /// about the same point.
+    ///
+    /// A circle inset by the page gutter has its centre at (gutter + r) from the corner,
+    /// while the corner's own arc is centred at (radius, radius) — so at a 20pt gutter and
+    /// a 22pt disc the two curves were struck from points 20pt apart and never looked
+    /// concentric. Insetting by `sheetCorner - r` puts both centres on the same point,
+    /// whatever size the disc is.
+    static func sheetCloseInset(for discSize: CGFloat) -> CGFloat {
+        sheetCorner - discSize / 2
+    }
     /// Status-bar clearance the design bakes into each header (`padding-top: 57px`).
     static let headerTop: CGFloat = 14
     /// Breathing room at the end of a scroll. The system tab bar insets content itself,

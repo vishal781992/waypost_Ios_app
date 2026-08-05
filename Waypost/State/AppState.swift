@@ -651,6 +651,13 @@ final class AppState {
         // and the state list — every code the picker can produce.
         builder.resolvePark = { [weak self] code in self?.park(code) }
         self.builder = builder
+
+        // Asked for once, when the builder opens. The list shows its curated order until
+        // this answers and re-sorts, so a refusal or a slow fix costs nothing.
+        Task { [weak builder] in
+            guard let fix = await LocationService.shared.currentFix() else { return }
+            builder?.nearby = (fix.lat, fix.lon)
+        }
     }
 
     /// Hands the directory's findings to the open builder, if there is one.
@@ -843,6 +850,11 @@ final class TripBuilder {
     /// the builder only knows the curated eight, and every `np-…` or `sp-…` pick resolved
     /// to nothing — a blank review row and a trip titled " to ".
     var resolvePark: ((String) -> CuratedPark?)?
+    /// Where the phone is, so the untyped list leads with what is actually near.
+    ///
+    /// Nil until Core Location answers, and nil for good if it refuses — in which case the
+    /// list keeps its curated order rather than pretending to a ranking it cannot make.
+    var nearby: (lat: Double, lon: Double)?
 
     private func resolve(_ code: String) -> CuratedPark? {
         resolvePark?(code) ?? library.park(code)
@@ -902,9 +914,16 @@ final class TripBuilder {
         }
 
         if q.isEmpty {
-            // Nothing typed: the eight with plans first, then the rest of the country.
             add(NationalParks.all.map(CuratedPark.init(bundled:)))
-            return out
+            // With nothing typed this was a fixed list — the same eight in the same order
+            // whether the phone was in Denver or in Maine, then the other fifty-four in the
+            // order they happen to sit in the file. The first thing anybody plans a trip
+            // around is what they can reach, so rank by that when the phone will say where
+            // it is, and keep the curated order when it will not.
+            guard let nearby else { return out }
+            return out.sorted {
+                Geo.haversine(nearby, ($0.lat, $0.lon)) < Geo.haversine(nearby, ($1.lat, $1.lon))
+            }
         }
 
         out = out.filter { ($0.name + " " + $0.state + " " + $0.full).lowercased().contains(q) }

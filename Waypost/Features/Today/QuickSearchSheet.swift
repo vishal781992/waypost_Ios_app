@@ -87,6 +87,7 @@ struct QuickSearchSheet: View {
             .padding(.bottom, 8)
         }
         .background(WP.bg)
+        .presentationCornerRadius(WP.sheetCorner)
         .onAppear {
             if let launchedQuery, query.isEmpty { query = launchedQuery }
             focused = true
@@ -109,6 +110,8 @@ struct QuickSearchSheet: View {
                 // two ends of one gesture.
                 GlassDisc(icon: "xmark") { dismiss() }
                     .accessibilityLabel("Close")
+                    // Concentric with the sheet's corner, as on every other sheet.
+                    .padding(.trailing, WP.sheetCloseInset(for: 52) - WP.gutter)
             }
 
             Text("A state, a city, or a name.")

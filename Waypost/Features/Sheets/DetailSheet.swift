@@ -27,7 +27,7 @@ struct DetailSheet: View {
         .presentationDetents(detents)
         .presentationDragIndicator(.visible)
         .presentationBackground(.clear)
-        .presentationCornerRadius(22)
+        .presentationCornerRadius(WP.sheetCorner)
     }
 
     private var detents: Set<PresentationDetent> {

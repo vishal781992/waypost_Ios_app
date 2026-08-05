@@ -35,7 +35,7 @@ struct NewTripSheet: View {
         }
         .background(WP.bg)
         .presentationDetents([.large])
-        .presentationCornerRadius(22)
+        .presentationCornerRadius(WP.sheetCorner)
         .presentationDragIndicator(.visible)
         .onChange(of: app.directory.hits) { _, _ in app.refreshBuilderResults() }
         .onChange(of: app.directory.phase) { _, _ in app.refreshBuilderResults() }
@@ -69,13 +69,17 @@ struct NewTripSheet: View {
                 // every other round control in the app is.
                 GlassDisc(icon: "xmark", size: 44) { dismiss() }
                     .accessibilityLabel("Cancel")
+                    // Out of the page gutter and into the corner's own centre. Negative,
+                    // because the gutter is applied to the header as a whole and this one
+                    // control has to sit closer to the edge than the text does.
+                    .padding(.trailing, WP.sheetCloseInset(for: 44) - WP.gutter)
             }
 
             Text(builder.heading).font(WP.display(32)).padding(.top, 9)
             Text(builder.subtitle).font(WP.body(12.5)).lineSpacing(2).opacity(0.7).padding(.top, 5)
         }
         .padding(.horizontal, WP.gutter)
-        .padding(.top, 6)
+        .padding(.top, WP.sheetCloseInset(for: 44))
         .padding(.bottom, 12)
         .overlay(alignment: .bottom) { Hairline() }
     }
@@ -85,15 +89,18 @@ struct NewTripSheet: View {
             if builder.step == 1 {
                 Text(builder.pickNote).font(WP.bodyItalic(11.5)).opacity(0.6)
             }
-            GlowButton(title: builder.nextLabel, minHeight: 52) {
+            // 48 rather than 52, and sitting lower: the footer was giving up about a row
+            // and a half of results to padding that the home indicator's own clearance was
+            // already providing underneath it. Still well clear of the 44pt minimum.
+            GlowButton(title: builder.nextLabel, minHeight: 48) {
                 advance()
             }
             .opacity(builder.isNextDisabled ? 0.45 : 1)
             .disabled(builder.isNextDisabled)
         }
         .padding(.horizontal, WP.gutter)
-        .padding(.top, 11)
-        .padding(.bottom, 18)
+        .padding(.top, 9)
+        .padding(.bottom, 8)
         .background(WP.bg.opacity(0.92))
         .overlay(alignment: .top) { Hairline() }
     }
