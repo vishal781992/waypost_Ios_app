@@ -118,6 +118,9 @@ extension CuratedPark {
     /// gets a photograph, today's weather, the chargers and shops around it, and a way
     /// into the trip builder, all from sources that answer for anywhere.
     init(stateRow row: StateParkRow) {
+        // Only `http(s)`, through the same guard every other remote link goes through:
+        // these rows are world-editable upstream.
+        let site = safeURL(row.w)
         let short = CuratedPark.shortName(row.n)
         self.init(
             code: "sp-" + row.n.lowercased()
@@ -149,7 +152,8 @@ extension CuratedPark {
             days: [],
             stamps: [],
             source: .onDevice,
-            designation: ParkDesignation.inName(row.n) ?? "State Park"
+            designation: ParkDesignation.inName(row.n) ?? "State Park",
+            website: site
         )
     }
 }

@@ -101,6 +101,12 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     /// The park service's own four-letter unit code, when this park is one of its units
     /// and the code is already known. Saves a lookup that did not work anyway.
     var npsCode: String? = nil
+    /// The park's own page, where the bundled record knows it.
+    ///
+    /// `state-parks.json` has carried this for 2,300 of its 3,003 parks all along —
+    /// `StateParkRow` even decoded it — and it was dropped on the way into this type, so
+    /// the app went and asked Apple Maps for something it already had on disk.
+    var website: URL? = nil
 
     var id: String { code }
 

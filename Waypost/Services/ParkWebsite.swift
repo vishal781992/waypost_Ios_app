@@ -34,6 +34,14 @@ final class ParkWebsite {
 
     func load(_ park: CuratedPark) {
         guard case .idle = state(for: park) else { return }
+
+        // The bundled row already knows, for 2,300 of the 3,003 state parks. That is the
+        // park's *own* published address rather than whatever Apple Maps associates with
+        // the name, it needs no network, and it cannot pick the wrong Cherry Creek.
+        if let known = park.website {
+            states[park.code] = .found(known)
+            return
+        }
         states[park.code] = .looking
 
         Task { [weak self] in
