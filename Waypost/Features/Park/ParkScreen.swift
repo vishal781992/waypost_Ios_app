@@ -46,25 +46,48 @@ struct ParkScreen: View {
             // says nothing here.
             factsUnavailable
         default:
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(feeText).font(WP.body(12.5)).opacity(0.85)
-                Text("|").opacity(0.28)
-                Text(hoursText).font(WP.body(12.5)).opacity(0.85)
+            // Stacked, not side by side. The hours run to several sentences and the fee is
+            // two words, so in two columns the fee sat alone against a paragraph and the
+            // eye had to work out which was which. One labelled block each reads straight
+            // down.
+            VStack(alignment: .leading, spacing: 11) {
+                labelledFact("Entrance fee", feeText, fromNPS: liveFee != nil)
+                labelledFact("Park hours", hoursText, fromNPS: liveHours != nil)
             }
         }
     }
 
+    /// One fact, with what it is above it and where it came from beside that.
+    ///
+    /// The attribution is per field rather than per park: NPS can answer with hours and no
+    /// fee, and saying the whole block came from the park service would then be wrong
+    /// about half of it.
+    private func labelledFact(_ label: String, _ value: String, fromNPS: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(fromNPS ? "\(label) · NPS".uppercased() : label.uppercased())
+                .font(WP.body(10)).tracking(1.4)
+                .foregroundStyle(WP.accent800)
+            Text(value)
+                .font(WP.body(12.5)).opacity(0.85).lineSpacing(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
     /// "Not published" on its own does not say what is not published — and it sat in two
     /// columns, so a park missing both read "Not published · Not published" and named
-    /// neither. Each column now says which of the two is missing.
+    /// neither. The label now carries the field, so the value only has to say "not
+    /// published" once.
     private var feeText: String {
         if let liveFee { return liveFee }
-        return Self.isUnpublished(park.fee) ? "Entrance fee not published" : park.fee
+        return Self.isUnpublished(park.fee) ? "Not published" : park.fee
     }
 
     private var hoursText: String {
         if let liveHours { return liveHours }
-        return Self.isUnpublished(park.hours) ? "Opening hours not published" : park.hours
+        return Self.isUnpublished(park.hours) ? "Not published" : park.hours
     }
 
     private static func isUnpublished(_ value: String) -> Bool {
@@ -264,6 +287,25 @@ struct OverviewSection: View {
                     .font(WP.bodyItalic(13)).lineSpacing(3).opacity(0.75)
             }
 
+            // An empty alert list used to hide this section outright, so a park with a
+            // closure the app failed to fetch looked exactly like a park with nothing to
+            // report. Of everything the screen can be quietly wrong about, this is the one
+            // that matters on the road.
+            if alertsUnavailable {
+                VStack(alignment: .leading, spacing: 4) {
+                    SectionTitle("Know before you go")
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(WP.accent700)
+                        Text("Current alerts could not be checked. Ask the park before you travel.")
+                            .font(WP.bodyItalic(12.5)).lineSpacing(2).opacity(0.75)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 6)
+                }
+            }
+
             if !alerts.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 SectionTitle("Know before you go")
@@ -372,6 +414,12 @@ struct OverviewSection: View {
     private var alerts: [CuratedAlert] {
         if let live = facts?.alerts, !live.isEmpty { return live }
         return park.alerts
+    }
+
+    /// True when the park service refused the alerts request, as distinct from answering
+    /// that this park has none posted.
+    private var alertsUnavailable: Bool {
+        facts?.unavailable.contains("alerts") == true && alerts.isEmpty
     }
 
     /// Which of the two catalogues this park's overview is being read out of, and which

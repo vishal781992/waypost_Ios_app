@@ -26,6 +26,10 @@ final class ParkFacts {
         var thingsToDo: [Activity]
         var parking: [String]
         var fetchedAt: Date
+        /// Which of the park service's per-park endpoints refused. A section listed here
+        /// has nothing to show because the app could not ask, not because the park
+        /// publishes nothing — and for alerts those are very different sentences.
+        var unavailable: Set<String> = []
     }
 
     /// A campground as the park service describes it, with the Recreation.gov facility
@@ -105,10 +109,10 @@ final class ParkFacts {
                 }
                 // The park record is the one that must arrive; the rest fill in what they
                 // can and are absent rather than wrong when they do not.
-                async let alerts = proxy.rowsOrEmpty("alerts", code: code)
-                async let camps = proxy.rowsOrEmpty("campgrounds", code: code)
-                async let things = proxy.rowsOrEmpty("thingstodo", code: code)
-                async let lots = proxy.rowsOrEmpty("parkinglots", code: code)
+                async let alerts = proxy.rows("alerts", code: code)
+                async let camps = proxy.rows("campgrounds", code: code)
+                async let things = proxy.rows("thingstodo", code: code)
+                async let lots = proxy.rows("parkinglots", code: code)
                 states[park.code] = .loaded(Self.facts(
                     from: row, code: code,
                     alerts: await alerts, camps: await camps,
@@ -163,6 +167,29 @@ final class ParkFacts {
         return name
     }
 
+    /// The Recreation.gov facility a campground's booking link points at.
+    ///
+    /// Read off the URL's *path*, not off the raw string. Splitting the whole URL on "/"
+    /// and taking the last piece works right up until the link carries a query — Badlands
+    /// links to `…/campgrounds/10288228?tab=campsites`, which became "10288228?tab=campsites",
+    /// failed the all-digits test and was dropped. That facility publishes eighty-three
+    /// sites and live availability.
+    ///
+    /// Only recreation.gov links qualify. A campground booked through a concessioner —
+    /// Yellowstone's lodges, Grand Canyon's — has no facility here and correctly resolves
+    /// to nothing rather than to some other site's id.
+    static func facilityID(from raw: String?) -> String? {
+        guard let raw,
+              let components = URLComponents(string: raw),
+              let host = components.host?.lowercased(),
+              host == "recreation.gov" || host.hasSuffix(".recreation.gov")
+        else { return nil }
+
+        let identifier = components.path.split(separator: "/").last.map(String.init)
+        guard let identifier, !identifier.isEmpty, identifier.allSatisfy(\.isNumber) else { return nil }
+        return identifier
+    }
+
     /// Trims to whole sentences.
     ///
     /// Cutting at a character count ended Congaree's hours on "Please review the par",
@@ -196,10 +223,20 @@ final class ParkFacts {
     }
 
     private static func facts(from row: [String: Any], code: String,
-                              alerts: [[String: Any]],
-                              camps: [[String: Any]] = [],
-                              things: [[String: Any]] = [],
-                              lots: [[String: Any]] = []) -> Facts {
+                              alerts alertRows: [[String: Any]]?,
+                              camps campRows: [[String: Any]]? = [],
+                              things thingRows: [[String: Any]]? = [],
+                              lots lotRows: [[String: Any]]? = []) -> Facts {
+        var unavailable: Set<String> = []
+        for (name, rows) in [("alerts", alertRows), ("campgrounds", campRows),
+                             ("thingstodo", thingRows), ("parkinglots", lotRows)]
+        where rows == nil {
+            unavailable.insert(name)
+        }
+        let alerts = alertRows ?? []
+        let camps = campRows ?? []
+        let things = thingRows ?? []
+        let lots = lotRows ?? []
         let feeRows = row["entranceFees"] as? [[String: Any]]
         let fee: String?
         if let first = feeRows?.first {
@@ -244,9 +281,7 @@ final class ParkFacts {
                     fee: cost.flatMap(Double.init).map { $0 > 0 ? "$\(Int($0)) a night" : "Free" },
                     reservationNote: (camp["reservationInfo"] as? String).map { Self.sentences($0, within: 180) },
                     // "…/camping/campgrounds/232445" — the join across to Recreation.gov.
-                    facilityID: (camp["reservationUrl"] as? String)?
-                        .split(separator: "/").last.map(String.init)
-                        .flatMap { $0.allSatisfy(\.isNumber) ? $0 : nil }
+                    facilityID: Self.facilityID(from: camp["reservationUrl"] as? String)
                 )
             },
             thingsToDo: things.prefix(8).compactMap { thing in
@@ -258,7 +293,8 @@ final class ParkFacts {
                 )
             },
             parking: lots.compactMap { $0["name"] as? String },
-            fetchedAt: Date()
+            fetchedAt: Date(),
+            unavailable: unavailable
         )
     }
 }
@@ -274,9 +310,14 @@ private struct ProxyService {
                                 "fields": "entranceFees,operatingHours,images"]).first
     }
 
-    /// Any of the park service's per-park endpoints, absent rather than fatal on failure.
-    func rowsOrEmpty(_ endpoint: String, code: String) async -> [[String: Any]] {
-        (try? await rows("/nps", ["endpoint": endpoint, "parkCode": code])) ?? []
+    /// Any of the park service's per-park endpoints. `nil` means the request failed;
+    /// `[]` means the service answered and publishes none.
+    ///
+    /// These were collapsed into one empty array, so a refused request and a park with no
+    /// closures produced the same screen — which is the exact thing `NPSService` documents
+    /// as the one mistake this app must never make, and it was being made here for alerts.
+    func rows(_ endpoint: String, code: String) async -> [[String: Any]]? {
+        try? await rows("/nps", ["endpoint": endpoint, "parkCode": code])
     }
 
     /// The unit code for a park, searched by short name and confirmed against the full one.
