@@ -5,20 +5,45 @@ struct DiscoverScreen: View {
     @Environment(AppState.self) private var app
     @FocusState private var searchFocused: Bool
 
+    /// Where the phone is. Asked for here rather than read off the recommender, which only
+    /// has a fix once the Today screen has run — open the app straight onto Discover and it
+    /// is nil, which is exactly the case this ordering is for.
+    @State private var nearby: (lat: Double, lon: Double)?
+
     private let chips: [(id: String, label: String)] = [
         ("all", "Everything"), ("Desert", "Desert"), ("Alpine", "Alpine"),
         ("Coast", "Coast"), ("Geothermal", "Geothermal"), ("quiet", "Quieter"),
     ]
 
-    /// The eight parks that ship with the app, filtered the way they always were.
+    /// The parks on the phone, nearest first.
+    ///
+    /// This was `orderedParks` alone: the shipped eight, in a hard-coded order, identical
+    /// whether the phone was in Denver or in Maine — and the other fifty-four national
+    /// parks already on the device were not offered at all until something was typed. With
+    /// an empty field it now shows every one of them, ranked by distance from where the
+    /// phone says it is, and keeps the curated order when location is refused.
     private var curated: [CuratedPark] {
         var list = app.library.orderedParks
+        let query = app.discoverQuery.trimmingCharacters(in: .whitespaces)
+
+        if query.isEmpty {
+            let seen = Set(list.map { $0.name.lowercased() })
+            list += NationalParks.all
+                .map(CuratedPark.init(bundled:))
+                .filter { !seen.contains($0.name.lowercased()) }
+            if let fix = nearby ?? app.recommender.fix {
+                list.sort {
+                    Geo.haversine(fix, ($0.lat, $0.lon)) < Geo.haversine(fix, ($1.lat, $1.lon))
+                }
+            }
+        }
+
         if app.discoverChip == "quiet" {
             list = list.filter { $0.crowd.contains("Quiet") || $0.crowd.contains("Moderate") }
         } else if app.discoverChip != "all" {
             list = list.filter { $0.region == app.discoverChip }
         }
-        let q = app.discoverQuery.trimmingCharacters(in: .whitespaces).lowercased()
+        let q = query.lowercased()
         if !q.isEmpty {
             list = list.filter { ($0.name + " " + $0.state + " " + $0.full).lowercased().contains(q) }
         }
@@ -158,6 +183,12 @@ struct DiscoverScreen: View {
             }
             .scrollIndicators(.hidden)
             .captureScrollPosition()
+            .task {
+                guard nearby == nil else { return }
+                if let fix = await LocationService.shared.currentFix() {
+                    nearby = (fix.lat, fix.lon)
+                }
+            }
         }
         .onAppear {
             if app.focusSearchOnAppear {
