@@ -137,20 +137,31 @@ final class ParkPhotos {
     // MARK: Sources
 
     /// The park service's own photographs, through the proxy that holds the key.
+    ///
+    /// The code sent here has to be the park service's own four-letter one — `badl`, not
+    /// the bundled `np-badlands` slug. NPS fails *open* on a code it does not recognise: it
+    /// ignores it and answers with the first fifty units alphabetically, whose first row is
+    /// always Abraham Lincoln Birthplace. So sending the slug gave every national park the
+    /// same three photographs, repeated among them. A park with no valid NPS code does not
+    /// ask at all, and falls through to Wikipedia.
     private func npsPhoto(_ park: CuratedPark) async -> Photo? {
-        guard proxy.isConnected,
+        let code = park.npsCode ?? park.code
+        guard proxy.isConnected, NPSService.isNPSCode(code),
               let request = proxy.request("/nps", [
-                  "endpoint": "parks", "parkCode": park.code, "fields": "images",
+                  "endpoint": "parks", "parkCode": code, "fields": "images",
               ]) else { return nil }
         do {
             let object = try await HTTP.any(request)
             let rows = object["data"] as? [[String: Any]] ?? []
-            let images = rows.first?["images"] as? [[String: Any]] ?? []
-            // The design picks at random so a park looks different between visits; the
-            // park code seeds it so it at least holds still within one.
-            guard !images.isEmpty else { return nil }
-            let index = abs(park.code.hashValue) % images.count
-            let image = images[index]
+            // Confirm the answer is actually this park's, not a fail-open default — the one
+            // mistake this whole method exists to avoid.
+            guard (rows.first?["parkCode"] as? String) == code,
+                  let images = rows.first?["images"] as? [[String: Any]], !images.isEmpty
+            else { return nil }
+            // A stable pick: the same park shows the same photograph across launches. Swift's
+            // own `hashValue` is seeded per process, so it was choosing a different image
+            // every time the app started.
+            let image = images[Self.stableIndex(code, count: images.count)]
             guard let url = safeURL(image["url"] as? String) else { return nil }
             let credit = (image["credit"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             return Photo(url: url, credit: credit ?? "NPS", source: "NPS")
@@ -158,6 +169,14 @@ final class ParkPhotos {
             failures.note("park photographs (NPS)", error)
             return nil
         }
+    }
+
+    /// A deterministic index from a code, so a park's photograph holds still between
+    /// launches. FNV-1a rather than `hashValue`, which is randomised per process.
+    private static func stableIndex(_ code: String, count: Int) -> Int {
+        var hash: UInt64 = 1469598103934665603
+        for byte in code.utf8 { hash = (hash ^ UInt64(byte)) &* 1099511628211 }
+        return Int(hash % UInt64(max(1, count)))
     }
 
     /// Wikipedia's summary endpoint: no key, no proxy, one image per article.
@@ -196,6 +215,12 @@ final class ParkPhotos {
     }
 
     private static let key = "parkhop-photos"
+    /// Bumped when the resolver changes. Every install that ran the old code holds a map of
+    /// national parks pointing at Abraham Lincoln's photographs; without a reset those
+    /// resolved URLs outlive the fix and the wrong pictures stay on exactly the phones that
+    /// hit the bug.
+    private static let generationKey = "parkhop-photos-generation"
+    private static let generation = 2
 
     private func persist() {
         let stored = photos.mapValues { Stored(url: $0.url, credit: $0.credit, source: $0.source) }
@@ -205,7 +230,16 @@ final class ParkPhotos {
     }
 
     private func restore() {
-        guard let data = UserDefaults.standard.data(forKey: Self.key),
+        let defaults = UserDefaults.standard
+        guard defaults.integer(forKey: Self.generationKey) == Self.generation else {
+            // A resolver from before this fix: drop the map so every park resolves again,
+            // and the disk cache with it so the wrong bytes are not simply re-read.
+            defaults.removeObject(forKey: Self.key)
+            defaults.set(Self.generation, forKey: Self.generationKey)
+            Task { await PhotoStore.shared.clear() }
+            return
+        }
+        guard let data = defaults.data(forKey: Self.key),
               let stored = try? JSONDecoder().decode([String: Stored].self, from: data) else { return }
         photos = stored.mapValues { Photo(url: $0.url, credit: $0.credit, source: $0.source) }
     }
