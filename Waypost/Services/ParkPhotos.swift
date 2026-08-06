@@ -53,33 +53,33 @@ final class ParkPhotos {
     /// photograph anywhere is not asked about again this launch.
     func load(_ park: CuratedPark) {
         guard photos[park.code] == nil, !inFlight.contains(park.code) else { return }
-
-        // The bundled row names a photograph for 1,821 of the state parks, on Wikimedia
-        // Commons — the same picture the web app draws. No search needed, no request to
-        // find it, and it is the right park rather than the nearest name match.
-        if let file = park.photoFile, let url = Self.commonsURL(file) {
-            photos[park.code] = Photo(url: url,
-                                      credit: "Wikimedia Commons",
-                                      source: "Wikimedia Commons")
-            persist()
-            return
-        }
         inFlight.insert(park.code)
 
         Task { [weak self] in
             guard let self else { return }
             defer { inFlight.remove(park.code) }
-
-            if let fromNPS = await npsPhoto(park) {
-                photos[park.code] = fromNPS
-                persist()
-                return
-            }
-            if let fromWikipedia = await wikipediaPhoto(park) {
-                photos[park.code] = fromWikipedia
+            if let photo = await resolve(park) {
+                photos[park.code] = photo
                 persist()
             }
         }
+    }
+
+    /// The one place a park's photograph is chosen, so on-demand and prefetch pick the
+    /// same source in the same order — the park service's own marquee shot first.
+    ///
+    /// This used to differ: on-demand tried NPS then Wikipedia, but the wi-fi prefetch
+    /// used Wikipedia alone and ran first, so for every prefetched park Wikipedia won and
+    /// the NPS photograph was never seen. Now both come through here.
+    private func resolve(_ park: CuratedPark) async -> Photo? {
+        // A state park names its own picture on Wikimedia Commons — the same one the web
+        // app draws, no search, and the right park rather than the nearest name match.
+        if let file = park.photoFile, let url = Self.commonsURL(file) {
+            return Photo(url: url, credit: "Wikimedia Commons", source: "Wikimedia Commons")
+        }
+        // The park service's flagship image, then Wikipedia where NPS has nothing.
+        if let fromNPS = await npsPhoto(park) { return fromNPS }
+        return await wikipediaPhoto(park)
     }
 
     /// Fills the store with a photograph for every national park in the country.
@@ -122,13 +122,12 @@ final class ParkPhotos {
         }
     }
 
-    /// One park: find the photograph if it is not known, then put it on disk.
+    /// One park: find the photograph if it is not known, then put it on disk. Resolves
+    /// through the same path as on-demand, so the prefetched image is the NPS marquee too.
     fileprivate func prefetch(_ park: CuratedPark) async {
-        if photos[park.code] == nil {
-            if let found = await wikipediaPhoto(park) {
-                photos[park.code] = found
-                persist()
-            }
+        if photos[park.code] == nil, let found = await resolve(park) {
+            photos[park.code] = found
+            persist()
         }
         guard let photo = photos[park.code] else { return }
         await PhotoStore.shared.fetch(photo.url)
@@ -212,7 +211,7 @@ final class ParkPhotos {
     /// resolved URLs outlive the fix and the wrong pictures stay on exactly the phones that
     /// hit the bug.
     private static let generationKey = "parkhop-photos-generation"
-    private static let generation = 3
+    private static let generation = 4
 
     private func persist() {
         let stored = photos.mapValues { Stored(url: $0.url, credit: $0.credit, source: $0.source) }
