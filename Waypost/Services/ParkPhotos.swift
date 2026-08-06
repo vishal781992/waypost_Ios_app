@@ -156,27 +156,19 @@ final class ParkPhotos {
             // Confirm the answer is actually this park's, not a fail-open default — the one
             // mistake this whole method exists to avoid.
             guard (rows.first?["parkCode"] as? String) == code,
-                  let images = rows.first?["images"] as? [[String: Any]], !images.isEmpty
+                  let images = rows.first?["images"] as? [[String: Any]]
             else { return nil }
-            // A stable pick: the same park shows the same photograph across launches. Swift's
-            // own `hashValue` is seeded per process, so it was choosing a different image
-            // every time the app started.
-            let image = images[Self.stableIndex(code, count: images.count)]
-            guard let url = safeURL(image["url"] as? String) else { return nil }
+            // The first image, always. NPS orders these deliberately — the flagship shot is
+            // first (Zion's Watchman, Grand Canyon from Mather Point, Rocky Mountain's
+            // tundra), and the rest tail off into carriage-road bike tours and fee signs.
+            // This used to hash the code to a random index, which threw the marquee away.
+            guard let image = images.first, let url = safeURL(image["url"] as? String) else { return nil }
             let credit = (image["credit"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             return Photo(url: url, credit: credit ?? "NPS", source: "NPS")
         } catch {
             failures.note("park photographs (NPS)", error)
             return nil
         }
-    }
-
-    /// A deterministic index from a code, so a park's photograph holds still between
-    /// launches. FNV-1a rather than `hashValue`, which is randomised per process.
-    private static func stableIndex(_ code: String, count: Int) -> Int {
-        var hash: UInt64 = 1469598103934665603
-        for byte in code.utf8 { hash = (hash ^ UInt64(byte)) &* 1099511628211 }
-        return Int(hash % UInt64(max(1, count)))
     }
 
     /// Wikipedia's summary endpoint: no key, no proxy, one image per article.
@@ -220,7 +212,7 @@ final class ParkPhotos {
     /// resolved URLs outlive the fix and the wrong pictures stay on exactly the phones that
     /// hit the bug.
     private static let generationKey = "parkhop-photos-generation"
-    private static let generation = 2
+    private static let generation = 3
 
     private func persist() {
         let stored = photos.mapValues { Stored(url: $0.url, credit: $0.credit, source: $0.source) }
