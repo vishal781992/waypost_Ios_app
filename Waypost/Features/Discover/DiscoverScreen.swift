@@ -1,3 +1,4 @@
+import MapKit
 import SwiftUI
 
 /// Discover — the catalogue, one park at a time, each carrying its own colour.
@@ -380,26 +381,30 @@ struct StateParkList: View {
             .padding(.bottom, 12)
 
             ForEach(rows, id: \.n) { row in
-                Button {
-                    app.openPark(CuratedPark(stateRow: row).code)
-                } label: {
-                    DividedRow(vertical: 13) {
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(row.n.replacingOccurrences(of: " State Park", with: ""))
-                                    .font(WP.rowTitle(17))
-                                    .multilineTextAlignment(.leading)
-                                Text("\(row.s.isEmpty ? "—" : row.s) · state park")
-                                    .font(WP.body(12)).opacity(0.6)
+                let park = CuratedPark(stateRow: row)
+                // Two buttons side by side rather than one nested in the other: the row
+                // opens the park, the bookmark saves it, and neither steals the other's tap.
+                DividedRow(vertical: 11) {
+                    HStack(spacing: 12) {
+                        Button { app.openPark(park.code) } label: {
+                            HStack(spacing: 12) {
+                                StateParkThumbnail(park: park)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(row.n.replacingOccurrences(of: " State Park", with: ""))
+                                        .font(WP.rowTitle(17))
+                                        .multilineTextAlignment(.leading)
+                                    Text("\(row.s.isEmpty ? "—" : row.s) · state park")
+                                        .font(WP.body(12)).opacity(0.6)
+                                }
+                                Spacer(minLength: 0)
                             }
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(WP.accent700)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(PressStyle(scale: 0.99))
+
+                        saveButton(park)
                     }
                 }
-                .buttonStyle(PressStyle(scale: 0.99))
             }
 
             // The shipped table can only match a park's own name or its state, so it has
@@ -450,6 +455,72 @@ struct StateParkList: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 16)
         }
+    }
+
+    private func saveButton(_ park: CuratedPark) -> some View {
+        let isSaved = app.saved.contains(park.code)
+        return Button { app.toggleSaved(park.code) } label: {
+            Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                .font(.system(size: 14))
+                .foregroundStyle(WP.accent700)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle(scale: 0.9))
+        .accessibilityLabel(isSaved ? "Saved" : "Save this park")
+    }
+}
+
+/// A state park's thumbnail: its photograph where one is named, and a pin on a map where
+/// none is.
+///
+/// Only 1,821 of the 3,003 state parks name a picture on Wikimedia Commons. For the rest a
+/// flat colour tile said nothing; a map pinned on the park at least says where it is, and
+/// in the app's own monochrome map treatment it reads as part of the set rather than as a
+/// stand-in.
+struct StateParkThumbnail: View {
+    var park: CuratedPark
+    var size: CGFloat = 52
+
+    var body: some View {
+        Group {
+            if park.photoFile != nil {
+                ParkImage(park: park, showsScrim: false, topLight: false)
+            } else {
+                PinnedMap(lat: park.lat, lon: park.lon)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+/// A small monochrome map with the park at its centre — the same desaturated basemap the
+/// trip screen draws, so it belongs to the Classical palette. The pin is the one colour on
+/// it, and sits at the centre because the region is centred on the park.
+struct PinnedMap: View {
+    var lat: Double
+    var lon: Double
+
+    private var region: MKCoordinateRegion {
+        MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+            span: MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
+        )
+    }
+
+    var body: some View {
+        Map(initialPosition: .region(region), interactionModes: [])
+            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
+            .saturation(0)
+            .contrast(1.04)
+            .overlay {
+                Image(systemName: "mappin")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(WP.accent)
+                    .shadow(color: .black.opacity(0.35), radius: 1, y: 0.5)
+            }
+            .allowsHitTesting(false)
     }
 }
 
