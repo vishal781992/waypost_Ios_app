@@ -168,7 +168,7 @@ final class NearbyBriefing {
 
         candidates = rank(from: fix.lat, lon: fix.lon)
         guard !candidates.isEmpty else {
-            state = .failed("No park in the field library is close enough to measure from here.")
+            state = .failed("No national or state park is within 120 miles of here. Search Discover for somewhere further afield.")
             return
         }
 
@@ -181,23 +181,39 @@ final class NearbyBriefing {
         await generate()
     }
 
-    /// Real distance, then a road estimate. The ranking is arithmetic, not a judgement —
-    /// the model never decides what is nearest.
+    /// How far a park can be and still count as "near you". A day's drive is more than
+    /// this; a morning's is about this.
+    private static let radiusMiles: Double = 120
+
+    /// The parks actually within reach, nearest first — not a fixed shelf.
+    ///
+    /// This ranked `library.orderedParks`, the eight the app ships with, with no distance
+    /// limit at all — so it showed the same eight from anywhere in the country, four of
+    /// them however far away. Now it measures every national park in the country and keeps
+    /// those inside the radius; and only when none is within reach does it fall back to the
+    /// state parks, because a national park is the better recommendation where there is one.
     private func rank(from lat: Double, lon: Double) -> [NearbyCandidate] {
-        library.orderedParks
-            .map { park -> NearbyCandidate in
-                let miles = Geo.haversine((lat, lon), (park.lat, park.lon))
-                let road = Int((miles * 1.24 / 5).rounded()) * 5
-                return NearbyCandidate(
-                    park: park,
-                    straightLineMiles: miles,
-                    roadMiles: road,
-                    driveHours: Double(road) / 57
-                )
-            }
-            .sorted { $0.straightLineMiles < $1.straightLineMiles }
+        func candidate(_ park: CuratedPark, _ miles: Double) -> NearbyCandidate {
+            let road = Int((miles * 1.24 / 5).rounded()) * 5
+            return NearbyCandidate(park: park, straightLineMiles: miles,
+                                   roadMiles: road, driveHours: Double(road) / 57)
+        }
+
+        let national = NationalParks.all
+            .map { ($0, Geo.haversine((lat, lon), ($0.lat, $0.lon))) }
+            .filter { $0.1 <= Self.radiusMiles }
+            .sorted { $0.1 < $1.1 }
             .prefix(4)
-            .map { $0 }
+            .map { candidate(CuratedPark(bundled: $0.0), $0.1) }
+        if !national.isEmpty { return national }
+
+        // No national park within reach: the nearest state parks instead.
+        return Datasets.shared.stateParks
+            .map { ($0, Geo.haversine((lat, lon), ($0.lat, $0.lon))) }
+            .filter { $0.1 <= Self.radiusMiles }
+            .sorted { $0.1 < $1.1 }
+            .prefix(4)
+            .map { candidate(CuratedPark(stateRow: $0.0), $0.1) }
     }
 
     private func generate() async {
