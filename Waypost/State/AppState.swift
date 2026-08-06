@@ -905,7 +905,17 @@ final class TripBuilder {
     var step = 1
     var picks: [String] = []
     var days: [String: Int] = [:]
-    var startLabel = "12 September 2026"
+    /// The day the trip starts, as a real date. This was a string cycled through four
+    /// hard-coded weeks, which is why tapping the field jumped to a random-looking date
+    /// rather than opening a calendar.
+    var startDate = Calendar.current.startOfDay(for: Date())
+    /// The date in the "12 September 2026" form the rest of the app stores and parses.
+    var startLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "d MMMM yyyy"
+        return formatter.string(from: startDate)
+    }
     /// One of the shipped six. Ignored once `pickedOrigin` is set.
     var origin = "den"
     /// A city found by search, which is any city in the country rather than one of six.
@@ -944,19 +954,11 @@ final class TripBuilder {
     var composeProgress: Double = 0
     var composing = false
 
-    private let candidateStarts = ["12 September 2026", "19 September 2026", "3 October 2026", "17 April 2027"]
-    private var startIndex = 0
-
     init(vehicleIsElectric: Bool) {
         self.vehicleIsElectric = vehicleIsElectric
     }
 
     var library: CuratedLibrary { .shared }
-
-    func cycleStart() {
-        startIndex = (startIndex + 1) % candidateStarts.count
-        startLabel = candidateStarts[startIndex]
-    }
 
     func days(for code: String) -> Int { days[code] ?? 2 }
 

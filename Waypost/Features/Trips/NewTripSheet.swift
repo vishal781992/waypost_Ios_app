@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 /// The three-step new-trip flow: which parks, when and from where, then review — and a
 /// composing screen that says what it is working out.
@@ -11,6 +12,7 @@ struct NewTripSheet: View {
     /// clear the city already chosen.
     @State private var originQuery = ""
     @State private var cities = CitySearch()
+    @State private var locatingOrigin = false
     @FocusState private var parkFieldFocused: Bool
     @FocusState private var originFocused: Bool
 
@@ -270,7 +272,7 @@ struct NewTripSheet: View {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .semibold)).opacity(0.45)
-                TextField("Type a city, or pick one below", text: $originQuery)
+                TextField("Type a city, or use your location", text: $originQuery)
                     .font(WP.body(15))
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
@@ -317,21 +319,32 @@ struct NewTripSheet: View {
                         if index < cities.matches.count - 1 { Hairline() }
                     }
                 } else {
-                    // A searched city is not in the shipped list, so it is shown above it —
-                    // otherwise choosing one made the selection disappear from the screen.
-                    if let picked = builder.pickedOrigin {
-                        originRow(title: picked.name, trailing: "", isChosen: true) {}
-                        Hairline()
-                    }
-                    ForEach(Array(app.library.cities.enumerated()), id: \.element.id) { index, city in
-                        originRow(title: city.name,
-                                  trailing: city.air,
-                                  isChosen: builder.pickedOrigin == nil && builder.origin == city.id) {
-                            builder.origin = city.id
-                            builder.pickedOrigin = nil
-                            Haptics.tap()
+                    // Your own location, first — the six shipped cities were nobody's home.
+                    Button {
+                        useCurrentLocation()
+                    } label: {
+                        HStack(spacing: 10) {
+                            if locatingOrigin {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "location.fill")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(WP.accent)
+                            }
+                            Text("Use current location").font(WP.body(14))
+                            Spacer(minLength: 0)
                         }
-                        if index < app.library.cities.count - 1 { Hairline() }
+                        .padding(.horizontal, 14).padding(.vertical, 11)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressStyle(scale: 0.995))
+                    .disabled(locatingOrigin)
+
+                    // A chosen city sits under it, so the selection stays visible.
+                    if let picked = builder.pickedOrigin {
+                        Hairline()
+                        originRow(title: picked.name, trailing: "", isChosen: true) {}
                     }
                 }
             }
@@ -340,10 +353,40 @@ struct NewTripSheet: View {
                 Text("One more character and the cities appear.")
                     .font(WP.bodyItalic(11.5)).opacity(0.55)
             } else if originQuery.count >= 2 && cities.matches.isEmpty {
-                Text("No US city by that name yet — keep typing, or pick one below.")
+                Text("No US city by that name yet — keep typing.")
                     .font(WP.bodyItalic(11.5)).opacity(0.55)
             }
         }
+    }
+
+    /// Sets the origin to where the phone is, named by the city it sits in.
+    private func useCurrentLocation() {
+        locatingOrigin = true
+        Task {
+            defer { locatingOrigin = false }
+            guard let fix = await LocationService.shared.currentFix() else {
+                app.show("Location is off — turn it on, or type a city")
+                return
+            }
+            // A device fix carries no place name, so the coordinates are turned into a city
+            // the way the rest of the origins read — "Dallas, TX" rather than "Where you
+            // are". The routing uses the coordinates either way; this is what the row says.
+            var name = [fix.city, fix.region].compactMap { $0 }.joined(separator: ", ")
+            if name.isEmpty { name = await Self.cityName(lat: fix.lat, lon: fix.lon) }
+            builder.pickedOrigin = TripOrigin(name: name, lat: fix.lat, lon: fix.lon)
+            originQuery = ""
+            cities.clear()
+            Haptics.tap()
+        }
+    }
+
+    private static func cityName(lat: Double, lon: Double) async -> String {
+        let placemarks = try? await CLGeocoder()
+            .reverseGeocodeLocation(CLLocation(latitude: lat, longitude: lon))
+        guard let place = placemarks?.first else { return "Where you are" }
+        let city = place.locality ?? place.subAdministrativeArea
+        let joined = [city, place.administrativeArea].compactMap { $0 }.joined(separator: ", ")
+        return joined.isEmpty ? "Where you are" : joined
     }
 
     private func originRow(title: String, trailing: String, isChosen: Bool,
@@ -380,20 +423,21 @@ struct NewTripSheet: View {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
                     fieldLabel("First day")
-                    Button { builder.cycleStart() } label: {
-                        HStack {
-                            Text(builder.startLabel).font(WP.body(15))
-                            Spacer(minLength: 0)
-                            Image(systemName: "calendar")
-                        }
-                        .padding(.horizontal, 17)
-                        .frame(minHeight: 46)
-                        .glassControl(shadow: false)
-                        .contentShape(Capsule())
+                    // A real calendar — tapping it opens the picker, which is what a date
+                    // field should do. `in:` keeps it to today or later, since a trip cannot
+                    // start in the past.
+                    HStack {
+                        DatePicker("First day",
+                                   selection: $builder.startDate,
+                                   in: Calendar.current.startOfDay(for: Date())...,
+                                   displayedComponents: .date)
+                            .datePickerStyle(.compact)
+                            .labelsHidden()
+                        Spacer(minLength: 0)
                     }
-                    .buttonStyle(PressStyle(scale: 0.99))
-                    Text("Tap to cycle candidate weeks — the wheel picker lands with the live re-wire.")
-                        .font(WP.bodyItalic(11.5)).opacity(0.55)
+                    .padding(.horizontal, 15)
+                    .frame(minHeight: 46)
+                    .glassControl(shadow: false)
                 }
 
                 originField
