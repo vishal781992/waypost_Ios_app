@@ -114,6 +114,12 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
 
     var id: String { code }
 
+    /// Whether the card should draw a map rather than a photograph. A state park with no
+    /// picture named on Wikimedia Commons has no photo to show — but it has coordinates, so
+    /// the tile becomes a pin on the map instead of a blank colour field. National parks
+    /// and photographed state parks always have a picture, so this is false for them.
+    var usesMapHero: Bool { code.hasPrefix("sp-") && photoFile == nil }
+
     /// The designation, always in words. Never "Protected area" for something whose own
     /// name says National Park, and never "National Park" for something that isn't one.
     var designationLabel: String {
