@@ -96,7 +96,7 @@ final class LegStops {
         return now >= opens && now < closes
     }
 
-    func load(_ leg: TripRouting.Leg, electric: Bool) {
+    func load(_ leg: TripRouting.Leg, electric: Bool, includeTraffic: Bool) {
         switch state(for: leg) {
         case .idle, .failed: break
         default: return
@@ -145,7 +145,11 @@ final class LegStops {
                 return all
             }
             stops.sort { $0.mile == $1.mile ? kindOrder(kinds, $0) < kindOrder(kinds, $1) : $0.mile < $1.mile }
-            let traffic = await Self.traffic(from: leg.coordinates.first, to: leg.coordinates.last)
+            // Traffic is a leaving-now estimate, so it is only asked for when the drive is
+            // within its window. The stops came regardless.
+            let traffic = includeTraffic
+                ? await Self.traffic(from: leg.coordinates.first, to: leg.coordinates.last)
+                : nil
             states[leg.id] = .ready(stops, traffic)
         }
     }

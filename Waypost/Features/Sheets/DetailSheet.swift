@@ -140,7 +140,7 @@ struct DetailSheet: View {
             case .loading:
                 HStack(spacing: 9) {
                     ProgressView().controlSize(.small)
-                    Text("Asking Apple Maps about today's road…")
+                    Text("Finding fuel, charging and food along the way…")
                         .font(WP.bodyItalic(12.5)).opacity(0.7)
                 }
                 .padding(.top, 16)
@@ -194,8 +194,11 @@ struct DetailSheet: View {
             }
         }
         .task(id: leg.id) {
-            guard LegStops.isLive(driveDate) else { return }
-            LegStops.shared.load(leg, electric: app.vehicleIsElectric)
+            // The stops are useful whenever the trip is being looked at, so they always
+            // load. Traffic is a "leaving now" estimate, which only means anything within
+            // the departure window — so it is fetched only when the drive is live.
+            LegStops.shared.load(leg, electric: app.vehicleIsElectric,
+                                 includeTraffic: LegStops.isLive(driveDate))
         }
     }
 
@@ -224,7 +227,7 @@ struct DetailSheet: View {
             }
             .padding(.top, 16)
 
-            SourceLine("Distance and wheel time from OSRM, driving profile, over the roads listed. No traffic, no departure time — this is the road, not the day.")
+            SourceLine("Distance and wheel time from OSRM over the roads listed. Fuel, charging and food along the way from Apple Maps. Traffic is added on the day of the drive, when a leaving-now time means something.")
                 .padding(.top, 16)
         }
     }
