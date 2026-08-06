@@ -13,6 +13,7 @@ struct NewTripSheet: View {
     @State private var originQuery = ""
     @State private var cities = CitySearch()
     @State private var locatingOrigin = false
+    @State private var showDatePicker = false
     @FocusState private var parkFieldFocused: Bool
     @FocusState private var originFocused: Bool
 
@@ -274,6 +275,7 @@ struct NewTripSheet: View {
                     .font(.system(size: 13, weight: .semibold)).opacity(0.45)
                 TextField("Type a city, or use your location", text: $originQuery)
                     .font(WP.body(15))
+                    .foregroundStyle(WP.text)
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
                     .submitLabel(.search)
@@ -295,7 +297,8 @@ struct NewTripSheet: View {
             }
             .padding(.horizontal, 15)
             .frame(minHeight: 46)
-            .glassControl(shadow: false)
+            .background(WP.neutral200, in: Capsule())
+            .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
             .searchFieldSurface(focus: $originFocused)
             .onChange(of: originQuery) { _, new in cities.update(new) }
 
@@ -423,21 +426,40 @@ struct NewTripSheet: View {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
                     fieldLabel("First day")
-                    // A real calendar — tapping it opens the picker, which is what a date
-                    // field should do. `in:` keeps it to today or later, since a trip cannot
-                    // start in the past.
-                    HStack {
-                        DatePicker("First day",
-                                   selection: $builder.startDate,
-                                   in: Calendar.current.startOfDay(for: Date())...,
-                                   displayedComponents: .date)
-                            .datePickerStyle(.compact)
-                            .labelsHidden()
-                        Spacer(minLength: 0)
+                    // The whole bar opens the calendar, not just a small date capsule — a
+                    // `.compact` DatePicker only makes its own label tappable. A light bar
+                    // with dark text rather than dark glass, so the date reads at all.
+                    Button { showDatePicker = true } label: {
+                        HStack {
+                            Text(builder.startLabel).font(WP.body(15)).foregroundStyle(WP.text)
+                            Spacer(minLength: 0)
+                            Image(systemName: "calendar").foregroundStyle(WP.accent700)
+                        }
+                        .padding(.horizontal, 15)
+                        .frame(minHeight: 46)
+                        .background(WP.neutral200, in: Capsule())
+                        .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
+                        .contentShape(Capsule())
                     }
-                    .padding(.horizontal, 15)
-                    .frame(minHeight: 46)
-                    .glassControl(shadow: false)
+                    .buttonStyle(PressStyle(scale: 0.99))
+                    .sheet(isPresented: $showDatePicker) {
+                        // A sheet, not a popover: the graphical calendar needs the full
+                        // width, which an iPhone popover does not give it. It closes as soon
+                        // as a day is chosen.
+                        VStack(spacing: 0) {
+                            DatePicker("First day",
+                                       selection: $builder.startDate,
+                                       in: Calendar.current.startOfDay(for: Date())...,
+                                       displayedComponents: .date)
+                                .datePickerStyle(.graphical)
+                                .labelsHidden()
+                                .tint(WP.accent)
+                                .padding(.horizontal, WP.gutter)
+                                .onChange(of: builder.startDate) { _, _ in showDatePicker = false }
+                        }
+                        .presentationDetents([.medium])
+                        .presentationDragIndicator(.visible)
+                    }
                 }
 
                 originField
