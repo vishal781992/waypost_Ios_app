@@ -16,6 +16,13 @@ struct DetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     var sheet: ActiveSheet
 
+    /// The stops the driver has picked to actually stop at, by `Stop.id`.
+    ///
+    /// Apple Maps takes a whole chain of places, not just a destination, so the ones ticked
+    /// here are handed over as waypoints in mile order and the drive arrives in Maps with
+    /// the stops already in it.
+    @State private var chosen: Set<String> = []
+
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
@@ -161,34 +168,58 @@ struct DetailSheet: View {
                     Text("Apple Maps lists no fuel or charging along this route.")
                         .font(WP.bodyItalic(12.5)).opacity(0.6).padding(.top, 14)
                 } else {
-                    Text("On the way".uppercased())
-                        .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent800)
-                        .padding(.top, 18).padding(.bottom, 2)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("On the way".uppercased())
+                            .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent800)
+                        Text("tap to add as a stop")
+                            .font(WP.bodyItalic(11)).opacity(0.5)
+                    }
+                    .padding(.top, 18).padding(.bottom, 2)
+
                     ForEach(stops) { stop in
-                        Button {
-                            stop.mapItem.openInMaps(launchOptions: [
-                                MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
-                            ])
-                        } label: {
-                            DividedRow(vertical: 11) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: stop.glyph)
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(WP.accent700)
-                                        .frame(width: 22)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(stop.name).font(WP.rowTitle(15))
-                                            .multilineTextAlignment(.leading)
-                                        Text("mile \(stop.mile) · \(stop.kind.title.lowercased())")
-                                            .font(WP.body(11.5)).opacity(0.62).tnum()
+                        let picked = chosen.contains(stop.id)
+                        DividedRow(vertical: 11) {
+                            HStack(spacing: 12) {
+                                // Two controls, side by side rather than nested: the row
+                                // picks the stop for the chain, the arrow opens that one
+                                // place on its own — which is what the row used to do.
+                                Button {
+                                    withAnimation(.snappy(duration: 0.18)) {
+                                        if picked { chosen.remove(stop.id) } else { chosen.insert(stop.id) }
                                     }
-                                    Spacer(minLength: 0)
+                                    Haptics.tap()
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: picked ? "checkmark.circle.fill" : stop.glyph)
+                                            .font(.system(size: 14))
+                                            .foregroundStyle(WP.accent700)
+                                            .frame(width: 22)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(stop.name).font(WP.rowTitle(15))
+                                                .multilineTextAlignment(.leading)
+                                            Text("mile \(stop.mile) · \(stop.kind.title.lowercased())")
+                                                .font(WP.body(11.5)).opacity(0.62).tnum()
+                                        }
+                                        Spacer(minLength: 0)
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(PressStyle(scale: 0.995))
+
+                                Button {
+                                    stop.mapItem.openInMaps(launchOptions: [
+                                        MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
+                                    ])
+                                } label: {
                                     Image(systemName: "arrow.triangle.turn.up.right.circle")
                                         .font(.system(size: 14)).foregroundStyle(WP.accent700)
+                                        .frame(width: 30, height: 30)
+                                        .contentShape(Rectangle())
                                 }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Open \(stop.name) in Maps")
                             }
                         }
-                        .buttonStyle(PressStyle(scale: 0.995))
                     }
                 }
             }
@@ -222,8 +253,8 @@ struct DetailSheet: View {
 
             Text(leg.road).font(WP.body(13)).lineSpacing(3).opacity(0.8).padding(.top, 11)
 
-            GlowButton(title: "Open in Maps", minHeight: 48) {
-                openInMaps(from: leg.from, to: leg.to)
+            GlowButton(title: openTitle(leg), minHeight: 48) {
+                openRoute(leg)
             }
             .padding(.top, 16)
 
@@ -237,6 +268,50 @@ struct DetailSheet: View {
         if let url = URL(string: "http://maps.apple.com/?daddr=\(query)&dirflg=d") {
             UIApplication.shared.open(url)
         }
+    }
+
+    /// The stops this leg has found, if it has finished looking.
+    private func readyStops(_ leg: TripRouting.Leg) -> [LegStops.Stop] {
+        if case .ready(let stops, _) = LegStops.shared.state(for: leg) { return stops }
+        return []
+    }
+
+    /// The picked stops, in the order they are driven past.
+    private func pickedStops(_ leg: TripRouting.Leg) -> [LegStops.Stop] {
+        readyStops(leg).filter { chosen.contains($0.id) }
+    }
+
+    private func openTitle(_ leg: TripRouting.Leg) -> String {
+        let count = pickedStops(leg).count
+        guard count > 0 else { return "Open in Maps" }
+        return "Open in Maps · \(count) stop\(count == 1 ? "" : "s")"
+    }
+
+    /// Hands the whole drive to Apple Maps — start, every picked stop in mile order, then
+    /// the park — as one route rather than a single destination.
+    ///
+    /// `MKMapItem.openMaps(with:)` takes the chain, which the old `?daddr=` URL could not:
+    /// that carried a park *name* and no stops at all, so Maps had to guess the destination
+    /// from a string and the driver re-added every stop by hand.
+    private func openRoute(_ leg: TripRouting.Leg) {
+        func item(_ point: (lat: Double, lon: Double), _ name: String) -> MKMapItem {
+            let item = MKMapItem(placemark: MKPlacemark(
+                coordinate: CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon)))
+            item.name = name
+            return item
+        }
+
+        var chain: [MKMapItem] = []
+        if let start = leg.coordinates.first { chain.append(item(start, leg.from)) }
+        chain += pickedStops(leg).map(\.mapItem)
+        if let end = leg.coordinates.last { chain.append(item(end, leg.to)) }
+
+        // A leg with no geometry has nothing to hand over but the name it is going to.
+        guard chain.count > 1 else { return openInMaps(from: leg.from, to: leg.to) }
+
+        MKMapItem.openMaps(with: chain, launchOptions: [
+            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
+        ])
     }
 
     // MARK: Leg

@@ -462,6 +462,8 @@ struct NewTripSheet: View {
                     }
                 }
 
+                daysField
+
                 originField
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -487,6 +489,56 @@ struct NewTripSheet: View {
             .padding(.bottom, 8)
         }
         .scrollIndicators(.hidden)
+    }
+
+    /// How many days to spend in each picked park, on the same screen as the date.
+    ///
+    /// The stepper already exists on step 1's chips, but "Plan a trip here" seeds one park
+    /// and jumps straight here, so that control was never seen for the common single-park
+    /// case. Same builder API (`days(for:)` / `adjustDays`), so the count flows into
+    /// `totalDays`, the "N days in the parks" progress line, and the review's "Days afield".
+    private var daysField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            fieldLabel(builder.picks.count == 1 ? "Days in the park" : "Days in each park")
+            VStack(spacing: 8) {
+                ForEach(builder.picks, id: \.self) { code in
+                    HStack(spacing: 10) {
+                        Text(app.park(code)?.name ?? code)
+                            .font(WP.body(15)).foregroundStyle(WP.text)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Button {
+                            withAnimation(.snappy(duration: 0.2)) { builder.adjustDays(code, by: -1) }
+                        } label: {
+                            Image(systemName: "minus").font(.system(size: 11, weight: .bold))
+                                .frame(width: 26, height: 26)
+                                .background(Color.black.opacity(0.07), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(WP.accent700)
+                        .disabled(builder.days(for: code) <= 1)
+                        Text("\(builder.days(for: code))")
+                            .font(WP.headingUI(15)).foregroundStyle(WP.text)
+                            .frame(minWidth: 16)
+                            .contentTransition(.numericText())
+                        Button {
+                            withAnimation(.snappy(duration: 0.2)) { builder.adjustDays(code, by: 1) }
+                        } label: {
+                            Image(systemName: "plus").font(.system(size: 11, weight: .bold))
+                                .frame(width: 26, height: 26)
+                                .background(Color.black.opacity(0.07), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(WP.accent700)
+                        .disabled(builder.days(for: code) >= 9)
+                    }
+                    .padding(.horizontal, 15)
+                    .frame(minHeight: 46)
+                    .background(WP.neutral200, in: Capsule())
+                    .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
+                }
+            }
+        }
     }
 
     private func fieldLabel(_ text: String) -> some View {
