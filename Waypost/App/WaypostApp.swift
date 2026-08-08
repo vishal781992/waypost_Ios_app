@@ -134,7 +134,6 @@ struct RootShell: View {
             switch tab {
             case .today: TodayScreen()
             case .trips: TripsScreen()
-            case .discover: DiscoverScreen()
             case .saved: SavedScreen()
             case .me: ProfileScreen()
             }
@@ -152,6 +151,8 @@ struct RootShell: View {
             if let trip = app.trip(id) {
                 TripDetailScreen(trip: trip)
             }
+        case .explore:
+            DiscoverScreen()
         }
     }
 }
@@ -296,16 +297,6 @@ struct TabIcon: View {
                 MilepostArrow().frame(width: 8, height: 5).offset(x: 4.6, y: -4.5)
                 MilepostArrow().frame(width: 8, height: 5).scaleEffect(x: -1).offset(x: -4.6, y: 3)
                 RoundedRectangle(cornerRadius: 1).frame(width: 6, height: 2).offset(y: 8.6)
-            }
-        case .discover:
-            ZStack {
-                Circle().frame(width: 14.8, height: 14.8).offset(x: -1.2, y: -1.2)
-                Capsule().frame(width: 6.4, height: 2.6)
-                    .rotationEffect(.degrees(45)).offset(x: 7.5, y: 7.5)
-                NeedleShape()
-                    .fill(WP.onInk)
-                    .frame(width: 8, height: 8)
-                    .offset(x: -1.2, y: -1.2)
             }
         case .saved:
             BookmarkShape()

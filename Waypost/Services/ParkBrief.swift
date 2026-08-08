@@ -5,14 +5,19 @@ import FoundationModels
 
 /// The "AI Overview": what to know before planning a trip to one park, written on the phone.
 ///
-/// Same two rules as the nearby briefing. The model gets no facts of its own — the fee, the
-/// reservation requirement and the forecast are gathered here from NPS, Apple Maps and the
-/// weather services, and the exact figures are printed by the app beside the prose, never by
-/// the model. And the facts stand without it: where Apple Intelligence cannot run, the same
-/// four points are composed from the fields plainly, so every device gets the substance.
+/// Same two rules as the nearby briefing. The model gets no facts of its own — the alerts,
+/// the reservation requirement and the park service's description are gathered here from
+/// NPS, and the exact figures are printed by the app beside the prose, never by the model.
+/// And the facts stand without it: where Apple Intelligence cannot run, the same points are
+/// composed from the fields plainly, so every device gets the substance.
 ///
-/// It answers four things: reservations, fees, how busy to expect it, and the one attraction
-/// worth the drive.
+/// It answers three things: what the park is warning about, whether a reservation is needed,
+/// and why the place was set aside.
+///
+/// It used to answer fees and busyness too. The fee is printed at the top of the same screen
+/// and the hours beside it, so the overview was restating what the reader had just passed;
+/// and busyness was inferred from nothing better than the month, which made it true of every
+/// park in the country in August and therefore worth nothing about this one.
 @MainActor
 @Observable
 final class ParkBrief {
@@ -23,25 +28,33 @@ final class ParkBrief {
     struct Facts: Hashable {
         var parkName: String
         var designation: String
-        /// "Free", "$30 · Entrance - Private Vehicle", or nil when not known.
-        var fee: String?
         /// The timed-entry / reservation line from NPS, or nil where there is none.
         var reservation: String?
-        /// What the app can say about crowds: a real signal, not a guess.
-        var busyness: String
-        /// Candidate attractions — NPS things to do, and the park's own tagline.
-        var attractions: [String]
-        /// A word, not a number: "warm", "cold", "mild", or "" when unknown.
-        var weatherWord: String
-        var monthName: String
+        /// What the park is posting right now — closures, fire, road work.
+        var alerts: [CuratedAlert]
+        /// True when the park service refused the alerts request, which is a different
+        /// answer from a park that has none posted, and must never be reported as one.
+        var alertsUnavailable: Bool
+        /// The park service's own description of the place, and the topics it files the
+        /// park under. The raw material for "why it matters" — long and written for a web
+        /// page, which is why the model's job is to cut it to a sentence.
+        var blurb: String?
+        var topics: [String]
     }
 
-    /// The four sentences, ready to render, however they were produced.
+    /// The three sentences, ready to render, however they were produced.
     struct Brief: Hashable {
         var reservations: String
-        var fees: String
-        var busyness: String
-        var highlight: String
+        /// What the park is warning about, in one line — the alerts are listed in full on
+        /// the Overview tab, so this is the glance that says whether to go and read them.
+        var warnings: String
+        /// Why this place was set aside — a reading of the park service's own description.
+        ///
+        /// This replaced a "worth the drive" line that named the biggest attraction from
+        /// the things-to-do list. That list is ordered by whatever NPS put first, not by
+        /// importance, so the line tended to nominate a visitor centre or a ranger talk as
+        /// the reason to drive a day to get somewhere.
+        var significance: String
         /// True when a language model wrote it; false when composed from the facts.
         var byModel: Bool
     }
@@ -90,64 +103,36 @@ final class ParkBrief {
     // MARK: Gathering the facts
 
     private static func gather(_ park: CuratedPark, date: Date?) async -> Facts {
-        let when = date ?? Date()
-        let month = when.formatted(.dateTime.month(.wide))
-
-        // NPS: fee and reservation, if they have arrived. The overview does not block on
-        // them — it reads whatever is loaded and says so where a piece is missing.
-        var fee: String?
+        // NPS, if it has arrived. The overview does not block on it — it reads whatever is
+        // loaded and says so where a piece is missing.
+        //
+        // Nothing here is fetched: dropping the fee and busyness lines took the forecast
+        // request with them, because nothing left in the brief reads the weather.
         var reservation: String?
-        var things: [String] = []
+        var blurb: String?
+        var topics: [String] = []
+        var alerts: [CuratedAlert] = []
+        var alertsUnavailable = false
         if case .loaded(let f) = ParkFacts.shared.state(for: park) {
-            fee = f.fee
             reservation = f.reservation
-            things = f.thingsToDo.prefix(6).map(\.title)
-        }
-
-        // Weather as a word. The number is the weather panel's job; this only needs the
-        // shape of the day to say whether to start early or pack a layer.
-        let forecast = await WeatherService(failures: FailureLog())
-            .forecast(lat: park.lat, lon: park.lon, iso: WPDate.iso(when))
-        let weatherWord = forecast.map { day -> String in
-            switch day.hi {
-            case 85...: return "hot"
-            case 70..<85: return "warm"
-            case 50..<70: return "mild"
-            default: return "cold"
-            }
-        } ?? ""
-
-        // Busyness, inferred honestly. A park that runs timed entry is managing crowds;
-        // the warm months are its peak. Anything softer than that, this does not claim.
-        let peak = ["May", "June", "July", "August", "September"].contains(month)
-        let busyness: String
-        if reservation != nil {
-            busyness = peak
-                ? "Busy — it runs timed entry, and \(month) is peak season."
-                : "It runs timed entry in the busy months; \(month) is quieter."
-        } else if peak {
-            busyness = "\(month) is the busy season for most parks; arrive early."
+            blurb = f.blurb
+            topics = Array(f.topics.prefix(6))
+            // Same precedence the park screen uses: what the park is posting now, ahead of
+            // the bundled alerts, which are editorial rather than current.
+            alerts = f.alerts.isEmpty ? park.alerts : f.alerts
+            alertsUnavailable = f.unavailable.contains("alerts") && alerts.isEmpty
         } else {
-            busyness = "\(month) is outside the peak months, so expect it quieter."
+            alerts = park.alerts
         }
-
-        // The tagline names the marquee draw ("Tundra above the treeline…"); the NPS
-        // things-to-do are the actionable list. Tagline first, so the composed fallback —
-        // which has no judgement — leads with the real headline rather than whichever
-        // activity NPS happened to list first.
-        var attractions: [String] = []
-        if !park.tag.isEmpty { attractions.append(park.tag) }
-        attractions += things
 
         return Facts(
             parkName: park.name,
             designation: park.designationLabel,
-            fee: fee,
             reservation: reservation,
-            busyness: busyness,
-            attractions: attractions,
-            weatherWord: weatherWord,
-            monthName: month
+            alerts: alerts,
+            alertsUnavailable: alertsUnavailable,
+            blurb: blurb,
+            topics: topics
         )
     }
 
@@ -162,25 +147,74 @@ final class ParkBrief {
         return compose(facts)
     }
 
-    /// The composed fallback: the same four points, in plain sentences, from the fields.
+    /// The composed fallback: the same points, in plain sentences, from the fields.
     /// Every device gets this; only the prose of the model is missing.
     private static func compose(_ facts: Facts) -> Brief {
         let reservations = facts.reservation.map { Self.sentence($0) }
             ?? "No timed-entry reservation is listed for \(facts.parkName)."
-        // No amount here — the exact figure is the chip beside this line, so repeating it
-        // reads as a stutter.
-        let fees: String
-        switch facts.fee {
-        case "Free": fees = "Entry is free."
-        case .some: fees = "There is an entrance fee to enter."
-        case nil: fees = "The entrance fee is not published; check with the park."
+        // Without a model, the park service's own opening sentence is the honest answer —
+        // it is already a description of what the place is, just written at web length.
+        let significance = Self.firstSentence(facts.blurb)
+            ?? topicSentence(facts)
+            ?? "\(facts.parkName) is a \(facts.designation.lowercased())."
+        return Brief(reservations: reservations, warnings: warnings(facts),
+                     significance: significance, byModel: false)
+    }
+
+    /// The alerts in one line, written by the app rather than the model.
+    ///
+    /// This one is composed even when a model is available, and deliberately: a closure or
+    /// a flash-flood notice is the one thing on this screen where a paraphrase that reads
+    /// nicely but drops a word is worse than no sentence at all. The count sends the reader
+    /// to the full list on the Overview tab, and the most serious alert is named in the
+    /// park's own words.
+    private static func warnings(_ facts: Facts) -> String {
+        guard !facts.alerts.isEmpty else {
+            // "Nobody answered" and "there is nothing" are not the same sentence, and the
+            // difference matters most for exactly this field.
+            return facts.alertsUnavailable
+                ? "The park service did not answer when asked for alerts — check the park's own page before you travel."
+                : "No alerts are posted for \(facts.parkName) right now."
         }
-        let highlight = facts.attractions.first.map {
-            let phrase = $0.first!.isUppercase && $0.contains(" ") ? $0 : $0.lowercased()
-            return "The big draw is \(phrase.hasPrefix("The ") ? String(phrase.dropFirst(4)) : phrase)."
-        } ?? "\(facts.parkName) is a \(facts.designation.lowercased())."
-        return Brief(reservations: reservations, fees: fees,
-                     busyness: facts.busyness, highlight: highlight, byModel: false)
+
+        let worst = facts.alerts.min { rank($0.cat) < rank($1.cat) } ?? facts.alerts[0]
+        let headline = sentence(worst.title)
+        guard facts.alerts.count > 1 else { return headline }
+        let others = facts.alerts.count - 1
+        return "\(headline) \(others) more \(others == 1 ? "alert is" : "alerts are") posted."
+    }
+
+    /// Which alert to lead with. The park service's own categories, most serious first.
+    private static func rank(_ category: String) -> Int {
+        switch category.lowercased() {
+        case "danger": return 0
+        case "park closure": return 1
+        case "caution": return 2
+        default: return 3
+        }
+    }
+
+    /// "Set aside for its volcanoes and wilderness." — the fallback's fallback, for a park
+    /// whose description did not arrive but whose topics did.
+    private static func topicSentence(_ facts: Facts) -> String? {
+        let topics = facts.topics.prefix(3).map { $0.lowercased() }
+        guard !topics.isEmpty else { return nil }
+        let list: String
+        switch topics.count {
+        case 1: list = topics[0]
+        case 2: list = "\(topics[0]) and \(topics[1])"
+        default: list = "\(topics[0]), \(topics[1]) and \(topics[2])"
+        }
+        return "\(facts.parkName) is known for its \(list)."
+    }
+
+    /// The first sentence of a paragraph, kept whole. Cuts on ". " rather than any full
+    /// stop so "St. Mary" and "Mt. Rainier" do not end the sentence early.
+    private static func firstSentence(_ text: String?) -> String? {
+        guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty
+        else { return nil }
+        guard let end = text.range(of: ". ") else { return sentence(text) }
+        return sentence(String(text[text.startIndex..<end.lowerBound]))
     }
 
     private static func sentence(_ text: String) -> String {
@@ -204,9 +238,12 @@ final class ParkBrief {
             let composed = compose(facts)
             return Brief(
                 reservations: Self.hasDigit(c.reservations) ? composed.reservations : sentence(c.reservations),
-                fees: Self.hasDigit(c.fees) ? composed.fees : sentence(c.fees),
-                busyness: sentence(c.busyness),
-                highlight: sentence(c.highlight),
+                // Always the app's own sentence, never the model's. See `warnings`.
+                warnings: composed.warnings,
+                // A significance the model wrote without being given the park service's
+                // description would be its own recollection of the park — the one thing
+                // this whole class exists to avoid. No description, no model sentence.
+                significance: facts.blurb == nil ? composed.significance : sentence(c.significance),
                 byModel: true
             )
         } catch {
@@ -231,35 +268,35 @@ final class ParkBrief {
             - Name the park exactly as written.
             - No exclamation marks and no marketing words — no "breathtaking", no "must-see". \
               Write the way a ranger answers a question at the desk.
-            - One sentence per field. Say plainly whether a reservation is needed and whether \
-              entry is free, because that is the useful part.
+            - One sentence per field. Say plainly whether a reservation is needed, because \
+              that is the useful part.
+            - For significance, you are SHORTENING the park service's own description, not \
+              recalling anything you know about the park. If the description does not say \
+              why the place matters, say only what it does say. Nothing from memory.
             """
         }
     }
 
     @available(iOS 26.0, *)
     private static func prompt(_ facts: Facts) -> String {
-        let feeFact = facts.fee.map { "Entry: \($0)." } ?? "Entry fee: not published."
         let resFact = facts.reservation.map { "Reservation: \($0)" } ?? "Reservation: none listed."
-        let weather = facts.weatherWord.isEmpty ? "" : "The day is \(facts.weatherWord). "
-        let attractions = facts.attractions.isEmpty
-            ? "No specific attractions were listed."
-            : "Things to do here: " + facts.attractions.prefix(6).joined(separator: "; ") + "."
+        let blurb = facts.blurb.map { "The park service describes it this way: \($0)" }
+            ?? "The park service's description did not load."
+        let topics = facts.topics.isEmpty
+            ? ""
+            : "The park service files it under: " + facts.topics.joined(separator: ", ") + ".\n"
         return """
-        Write the AI overview for \(facts.parkName), a \(facts.designation). It is \
-        \(facts.monthName). \(weather)Here is everything ParkHop knows:
+        Write the AI overview for \(facts.parkName), a \(facts.designation). Here is \
+        everything ParkHop knows:
 
-        \(feeFact)
         \(resFact)
-        Busyness (already worked out for you, restate in your own words): \(facts.busyness)
-        \(attractions)
+        \(topics)\(blurb)
 
-        Write four short sentences, one for each field:
+        Write two short sentences, one for each field:
         - reservations: whether a timed-entry reservation is needed.
-        - fees: whether entry is free or paid (no amount — it is printed for you).
-        - busyness: how busy to expect it and when to arrive.
-        - highlight: the single biggest attraction worth the drive, chosen from the things \
-          to do above.
+        - significance: why this place was set aside — what makes it worth protecting. \
+          Cut the park service's description down to ONE short sentence a traveller can \
+          read at a glance. Use only what that description and those topics say.
         Remember: not one number, anywhere.
         """
     }
@@ -272,11 +309,7 @@ final class ParkBrief {
 private struct GeneratedBrief {
     @Guide(description: "One sentence: whether a timed-entry reservation is needed. No numbers.")
     var reservations: String
-    @Guide(description: "One sentence: whether entry is free or paid. Never state an amount.")
-    var fees: String
-    @Guide(description: "One sentence: how busy to expect the park and when to arrive. No numbers.")
-    var busyness: String
-    @Guide(description: "One sentence naming the single biggest attraction, chosen from the things to do given.")
-    var highlight: String
+    @Guide(description: "One short sentence on why this place was set aside, shortened from the park service's own description. Nothing from memory. No numbers.")
+    var significance: String
 }
 #endif

@@ -40,11 +40,47 @@ struct DetailSheet: View {
             .padding(.bottom, 32)
         }
         .scrollIndicators(.hidden)
+        // The drive's numbers and the button that hands it to Maps stay put while the
+        // stops scroll behind them. A long leg lists twenty-eight places, and the button
+        // was at the bottom of all of them — the one control the screen exists for was the
+        // hardest thing on it to reach, and the running count of picked stops sat out of
+        // sight while the picking was going on. `safeAreaInset` also pads the scrolling
+        // content by the bar's height, so the last stop still clears it.
+        .safeAreaInset(edge: .bottom, spacing: 0) { pinnedFooter }
         .background(WP.bg.opacity(0.94).ignoresSafeArea())
         .presentationDetents(detents)
         .presentationDragIndicator(.visible)
         .presentationBackground(.clear)
         .presentationCornerRadius(WP.sheetCorner)
+    }
+
+    /// The bar welded to the bottom of a routed leg. Nothing for the other four sheets,
+    /// which are short enough to read in one screen and have no standing action.
+    @ViewBuilder
+    private var pinnedFooter: some View {
+        if case .routedLeg(let leg, _) = sheet {
+            VStack(spacing: 9) {
+                // The three-column block this replaces was worth about a hundred points of
+                // a phone sheet — most of the room the stops need. The same three numbers
+                // on one line say as much while the list is being read; the roads they are
+                // driven on stay in the body, where they are reference rather than a thing
+                // consulted mid-decision.
+                Text("\(leg.miles) mi · \(leg.drive) · \(leg.road.split(separator: " → ").count) roads")
+                    .font(WP.body(12.5)).foregroundStyle(WP.text.opacity(0.72)).tnum()
+
+                GlowButton(title: openTitle(leg), minHeight: 48) { openRoute(leg) }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, WP.gutter)
+            .padding(.top, 9)
+            // Negative, and the background run into the safe area: the same trick the trip
+            // builder's footer uses. Padding here only stacks on top of the clearance the
+            // home indicator already provides, and stacking it twice cost about two stops'
+            // worth of list. Opaque, or the rows slide visibly under the button.
+            .padding(.bottom, -12)
+            .background(WP.bg.ignoresSafeArea(edges: .bottom))
+            .overlay(alignment: .top) { Hairline() }
+        }
     }
 
     private var detents: Set<PresentationDetent> {
@@ -171,7 +207,7 @@ struct DetailSheet: View {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text("On the way".uppercased())
                             .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent800)
-                        Text("tap to add as a stop")
+                        Text("+ adds a stop to the drive")
                             .font(WP.bodyItalic(11)).opacity(0.5)
                     }
                     .padding(.top, 18).padding(.bottom, 2)
@@ -180,31 +216,41 @@ struct DetailSheet: View {
                         let picked = chosen.contains(stop.id)
                         DividedRow(vertical: 11) {
                             HStack(spacing: 12) {
-                                // Two controls, side by side rather than nested: the row
-                                // picks the stop for the chain, the arrow opens that one
-                                // place on its own — which is what the row used to do.
+                                // The disc carries the colour, the glyph sits in it: four
+                                // kinds of stop repeat at every mile marker, and in one
+                                // accent the column cannot be read at a glance.
+                                Image(systemName: stop.glyph)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(stop.kind.tint)
+                                    .frame(width: 28, height: 28)
+                                    .background(stop.kind.tintSoft, in: Circle())
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(stop.name).font(WP.rowTitle(15))
+                                        .multilineTextAlignment(.leading)
+                                    Text("mile \(stop.mile) · \(stop.label)")
+                                        .font(WP.body(11.5)).foregroundStyle(stop.kind.tint).tnum()
+                                }
+                                Spacer(minLength: 0)
+
+                                // Two separate controls, so neither is reached by accident:
+                                // the first puts this place in the chain handed to Maps, the
+                                // second opens this one place on its own.
                                 Button {
                                     withAnimation(.snappy(duration: 0.18)) {
                                         if picked { chosen.remove(stop.id) } else { chosen.insert(stop.id) }
                                     }
                                     Haptics.tap()
                                 } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: picked ? "checkmark.circle.fill" : stop.glyph)
-                                            .font(.system(size: 14))
-                                            .foregroundStyle(WP.accent700)
-                                            .frame(width: 22)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(stop.name).font(WP.rowTitle(15))
-                                                .multilineTextAlignment(.leading)
-                                            Text("mile \(stop.mile) · \(stop.kind.title.lowercased())")
-                                                .font(WP.body(11.5)).opacity(0.62).tnum()
-                                        }
-                                        Spacer(minLength: 0)
-                                    }
-                                    .contentShape(Rectangle())
+                                    Image(systemName: picked ? "checkmark.circle.fill" : "plus.circle")
+                                        .font(.system(size: 22))
+                                        .foregroundStyle(picked ? WP.accent : WP.accent700.opacity(0.55))
+                                        .frame(width: 40, height: 40)
+                                        .contentShape(Rectangle())
                                 }
-                                .buttonStyle(PressStyle(scale: 0.995))
+                                .buttonStyle(PressStyle(scale: 0.9))
+                                .accessibilityLabel(picked
+                                    ? "Remove \(stop.name) from the drive"
+                                    : "Add \(stop.name) to the drive")
 
                                 Button {
                                     stop.mapItem.openInMaps(launchOptions: [
@@ -212,8 +258,8 @@ struct DetailSheet: View {
                                     ])
                                 } label: {
                                     Image(systemName: "arrow.triangle.turn.up.right.circle")
-                                        .font(.system(size: 14)).foregroundStyle(WP.accent700)
-                                        .frame(width: 30, height: 30)
+                                        .font(.system(size: 20)).foregroundStyle(WP.accent700)
+                                        .frame(width: 36, height: 40)
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
@@ -235,30 +281,23 @@ struct DetailSheet: View {
 
     private func routedLegBody(_ leg: TripRouting.Leg, label: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Set down from the drag indicator rather than tucked under it, and at a size
+            // that reads as the sheet's title instead of a caption above one.
             Text(label.uppercased())
-                .font(WP.body(12)).tracking(1.5).foregroundStyle(WP.accent700)
+                .font(WP.body(13.5)).tracking(1.7).foregroundStyle(WP.accent700)
+                .padding(.top, 10)
             Text("\(leg.from) → \(leg.to)").font(WP.heading(23)).padding(.top, 9)
                 .multilineTextAlignment(.leading)
 
             legStops(leg)
 
-            HStack(spacing: 0) {
-                legStat("Distance", "\(leg.miles) mi")
-                legStat("Wheel time", leg.drive)
-                legStat("Roads", String(leg.road.split(separator: " → ").count))
-            }
-            .padding(.top, 10)
-            .overlay(alignment: .top) { Hairline() }
-            .overlay(alignment: .bottom) { Hairline() }
+            // Distance, wheel time and the button now live in the pinned footer; the roads
+            // stay here, under the stops they are driven between.
+            Text(leg.road).font(WP.body(13)).lineSpacing(3).opacity(0.8)
+                .padding(.top, 14)
+                .overlay(alignment: .top) { Hairline() }
 
-            Text(leg.road).font(WP.body(13)).lineSpacing(3).opacity(0.8).padding(.top, 11)
-
-            GlowButton(title: openTitle(leg), minHeight: 48) {
-                openRoute(leg)
-            }
-            .padding(.top, 16)
-
-            SourceLine("Distance and wheel time from OSRM over the roads listed. Fuel, charging and food along the way from Apple Maps. Traffic is added on the day of the drive, when a leaving-now time means something.")
+            SourceLine("Distance and wheel time from OSRM over the roads listed. Fuel, charging, food and somewhere to sleep along the way from Apple Maps — add any of them and they are handed to Maps as stops on the drive. Traffic is added on the day of the drive, when a leaving-now time means something.")
                 .padding(.top, 16)
         }
     }

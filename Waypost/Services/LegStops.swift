@@ -26,11 +26,17 @@ final class LegStops {
         var lon: Double
         var id: String { "\(kind.rawValue):\(name):\(mile)" }
 
-        var glyph: String {
+        var glyph: String { kind.glyph }
+
+        /// One word for the row, where `Kind.title` is a section heading — "lodges &
+        /// hotels" reads as a category, "hotel" reads as the thing you are stopping at.
+        var label: String {
             switch kind {
-            case .charger: return "bolt.car"
-            case .food: return "fork.knife"
-            default: return "fuelpump"
+            case .charger: return "charging"
+            case .fuel: return "fuel"
+            case .food: return "food"
+            case .lodging: return "hotel"
+            default: return kind.title.lowercased()
             }
         }
 
@@ -144,10 +150,12 @@ final class LegStops {
                                        everyMiles: spacing,
                                        roadMiles: Double(leg.miles))
             // Charging first for an electric vehicle, fuel first otherwise — the one that
-            // decides whether the drive is possible goes at the top of each stop.
+            // decides whether the drive is possible goes at the top of each stop. Somewhere
+            // to sleep comes last: it is the only one of the four that is a choice rather
+            // than a necessity, and on a leg short enough to drive in a day, not needed.
             let kinds: [PlacesService.Kind] = electric
-                ? [.charger, .fuel, .food]
-                : [.fuel, .charger, .food]
+                ? [.charger, .fuel, .food, .lodging]
+                : [.fuel, .charger, .food, .lodging]
             let radius = Self.radius(forSpacing: spacing)
 
             // Concurrently, but only a few at a time: run all at once MapKit throttles the

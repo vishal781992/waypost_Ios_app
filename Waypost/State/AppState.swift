@@ -4,14 +4,16 @@ import SwiftUI
 // MARK: - Navigation
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case today, trips, discover, saved, me
+    /// Discover was a fifth tab. It is reached from the Today header now — the same
+    /// catalogue, one tab lighter, and no longer duplicated by a quick-search sheet that
+    /// asked the same question in a smaller box.
+    case today, trips, saved, me
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .today: return "Today"
         case .trips: return "Trips"
-        case .discover: return "Discover"
         case .saved: return "Saved"
         case .me: return "Profile"
         }
@@ -40,11 +42,19 @@ enum PushedScreen: Hashable, Identifiable {
     /// a trip next month, so it always asked for today's forecast.
     case park(code: String, segment: ParkSegment = .overview, date: Date? = nil)
     case trip(id: String)
+    /// The catalogue, which used to be a tab of its own.
+    ///
+    /// Pushed rather than presented: it is a place to browse — sixty-two national parks,
+    /// three thousand state ones, filters and photographs — and a sheet is a poor room to
+    /// wander in. Pushing keeps the back-swipe and lets a park open on top of it, exactly
+    /// as it did when Discover was a tab.
+    case explore
 
     var id: String {
         switch self {
         case .park(let code, _, _): return "park:" + code
         case .trip(let id): return "trip:" + id
+        case .explore: return "explore"
         }
     }
 }
@@ -168,9 +178,6 @@ final class AppState {
     /// Set when the app is opened straight into a search, so the field takes the caret
     /// and the suggestions are visible without a tap.
     var focusSearchOnAppear = false
-
-    /// Opens the search behind the home screen's `+`, for capture.
-    var showsQuickSearch = false
 
     /// Picking one searches for the term the sources will recognise, not the two letters
     /// that were typed.
@@ -426,14 +433,22 @@ final class AppState {
                     self.builder?.step = wanted
                 }
             }
-            if value("wpStateParks") != nil { self.tab = .discover; self.discoverShowsState = true }
+            if value("wpStateParks") != nil {
+                self.tab = .today
+                self.push(.explore)
+                self.discoverShowsState = true
+            }
             if let hex = value("wpTint"), PageTint.colour(from: hex) != nil {
                 PageTint.shared.hex = hex
             }
             if let term = value("wpFind") {
                 self.tab = .today
-                self.showsQuickSearch = true
-                if term != "1" { self.suggestions.update(term); self.directory.search(term) }
+                self.push(.explore)
+                if term != "1" {
+                    self.discoverQuery = term
+                    self.suggestions.update(term)
+                    self.directory.search(term)
+                }
             }
 
             // The empty states, which are otherwise only reachable by deleting things.
@@ -463,7 +478,8 @@ final class AppState {
                 }
             }
             if let term = value("wpSearch") {
-                self.tab = .discover
+                self.tab = .today
+                self.push(.explore)
                 self.focusSearchOnAppear = true
                 // Nothing else: setting the query is what starts a search, exactly as
                 // typing into the field does.

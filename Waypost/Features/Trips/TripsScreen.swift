@@ -108,15 +108,20 @@ struct TripsScreen: View {
             // screen already went directly. Planning a trip is what this tab is for.
             app.startBuilder()
         } label: {
+            // The mark's orange, same as the round controls on the other tabs — this is the
+            // one button on the screen that starts something, and it was the ink plate, so
+            // it read as chrome rather than as the thing to press.
             ZStack {
-                WP.ink
-                ButtonGlow(strong: true)
+                WP.mark
                 Image(systemName: "plus")
-                    .font(.system(size: 20, weight: .light))
-                    .foregroundStyle(WP.onInk)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.black)
             }
             .frame(width: 44, height: 44)
             .clipShape(Circle())
+            .overlay {
+                Circle().stroke(Color.black.opacity(0.12), lineWidth: 0.5)
+            }
         }
         .buttonStyle(PressStyle(scale: 0.92))
     }
@@ -308,6 +313,15 @@ struct RouteMapPlate: View {
         points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
     }
 
+    /// Bumped once the map has a projection, to draw the route a second time.
+    ///
+    /// `MapProxy.convert` answers nil until the map has laid out and worked out where on
+    /// screen a coordinate falls, so the first pass through the overlay converts nothing
+    /// and draws nothing — and nothing asks it again. The line only appeared when some
+    /// unrelated state change happened to re-run the body, which is why deleting a trip
+    /// made the route on the card above it materialise.
+    @State private var projection = 0
+
     var body: some View {
         // The basemap is desaturated, the route is not — so the filter is applied to the
         // map alone and the line is drawn over it, projected through MapReader.
@@ -316,8 +330,18 @@ struct RouteMapPlate: View {
                 .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
                 .saturation(0)
                 .contrast(1.04)
+                // Fires when the camera settles on the initial region, by which point the
+                // projection is good. Interaction is off, so this cannot churn.
+                .onMapCameraChange(frequency: .onEnd) { _ in projection += 1 }
                 .overlay {
-                    RouteOverlay(coordinates: coordinates, proxy: proxy)
+                    RouteOverlay(coordinates: coordinates, proxy: proxy, projection: projection)
+                }
+                .task {
+                    // A card scrolled into view whose camera never reports a change would
+                    // otherwise keep its first, empty pass forever. One nudge after the
+                    // first layout pass covers it.
+                    await Task.yield()
+                    projection += 1
                 }
         }
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -350,6 +374,9 @@ struct RouteMapPlate: View {
 struct RouteOverlay: View {
     var coordinates: [CLLocationCoordinate2D]
     var proxy: MapProxy
+    /// Not read: it exists so that the projection becoming available re-runs this body.
+    /// The conversion below is only meaningful once the map has laid out.
+    var projection: Int
 
     var body: some View {
         GeometryReader { _ in

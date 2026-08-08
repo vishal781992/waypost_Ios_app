@@ -61,6 +61,47 @@ final class PlacesService {
             case .food: return "restaurant"
             }
         }
+
+        /// The symbol this category carries wherever it is listed.
+        var glyph: String {
+            switch self {
+            case .charger: return "bolt.car"
+            case .fuel: return "fuelpump"
+            case .food: return "fork.knife"
+            case .lodging: return "bed.double"
+            case .campground: return "tent"
+            case .store: return "cart"
+            }
+        }
+
+        /// The colour this category carries wherever it is listed.
+        ///
+        /// A driving day lists four kinds of stop at every mile marker, and in one accent
+        /// they read as one undifferentiated column. These are earthy rather than the usual
+        /// signal colours — moss, brass, terracotta, dusk — so they stay distinguishable at
+        /// a glance without fighting the warm page the app is set on.
+        var tint: Color {
+            switch self {
+            case .charger: return Color(hex: 0x3B6D11)
+            case .fuel: return Color(hex: 0x854F0B)
+            case .food: return Color(hex: 0x993C1D)
+            case .lodging: return Color(hex: 0x185FA5)
+            case .campground: return Color(hex: 0x0F6E56)
+            case .store: return Color(hex: 0x5F5E5A)
+            }
+        }
+
+        /// The same colour washed out, for the disc the glyph sits on.
+        var tintSoft: Color {
+            switch self {
+            case .charger: return Color(hex: 0xEAF3DE)
+            case .fuel: return Color(hex: 0xFAEEDA)
+            case .food: return Color(hex: 0xFAECE7)
+            case .lodging: return Color(hex: 0xE6F1FB)
+            case .campground: return Color(hex: 0xE1F5EE)
+            case .store: return Color(hex: 0xF1EFE8)
+            }
+        }
     }
 
     struct Place: Identifiable, Hashable {
@@ -199,7 +240,10 @@ struct PlaceRows: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let title {
-                Text(title).font(WP.body(11.5)).foregroundStyle(WP.accent700)
+                // The category's own colour rather than the one accent, so a park's
+                // charging, fuel and food read apart at a glance — the same coding the
+                // driving day uses for the stops between parks.
+                Text(title).font(WP.body(11.5)).foregroundStyle(kind.tint)
             }
 
             if let places {
@@ -215,17 +259,25 @@ struct PlaceRows: View {
                         } label: {
                             DividedRow(vertical: 10) {
                                 HStack(spacing: 12) {
+                                    Image(systemName: kind.glyph)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(kind.tint)
+                                        .frame(width: 28, height: 28)
+                                        .background(kind.tintSoft, in: Circle())
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(place.name)
                                             .font(WP.rowTitle(15))
                                             .multilineTextAlignment(.leading)
                                         Text(place.subtitle)
-                                            .font(WP.body(11.5)).opacity(0.62).tnum()
+                                            .font(WP.body(11.5)).foregroundStyle(kind.tint).tnum()
                                     }
                                     Spacer(minLength: 0)
+                                    // The size the driving day's own open-in-Maps control
+                                    // is, so the same action is the same target on both.
                                     Image(systemName: "arrow.triangle.turn.up.right.circle")
-                                        .font(.system(size: 14))
+                                        .font(.system(size: 20))
                                         .foregroundStyle(WP.accent700)
+                                        .frame(width: 36, height: 40)
                                 }
                             }
                         }

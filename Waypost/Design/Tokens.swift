@@ -23,6 +23,14 @@ enum WP {
     static let text = Color(hex: 0x201F1D)
     static let accent = Color(hex: 0xB68235)
     static let accent2 = Color(hex: 0xAC803E)
+
+    /// The orange out of the app's mark — the counter of the "o" in ParkHop.
+    ///
+    /// The one colour the icon and the interface share, so the round controls read as the
+    /// same product as the thing on the home screen. Kept out of the accent ramp because it
+    /// is the mark's colour rather than the page's, and it should stay that way: everything
+    /// wearing it is a control you press.
+    static let mark = Color(hex: 0xFF9932)
     /// The page behind the device in the design — used for the deepest scrim.
     static let clay = Color(hex: 0xDCD7CF)
 
@@ -161,8 +169,15 @@ enum WP {
     /// The design's page gutter on every screen.
     static let gutter: CGFloat = 20
 
-    /// How round a sheet's top corners are.
-    static let sheetCorner: CGFloat = 34
+    /// How round a sheet's corners are.
+    ///
+    /// The phone's own display corner, so a sheet strikes the same arc as the screen it
+    /// sits in rather than a tighter one inside it — at 34 the two curves were visibly
+    /// different radii wherever they met. 62pt is what the 17 Pro reports; the only way to
+    /// read a device's real corner is `UIScreen._displayCornerRadius`, which is private and
+    /// not worth an App Store review over, so it is written down instead. Older phones
+    /// curve less (39–55pt), where this errs slightly round rather than slightly square.
+    static let sheetCorner: CGFloat = 62
 
     /// Where a round close control sits so that it and the corner it sits in are drawn
     /// about the same point.
@@ -172,8 +187,14 @@ enum WP {
     /// a 22pt disc the two curves were struck from points 20pt apart and never looked
     /// concentric. Insetting by `sheetCorner - r` puts both centres on the same point,
     /// whatever size the disc is.
+    ///
+    /// Held at the gutter, though, because concentricity stops being the thing worth having
+    /// once the corner is bigger than the disc can nest inside. At a 62pt corner the formula
+    /// asks for 40pt, which sets the disc further in than the words beside it — a close
+    /// control floating in from the edge while its own header text sits at the gutter reads
+    /// as misaligned, whatever the arcs are doing.
     static func sheetCloseInset(for discSize: CGFloat) -> CGFloat {
-        sheetCorner - discSize / 2
+        min(sheetCorner - discSize / 2, gutter)
     }
     /// Status-bar clearance the design bakes into each header (`padding-top: 57px`).
     static let headerTop: CGFloat = 14

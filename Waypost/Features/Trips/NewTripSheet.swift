@@ -36,6 +36,15 @@ struct NewTripSheet: View {
                 footer
             }
         }
+        // Softened while the calendar is open. The date sheet frosts its own panel, but the
+        // form above it stayed perfectly sharp — a field label and a stepper sitting in full
+        // focus directly above the month you are trying to read. Blurring the page behind
+        // leaves one thing on screen to look at.
+        //
+        // Before `.background`, so the blur has an opaque page to soften against rather than
+        // bleeding transparent at the edges.
+        .blur(radius: showDatePicker ? 4 : 0)
+        .animation(.easeOut(duration: 0.28), value: showDatePicker)
         .background(WP.bg)
         .presentationDetents([.large])
         .presentationCornerRadius(WP.sheetCorner)
@@ -457,8 +466,17 @@ struct NewTripSheet: View {
                                 .padding(.horizontal, WP.gutter)
                                 .onChange(of: builder.startDate) { _, _ in showDatePicker = false }
                         }
+                        .padding(.top, 8)
                         .presentationDetents([.medium])
                         .presentationDragIndicator(.visible)
+                        // Frosted, not the default thin backing. This sheet opens on top of
+                        // another sheet, and the form underneath was showing through hard
+                        // enough to read — stray field labels and capsule edges cutting
+                        // between the calendar's own rows. Thick material puts the page
+                        // behind it out of focus properly, so the only thing in focus is
+                        // the month being chosen.
+                        .presentationBackground(.thickMaterial)
+                        .presentationCornerRadius(WP.sheetCorner)
                     }
                 }
 

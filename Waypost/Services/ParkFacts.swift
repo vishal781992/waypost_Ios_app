@@ -25,6 +25,12 @@ final class ParkFacts {
         var campgrounds: [Campground]
         var thingsToDo: [Activity]
         var parking: [String]
+        /// What the park service says this place is, in its own words. The overview's
+        /// "why it matters" is a reading of this — never the model's own recollection of
+        /// a park, which is exactly the sort of thing it would invent confidently.
+        var blurb: String? = nil
+        /// The educational topics NPS files the park under — "Volcanoes", "Wilderness".
+        var topics: [String] = []
         /// The timed-entry or reservation requirement, in the park's own words — or nil
         /// where the park has none. Lives in the `feespasses` endpoint, not `parks`, which
         /// is why the app never had it and the screen fell back to a hard-coded line.
@@ -320,6 +326,10 @@ final class ParkFacts {
                 )
             },
             parking: lots.compactMap { $0["name"] as? String },
+            // Both are default fields on the park record, so they arrive with the call
+            // already being made — no second request for them.
+            blurb: (row["description"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+            topics: ((row["topics"] as? [[String: Any]]) ?? []).compactMap { $0["name"] as? String },
             reservation: reservation,
             fetchedAt: Date(),
             unavailable: unavailable

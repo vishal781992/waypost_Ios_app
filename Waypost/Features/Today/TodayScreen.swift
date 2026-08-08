@@ -35,12 +35,6 @@ struct TodayScreen: View {
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }
-        .sheet(isPresented: Binding(get: { app.showsQuickSearch },
-                                    set: { app.showsQuickSearch = $0 })) {
-            QuickSearchSheet()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
         .task {
             app.refreshRecommendation()
             // Every national park's photograph, once, on wi-fi — so the app keeps its
@@ -61,8 +55,8 @@ struct TodayScreen: View {
 
             Spacer(minLength: 0)
 
-            GlassDisc(icon: "plus") { app.showsQuickSearch = true }
-                .accessibilityLabel("Find a park")
+            MarkPill(title: "Explore") { app.push(.explore) }
+                .accessibilityHint("Every national and state park, to search or browse")
         }
         .frame(minHeight: 52)
         .padding(.horizontal, WP.gutter)
@@ -216,7 +210,7 @@ struct NearbyRail: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                app.go(.discover)
+                app.push(.explore)
             } label: {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     HStack(spacing: 5) {

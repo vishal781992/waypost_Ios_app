@@ -98,8 +98,19 @@ struct DiscoverScreen: View {
 
         VStack(spacing: 0) {
             ScreenHeader {
-                Text("Sixty-three parks, one at a time").kickerStyle()
-                Text("Discover").font(WP.displayBold(44)).tracking(-0.4).padding(.top, 2).padding(.bottom, 10)
+                // A way out that does not depend on knowing about the back-swipe. This was
+                // a tab, so it never needed one; reached from the Today header it does.
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Sixty-three parks, one at a time").kickerStyle()
+                        Text("Discover").font(WP.displayBold(44)).tracking(-0.4).padding(.top, 2)
+                    }
+                    Spacer(minLength: 0)
+                    GlassDisc(icon: "xmark", size: 44) { app.pop() }
+                        .accessibilityLabel("Close")
+                        .padding(.top, 2)
+                }
+                .padding(.bottom, 10)
 
                 // Two catalogues with different guarantees: the NPS registry, and the
                 // state-park table that ships on the phone.

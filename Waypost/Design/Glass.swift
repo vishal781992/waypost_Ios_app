@@ -586,6 +586,44 @@ struct SelectedControl: ViewModifier {
 /// It exists as one component because it appears in two places — the `+` on the home
 /// screen and the `×` that closes the search it opens — and a pair of controls that sit
 /// at opposite ends of the same gesture should be the same size and the same material.
+/// A word where a `GlassDisc` would be, in the same orange.
+///
+/// The Today header carried a "+" that opened a park search. A plus means *make a thing* —
+/// it means exactly that on the Trips header — and what it actually opened was a catalogue
+/// to read. A labelled control can say so.
+struct MarkPill: View {
+    var title: String
+    var height: CGFloat = 48
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(WP.headingUI(16))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 22)
+                .frame(height: height)
+                // Opaque, for the same reason the discs are: glass takes its colour from
+                // whatever sits behind it, and the Today header sits over a different park
+                // photograph every day. The crown and the edge keep the glass reading.
+                .background(WP.mark, in: Capsule())
+                .overlay(alignment: .top) {
+                    Capsule()
+                        .fill(LinearGradient(colors: [.white.opacity(0.42), .white.opacity(0)],
+                                             startPoint: .top, endPoint: .bottom))
+                        .frame(height: height * 0.42)
+                        .padding(.horizontal, height * 0.24)
+                        .padding(.top, 3)
+                        .allowsHitTesting(false)
+                }
+                .overlay { Capsule().stroke(Color.black.opacity(0.12), lineWidth: 0.5) }
+                .clipShape(Capsule())
+                .shadow(color: Color(hex: 0x181008, opacity: 0.16), radius: 8, y: 5)
+        }
+        .buttonStyle(PressStyle(scale: 0.96))
+    }
+}
+
 struct GlassDisc: View {
     var icon: String
     var size: CGFloat = 52
@@ -594,19 +632,30 @@ struct GlassDisc: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: size * 0.365, weight: .medium))
-                .foregroundStyle(WP.accent700)
+                .font(.system(size: size * 0.365, weight: .semibold))
+                .foregroundStyle(.black)
                 .frame(width: size, height: size)
-                .liquidGlass(.pill, radius: 999, interactive: true)
+                // The mark's orange, laid solid rather than tinted through the glass: glass
+                // takes its colour partly from whatever is behind it, and this control sits
+                // over a photograph on one screen and a plain page on the next. A brand
+                // colour that changes with the wallpaper is not a brand colour.
+                .background(Circle().fill(WP.mark))
                 .overlay(alignment: .top) {
-                    // The lit crown the design puts on its round glass controls.
+                    // The lit crown the design puts on its round glass controls. Softer
+                    // than it was on the glass, which had nothing underneath to bleach.
                     Ellipse()
-                        .fill(LinearGradient(colors: [.white.opacity(0.75), .white.opacity(0)],
+                        .fill(LinearGradient(colors: [.white.opacity(0.42), .white.opacity(0)],
                                              startPoint: .top, endPoint: .bottom))
                         .frame(width: size * 0.77, height: size * 0.44)
                         .padding(.top, size * 0.058)
                         .allowsHitTesting(false)
                 }
+                .overlay {
+                    // Keeps its edge against a pale header, where the orange alone is not
+                    // dark enough to draw its own outline.
+                    Circle().stroke(Color.black.opacity(0.12), lineWidth: 0.5)
+                }
+                .clipShape(Circle())
                 .shadow(color: Color(hex: 0x181008, opacity: 0.16), radius: 8, y: 5)
         }
         .buttonStyle(PressStyle(scale: 0.94))
