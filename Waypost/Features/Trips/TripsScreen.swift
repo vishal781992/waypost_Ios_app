@@ -93,8 +93,9 @@ struct TripsScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, WP.gutter)
                 .padding(.top, 18)
-                .padding(.bottom, WP.tabBarClearance)
+                .padding(.bottom, WP.rootScrollBottom)
             }
+            .tracksTabBarMinimize()
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }

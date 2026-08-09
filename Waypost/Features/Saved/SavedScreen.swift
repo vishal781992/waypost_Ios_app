@@ -29,9 +29,10 @@ struct SavedScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, WP.gutter)
                 .padding(.top, 16)
-                .padding(.bottom, WP.tabBarClearance)
+                .padding(.bottom, WP.rootScrollBottom)
                 .panelTransition(id: app.savedShowsPassport)
             }
+            .tracksTabBarMinimize()
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }

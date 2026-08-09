@@ -42,6 +42,10 @@ struct RootShell: View {
     /// zoom transition knows which pair belongs together.
     @Namespace private var zoom
 
+    /// Whether the hand-built bar is held out of the way. Owned here, driven by whichever
+    /// root screen is being read.
+    @State private var chrome = TabBarChrome()
+
     var body: some View {
         @Bindable var app = app
 
@@ -60,33 +64,45 @@ struct RootShell: View {
         /// nudge can still change tabs, and so the last one is remembered across launches.
         let selection = Binding<AppTab>(get: { currentTab }, set: { app.go($0) })
 
-        // A real TabView, so the tab bar is the system's: Liquid Glass with its own
-        // scroll-edge response, the selection morphing between items, and the bar
-        // shrinking out of the way as you read down a screen.
-        TabView(selection: selection) {
-            ForEach(AppTab.allCases) { tab in
-                // The path is read here, in the body, on purpose. A hand-built `Binding`
-                // whose `get` closure reads the path never registers a dependency —
-                // Observation tracks what a body *reads*, and the closure runs later —
-                // so pushing and popping mutated the array and nothing redrew. Reading it
-                // here registers the dependency; `$app.paths` carries the writes back.
-                let screens = app.path(for: tab)
-                tabStack(tab, path: Binding(
-                    get: { screens },
-                    set: { app.setPath($0, for: tab) }
-                ))
-                    .tag(tab)
-                    .tabItem {
-                        Label {
-                            Text(tab.label)
-                        } icon: {
-                            TabIconImage.image(for: tab)
-                        }
-                    }
+        // Still a real TabView — it keeps the selection, the per-tab navigation stacks and
+        // the zoom transitions. Only the bar itself is ours, because the system's spans the
+        // screen and offers no way to bring its items closer together.
+        //
+        // The bar is a sibling of the `TabView` rather than an overlay on it. As an overlay
+        // it drew in the right place and answered nothing: the tab bar controller beneath
+        // takes the touches in that strip whether or not its own bar is showing.
+        ZStack(alignment: .bottom) {
+            TabView(selection: selection) {
+                ForEach(AppTab.allCases) { tab in
+                    // The path is read here, in the body, on purpose. A hand-built `Binding`
+                    // whose `get` closure reads the path never registers a dependency —
+                    // Observation tracks what a body *reads*, and the closure runs later —
+                    // so pushing and popping mutated the array and nothing redrew. Reading
+                    // it here registers the dependency; `$app.paths` carries the writes back.
+                    let screens = app.path(for: tab)
+                    tabStack(tab, path: Binding(
+                        get: { screens },
+                        set: { app.setPath($0, for: tab) }
+                    ))
+                        .tag(tab)
+                }
+            }
+            .modifier(NativeTabBarBehaviour())
+
+            // Hidden under a push, the same as the system bar was. The pushed screen has
+            // its own header and its own way back, and the bar over it was never part of
+            // that page.
+            if app.path(for: currentTab).isEmpty {
+                CompactTabBar(selection: selection, isMinimized: chrome.isMinimized)
+                    .padding(.bottom, 6)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .environment(\.zoomNamespace, zoom)
-        .modifier(NativeTabBarBehaviour())
+        .environment(chrome)
+        // A tab you have just come back to should not still be holding its bar down from
+        // the last time you read it.
+        .onChange(of: currentTab) { chrome.reset() }
         .overlay(alignment: .bottom) {
             if let toast = app.toast {
                 ToastView(text: toast)
@@ -115,6 +131,8 @@ struct RootShell: View {
                 // there was no way back but the button. The toolbar API hides only the
                 // bar.
                 .toolbar(.hidden, for: .navigationBar)
+                // The system bar is off everywhere; `CompactTabBar` stands in for it.
+                .toolbar(.hidden, for: .tabBar)
                 .navigationDestination(for: PushedScreen.self) { screen in
                     pushed(screen)
                         .toolbar(.hidden, for: .navigationBar)
@@ -231,51 +249,19 @@ struct PushHeader: View {
     }
 }
 
-/// The behaviours the system tab bar gains on iOS 26: the bar minimises as you read
-/// down a screen and expands again when you scroll back up, and the whole thing is
-/// Liquid Glass with its own scroll-edge response.
-///
-/// The item titles stay in the system face. The new bar styles them itself and ignores
-/// `UITabBarItem.appearance()`, and fighting it would mean giving up the native bar —
-/// which is the thing worth having. The glyphs are still the design's own.
+/// The app's tint. The system tab bar is hidden, so what is left here is the accent every
+/// other control inherits.
 struct NativeTabBarBehaviour: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                .tabBarMinimizeBehavior(.onScrollDown)
-                .tint(WP.neutral900)
-        } else {
-            content.tint(WP.neutral900)
-        }
-    }
-}
-
-/// The design's own glyphs, rendered once into template images so the system tab bar can
-/// carry them. Tab items take an `Image`; drawing the shapes inline would have meant
-/// giving up the native bar, and the compass rose and milepost are part of the brand.
-@MainActor
-enum TabIconImage {
-    private static var cache: [AppTab: Image] = [:]
-
-    static func image(for tab: AppTab) -> Image {
-        if let hit = cache[tab] { return hit }
-        let renderer = ImageRenderer(
-            content: TabIcon(tab: tab)
-                .frame(width: 26, height: 26)
-                .foregroundStyle(.black)
-        )
-        renderer.scale = 3
-        guard let rendered = renderer.uiImage?.withRenderingMode(.alwaysTemplate) else {
-            return Image(systemName: "circle")
-        }
-        let image = Image(uiImage: rendered)
-        cache[tab] = image
-        return image
+        content.tint(WP.neutral900)
     }
 }
 
 /// The tab glyphs, drawn from the design's SVG paths rather than swapped for SF Symbols —
 /// the compass rose and the milepost are part of the brand.
+///
+/// These used to be flattened into template images, because a system tab item takes an
+/// `Image` and nothing else. `CompactTabBar` draws views, so the shapes go in as they are.
 struct TabIcon: View {
     var tab: AppTab
 

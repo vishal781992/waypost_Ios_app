@@ -31,8 +31,9 @@ struct TodayScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, WP.gutter)
                 .padding(.top, 16)
-                .padding(.bottom, WP.tabBarClearance)
+                .padding(.bottom, WP.rootScrollBottom)
             }
+            .tracksTabBarMinimize()
             .scrollIndicators(.hidden)
             .captureScrollPosition()
         }

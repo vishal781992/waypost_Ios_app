@@ -52,6 +52,11 @@ enum WP {
     static let neutral800 = Color(hex: 0x444141)
     static let neutral900 = Color(hex: 0x2D2B2B)
 
+    /// The selected tab's capsule. The one place the palette leaves its warm neutrals and
+    /// its amber: a marker, not a surface, and it earns the jump by only ever being on one
+    /// item at a time.
+    static let tabSelection = Color(hex: 0xDBE64C)
+
     static let accent100 = Color(hex: 0xFFF3E4)
     static let accent200 = Color(hex: 0xFFE3BF)
     static let accent300 = Color(hex: 0xFACB8D)
@@ -206,9 +211,14 @@ enum WP {
     }
     /// Status-bar clearance the design bakes into each header (`padding-top: 57px`).
     static let headerTop: CGFloat = 14
-    /// Breathing room at the end of a scroll. The system tab bar insets content itself,
-    /// so this is just the design's trailing margin.
+    /// Breathing room at the end of a scroll on a screen with no bar over it — a pushed
+    /// screen. Just the design's trailing margin.
     static let tabBarClearance: CGFloat = 28
+    /// The floating bar's own height: two 46pt items' worth of row plus its 5pt padding.
+    static let tabBarHeight: CGFloat = 56
+    /// What a root screen's scroll has to clear. The system bar used to inset content for
+    /// us; ours floats in an overlay and cannot, so the last card is held clear by hand.
+    static let rootScrollBottom: CGFloat = tabBarClearance + tabBarHeight + 10
 }
 
 // MARK: - Colour conversion
