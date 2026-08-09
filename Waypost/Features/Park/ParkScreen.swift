@@ -15,9 +15,6 @@ struct ParkScreen: View {
     @State private var forward = true
     /// Where the in-flow rail is on the display, and the line it turns into a header at.
     @State private var railTop: CGFloat = .greatestFiniteMagnitude
-    /// Whether the page was pinned when the section was last changed.
-    @State private var heldPinned = false
-
     /// 0 while the rail is part of the park page, 1 once it has become the page's header.
     /// Everything that changes between the two states reads this, so the swap happens over
     /// 56 points of scrolling rather than snapping at a line.
@@ -270,13 +267,17 @@ struct ParkScreen: View {
                 }
                 .scrollIndicators(.hidden)
                 .captureScrollPosition()
-                // Turning the page while pinned puts the new section's first line under
-                // the header — the scroll offset is wherever the reading left it. Put the
-                // rail back at the top and the stand-in above does the rest.
+                // Picking a section makes it the page, wherever the rail was picked from.
+                //
+                // This used to fire only when the page was already pinned, so choosing
+                // Weather from halfway down the overview swapped the content somewhere
+                // below the fold and left the reader looking at park hours — the section
+                // they asked for was on screen, but not the part of it that says so. The
+                // rail rides to the top on the same movement that changes the content, and
+                // the pinned bar fades in behind it.
                 .onChange(of: segment) { _, _ in
-                    guard heldPinned else { return }
                     Task { @MainActor in
-                        withAnimation(.snappy(duration: 0.2)) {
+                        withAnimation(.snappy(duration: 0.32)) {
                             scroller.scrollTo(Self.railAnchor, anchor: .top)
                         }
                     }
@@ -344,7 +345,6 @@ struct ParkScreen: View {
             get: { segment },
             set: { new in
                 guard new != segment else { return }
-                heldPinned = pinned > 0.5
                 let all = ParkSegment.allCases
                 forward = (all.firstIndex(of: new) ?? 0) > (all.firstIndex(of: segment) ?? 0)
                 withAnimation(.snappy(duration: 0.28)) { segment = new }
@@ -768,6 +768,10 @@ struct WeatherSection: View {
     /// phone with a network; blended with the National Weather Service where it covers.
     @State private var live: WeatherDay?
 
+    /// Which tile has been opened for its extra line. One at a time: the point of the
+    /// gesture is that the rest of the slab steps back while you read one reading.
+    @State private var openTile: String?
+
     /// What the panel is actually reading: the live forecast if one arrived, otherwise
     /// the curated normals — and if the park has neither, nothing at all.
     private var wx: CuratedWeather {
@@ -784,31 +788,167 @@ struct WeatherSection: View {
         hasNumbers ? text() : "—"
     }
 
-    private var cells: [(label: String, value: String, sub: String, dot: Color)] {
+    /// The five tiles, in the order the slab lays them out.
+    ///
+    /// Every string here comes off a service or off the bundled record. Where a number has
+    /// not arrived the tile shows a dash and its fill stays empty — a tile drawn at zero
+    /// is a reading, and "no forecast yet" is not one.
+    private var tiles: [WeatherTileModel] {
         [
-            ("High", value("\(wx.hi)°"), live == nil ? "bundled normal" : dayLabel, light.color),
-            ("Low", value("\(wx.lo)°"), "overnight", wx.lo <= 32 ? Color(oklch: 0.66, 0.13, 70) : Color(oklch: 0.60, 0.13, 150)),
-            ("UV index", value(wx.uvIndex), wx.uvWord, uvColor),
-            ("Wind", value(wx.wind), "max sustained", windColor),
-            ("Sunrise", value(wx.sr.clockPadded), "first light", Color(oklch: 0.60, 0.13, 150)),
-            ("Sunset", value(wx.ss.clockPadded), "last light", Color(oklch: 0.60, 0.13, 150)),
+            WeatherTileModel(
+                id: "temp",
+                value: value("\(wx.hi)"),
+                unit: hasNumbers ? "°F" : "",
+                label: live == nil ? "High · bundled normal" : "High \(dayLabel)",
+                detail: live?.shortForecast,
+                foot: hasNumbers ? "Low \(wx.lo)° overnight" : nil,
+                fill: hasNumbers
+                    ? .mercury(WeatherScale.fraction(Double(wx.hi), in: WeatherScale.temperature), light.color)
+                    : .empty
+            ),
+            WeatherTileModel(
+                id: "uv",
+                value: value(wx.uvIndex),
+                label: hasNumbers ? "UV · \(wx.uvWord)" : "UV index",
+                detail: live?.uvModelled == true
+                    ? "Modelled from the sun's angle here — the archive carries no UV."
+                    : nil,
+                fill: uvValue.map {
+                    .scale($0 / WeatherScale.uvCeiling,
+                           stops: WeatherScale.uvStops,
+                           marks: WeatherScale.uvMarks)
+                } ?? .empty
+            ),
+            WeatherTileModel(
+                id: "humidity",
+                value: humidity.map { "\($0)" } ?? "—",
+                unit: humidity == nil ? "" : "%",
+                label: "Humidity",
+                detail: humidity == nil
+                    ? "No humidity in this park's record — only the live forecast carries one."
+                    : "Read at midday.",
+                fill: humidity.map { .wave(Double($0) / 100, WeatherScale.water) } ?? .empty
+            ),
+            WeatherTileModel(
+                id: "wind",
+                value: windSustained.map { "\(Int($0))" } ?? "—",
+                unit: windSustained == nil ? "" : " mph",
+                label: windGust == nil ? "Wind" : "Wind · gusts \(Int(windGust!))",
+                detail: hasNumbers ? "Highest sustained wind of the day." : nil,
+                fill: windSustained.map {
+                    .dial($0 / WeatherScale.windCeiling,
+                          gust: windGust.map { $0 / WeatherScale.windCeiling },
+                          windColor)
+                } ?? .empty
+            ),
+            WeatherTileModel(
+                id: "rain",
+                value: precip.map { "\($0)" } ?? "—",
+                unit: precip == nil ? "" : "%",
+                label: "Rain chance",
+                detail: precip == nil
+                    ? "No chance of rain in this park's record — only the live forecast carries one."
+                    : "The likeliest hour of the day, not the whole of it.",
+                fill: precip.map { .wave(Double($0) / 100, WeatherScale.water) } ?? .empty
+            ),
+            WeatherTileModel(
+                id: "sun",
+                value: value(wx.ss.clockPadded),
+                label: sunLabel,
+                detail: live?.isNormals == true
+                    ? "A ten-year average for this week, not a forecast."
+                    : nil,
+                foot: hasNumbers ? "First light \(wx.sr.clockPadded)" : nil,
+                fill: hasNumbers ? .band(daylightSpent, WP.mark) : .empty
+            ),
         ]
     }
 
-    private var uvColor: Color {
-        let uv = Int(wx.uvIndex) ?? 0
-        if uv >= 11 { return Color(oklch: 0.55, 0.16, 30) }
-        if uv >= 8 { return Color(oklch: 0.66, 0.13, 70) }
-        return Color(oklch: 0.55, 0.09, 150)
+    private var uvValue: Double? {
+        guard hasNumbers else { return nil }
+        return Double(wx.uvIndex)
     }
 
+    /// Wind is rated on its own speed, not on the day's heat: a 40 mph gust is a reason to
+    /// turn round whether the afternoon is 60° or 103°.
     private var windColor: Color {
-        let numbers = wx.wind.components(separatedBy: CharacterSet.decimalDigits.inverted)
-            .compactMap { Int($0) }
-        let peak = numbers.max() ?? 0
+        let peak = windNumbers.max() ?? 0
         if peak >= 35 { return Color(oklch: 0.55, 0.16, 30) }
         if peak >= 20 { return Color(oklch: 0.66, 0.13, 70) }
-        return Color(oklch: 0.55, 0.09, 150)
+        return Color(oklch: 0.60, 0.13, 150)
+    }
+
+    /// `64%` as published, back to a number the wave can be filled to.
+    private var humidity: Int? {
+        guard let text = live?.humidity else { return nil }
+        return Int(text.filter(\.isNumber))
+    }
+
+    /// The day's highest hourly chance of rain. Fetched all along and never shown.
+    private var precip: Int? {
+        guard let text = live?.precip else { return nil }
+        return Int(text.filter(\.isNumber))
+    }
+
+    /// `9 mph, gusts 23` — the sustained speed first, the gust as the larger of the two.
+    private var windNumbers: [Double] {
+        guard hasNumbers else { return [] }
+        return wx.wind.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap(Double.init)
+    }
+
+    private var windSustained: Double? { windNumbers.first }
+    private var windGust: Double? {
+        guard let peak = windNumbers.max(), peak != windSustained else { return nil }
+        return peak
+    }
+
+    /// Sunrise and sunset, read back into minutes: how long the day is, and — only when
+    /// the day is today — how much of it is left to walk in.
+    private var daylight: (span: Int, remaining: Int?)? {
+        guard hasNumbers,
+              let rise = WeatherClock.minutes(wx.sr),
+              let set = WeatherClock.minutes(wx.ss),
+              set > rise else { return nil }
+        guard isToday else { return (set - rise, nil) }
+        let now = WeatherClock.minutesIntoToday()
+        // Before first light the whole day is still to come. Counted from the clock alone
+        // this read "20h 33m left" at midnight — true of the sunset, false of the light,
+        // and the tile is about the light.
+        guard now > rise else { return (set - rise, set - rise) }
+        return (set - rise, max(0, set - now))
+    }
+
+    /// The fraction of the day's light already spent. Nil on any day but today, where
+    /// there is no "so far" to draw.
+    private var daylightSpent: Double? {
+        guard let daylight, let remaining = daylight.remaining else { return nil }
+        return Double(daylight.span - remaining) / Double(daylight.span)
+    }
+
+    /// What is left of the page once the chrome above and below the tiles has had its
+    /// share: the section's air, the verdict line, the reading and the source line.
+    ///
+    /// Taken as a fraction of the page rather than as a constant, so the panel fills an SE
+    /// and a Pro Max alike; clamped so a very small display cannot squeeze a tile below
+    /// what its two lines of type need, and a very large one cannot stretch six readings
+    /// into a poster.
+    /// 0.68 rather than 0.72: the page-dots pill floats over the foot of the display, and
+    /// the last four points of the source line were reading through it.
+    private var slabHeight: CGFloat {
+        min(max(ParkScreen.pageHeight * 0.68, 380), 620)
+    }
+
+    private var sunLabel: String {
+        guard let daylight else { return "Sunset" }
+        guard let remaining = daylight.remaining else {
+            return "Sunset · \(WeatherClock.span(daylight.span)) of light"
+        }
+        if remaining == 0 { return "Sunset · dark now" }
+        // The day is either still ahead of you or already running; only the second case
+        // has an amount "left".
+        return remaining == daylight.span
+            ? "Sunset · \(WeatherClock.span(daylight.span)) of light"
+            : "Sunset · \(WeatherClock.span(remaining)) left"
     }
 
     var body: some View {
@@ -818,27 +958,9 @@ struct WeatherSection: View {
                 Text(light.label).font(WP.bodyItalic(13)).opacity(0.8)
             }
 
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)], spacing: 0) {
-                ForEach(cells, id: \.label) { cell in
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 6) {
-                            Circle().fill(cell.dot).frame(width: 6, height: 6)
-                            Text(cell.label.uppercased())
-                                .font(WP.body(10)).tracking(1.4).opacity(0.6)
-                        }
-                        Text(cell.value).font(WP.statValue(22)).tnum().lineLimit(1).minimumScaleFactor(0.7)
-                        Text(cell.sub).font(WP.body(10.5)).opacity(0.55)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.trailing, 12)
-                    .padding(.vertical, 12)
-                    .overlay(alignment: .bottom) { Hairline() }
-                }
-            }
-            // No rule under the verdict line. The grid's own row hairlines already say
-            // where the readings start, and a second one directly above them read as an
-            // underline struck through the sentence.
-            .padding(.top, 18)
+            WeatherSlab(tiles: tiles, selected: $openTile)
+                .frame(height: slabHeight)
+                .padding(.top, 14)
 
             Text(hasNumbers ? wx.note : "No forecast has come back for this park yet.")
                 .font(WP.bodyItalic(13)).lineSpacing(3).opacity(0.8)
@@ -1141,6 +1263,34 @@ struct LiveCampgroundRow: View {
         camp.facilityID.map { Recreation.shared.state(facility: $0) }
     }
 
+    /// The campground's own page on Recreation.gov. Only the facilities that book there
+    /// have an id, so a concessioner-run campground gets no link rather than a wrong one.
+    private var bookingLink: URL? {
+        camp.facilityID.flatMap { URL(string: "https://www.recreation.gov/camping/campgrounds/\($0)") }
+    }
+
+    /// A first-come campground is listed on Recreation.gov without being bookable there.
+    /// Longs Peak has a facility page and no calendar; "Book" would be a promise the page
+    /// does not keep.
+    private var bookingLabel: String {
+        guard let id = camp.facilityID else { return "View on Recreation.gov" }
+        if case .notBookable = Recreation.shared.state(facility: id) {
+            return "View on Recreation.gov"
+        }
+        return "Book on Recreation.gov"
+    }
+
+    /// Where this campground's official page lives.
+    ///
+    /// Recreation.gov when it books there, and the park service's own page when it does
+    /// not — which is most of the first-come campgrounds, the ones a reader most needs to
+    /// go and read about. One pill either way: the errand is the same.
+    private var official: (url: URL, title: String, glyph: String)? {
+        if let url = bookingLink { return (url, bookingLabel, "tent.fill") }
+        if let url = camp.npsURL { return (url, "View on NPS.gov", "leaf.fill") }
+        return nil
+    }
+
     private var tonight: String {
         guard let id = camp.facilityID else { return "" }
         switch Recreation.shared.state(facility: id) {
@@ -1191,6 +1341,31 @@ struct LiveCampgroundRow: View {
                     Text(note)
                         .font(WP.bodyItalic(12)).opacity(0.65).lineSpacing(2)
                         .multilineTextAlignment(.leading)
+                }
+
+                // The panel counts the free sites and then left you to find the booking
+                // page yourself. A facility id *is* the Recreation.gov page — the same id
+                // the availability above was read from — so the row can just open it.
+                if let official {
+                    Link(destination: official.url) {
+                        HStack(spacing: 7) {
+                            Image(systemName: official.glyph)
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(official.title)
+                                .font(WP.body(12, semibold: true))
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundStyle(WP.text)
+                        .padding(.horizontal, 12)
+                        .frame(height: 32)
+                        .background(WP.book, in: Capsule())
+                        // The pill is 32 points tall so it sits inside the row rather than
+                        // dominating it; the target around it is the full 44.
+                        .contentShape(Capsule())
+                        .padding(.vertical, 6)
+                    }
+                    .accessibilityLabel("\(official.title) — \(camp.name)")
                 }
             }
         }

@@ -24,6 +24,10 @@ enum GlassStyle {
     /// still refracts what is behind it, so a control reads as a solid thing you press
     /// rather than as a hole cut in the page.
     case control
+    /// A reading on the page — the weather tiles. The same ink as `control`, let down far
+    /// enough that the coloured fill *inside* the glass still reads: at the control's 0.88
+    /// a fill is a smear behind a wall rather than something the material is refracting.
+    case tile
 
     var tint: Color {
         switch self {
@@ -33,6 +37,7 @@ enum GlassStyle {
         case .onPhoto: return Color.white.opacity(0.17)
         case .sheet: return Color(hex: 0xF3F2F2, opacity: 0.90)
         case .control: return Color(hex: 0x181410, opacity: 0.88)
+        case .tile: return Color(hex: 0x181410, opacity: 0.68)
         }
     }
 
@@ -41,6 +46,7 @@ enum GlassStyle {
         case .onPhoto: return Color.white.opacity(0.42)
         case .sheet: return Color.white.opacity(0.70)
         case .control: return Color.white.opacity(0.20)
+        case .tile: return Color.white.opacity(0.22)
         default: return Color.black.opacity(0.07)
         }
     }
@@ -53,6 +59,9 @@ enum GlassStyle {
         // Dark glass takes a quieter highlight; the bright edge the light surfaces wear
         // would read as a rim of chrome around every button.
         case .control: return (Color.white.opacity(0.34), Color.white.opacity(0.10))
+        // Brighter than `control`: a tile is a pane you look *through*, and the lit edge
+        // is most of what says so once the tint is this thin.
+        case .tile: return (Color.white.opacity(0.52), Color.white.opacity(0.16))
         default: return (Color.white.opacity(0.80), Color.white.opacity(0.40))
         }
     }
@@ -60,7 +69,7 @@ enum GlassStyle {
     var material: Material {
         switch self {
         case .onPhoto: return .ultraThinMaterial
-        case .control: return .ultraThinMaterial
+        case .control, .tile: return .ultraThinMaterial
         case .sheet: return .thickMaterial
         default: return .thinMaterial
         }

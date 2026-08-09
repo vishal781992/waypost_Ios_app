@@ -50,6 +50,10 @@ final class ParkFacts {
         var fee: String?
         var reservationNote: String?
         var facilityID: String?
+        /// The campground's own page on nps.gov. The park service publishes one for every
+        /// campground it runs, including the first-come ones that book nowhere — which is
+        /// exactly the case a Recreation.gov link cannot cover.
+        var npsURL: URL?
         var id: String { name }
     }
 
@@ -204,6 +208,20 @@ final class ParkFacts {
         return identifier
     }
 
+    /// The campground's page on the park service's own site.
+    ///
+    /// Checked the same way the Recreation.gov id is: the host has to be nps.gov. NPS
+    /// occasionally publishes a partner or concessioner address in this field, and a
+    /// button labelled "on NPS.gov" must not open one.
+    static func parkServiceURL(from raw: String?) -> URL? {
+        guard let raw,
+              let url = URL(string: raw.trimmingCharacters(in: .whitespaces)),
+              let host = url.host?.lowercased(),
+              host == "nps.gov" || host.hasSuffix(".nps.gov")
+        else { return nil }
+        return url
+    }
+
     /// Trims to whole sentences.
     ///
     /// Cutting at a character count ended Congaree's hours on "Please review the par",
@@ -314,7 +332,8 @@ final class ParkFacts {
                     fee: cost.flatMap(Double.init).map { $0 > 0 ? "$\(Int($0)) a night" : "Free" },
                     reservationNote: (camp["reservationInfo"] as? String).map { Self.sentences($0, within: 180) },
                     // "…/camping/campgrounds/232445" — the join across to Recreation.gov.
-                    facilityID: Self.facilityID(from: camp["reservationUrl"] as? String)
+                    facilityID: Self.facilityID(from: camp["reservationUrl"] as? String),
+                    npsURL: Self.parkServiceURL(from: camp["url"] as? String)
                 )
             },
             thingsToDo: things.prefix(8).compactMap { thing in

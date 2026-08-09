@@ -34,6 +34,14 @@ enum WP {
     /// The page behind the device in the design — used for the deepest scrim.
     static let clay = Color(hex: 0xDCD7CF)
 
+    /// The booking pills: a campground's page on Recreation.gov or on nps.gov.
+    ///
+    /// One colour for both because they are one action — "go and read the official page
+    /// for this campground" — and which register happens to hold it is the app's problem,
+    /// not the reader's. Too pale to letter on the page, so the pill is filled with it and
+    /// the type sits on top in ink.
+    static let book = Color(hex: 0xDBE64C)
+
     static let neutral100 = Color(hex: 0xF8F4F4)
     static let neutral200 = Color(hex: 0xEAE7E7)
     static let neutral300 = Color(hex: 0xD7D3D3)

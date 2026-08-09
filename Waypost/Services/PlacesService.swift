@@ -123,6 +123,17 @@ final class PlacesService {
             return [distance, locality].compactMap { $0 }.joined(separator: " · ")
         }
 
+        /// The number Apple Maps published, as something the phone can dial. Everything
+        /// that is not a digit or a leading `+` goes — Maps writes "+1 (435) 719-2299",
+        /// and `tel:` wants the number.
+        var callLink: URL? {
+            guard let phone else { return nil }
+            let plus = phone.hasPrefix("+") ? "+" : ""
+            let digits = phone.filter(\.isNumber)
+            guard digits.count >= 7 else { return nil }
+            return URL(string: "tel:\(plus)\(digits)")
+        }
+
         var mapItem: MKMapItem {
             let placemark = MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon))
             let item = MKMapItem(placemark: placemark)
@@ -229,6 +240,24 @@ final class PlacesService {
 ///
 /// Tapping a row hands the place to Apple Maps, because the next thing anybody wants
 /// after "where is the nearest charger" is directions to it.
+/// A secondary action on a place row — call it, or open its site. Sized to the same 36×40
+/// the directions control is, so the three sit on one baseline.
+private struct PlaceAction: View {
+    var glyph: String
+
+    var body: some View {
+        Image(systemName: glyph)
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(WP.accent700)
+            .frame(width: 34, height: 40)
+            .background {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .stroke(WP.accent.opacity(0.35), lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+    }
+}
+
 struct PlaceRows: View {
     var park: CuratedPark
     var kind: PlacesService.Kind
@@ -252,36 +281,63 @@ struct PlaceRows: View {
                         .font(WP.bodyItalic(12.5)).opacity(0.6).padding(.vertical, 3)
                 } else {
                     ForEach(places.prefix(limit)) { place in
-                        Button {
-                            place.mapItem.openInMaps(launchOptions: [
-                                MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
-                            ])
-                        } label: {
-                            DividedRow(vertical: 10) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: kind.glyph)
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(kind.tint)
-                                        .frame(width: 28, height: 28)
-                                        .background(kind.tintSoft, in: Circle())
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(place.name)
-                                            .font(WP.rowTitle(15))
-                                            .multilineTextAlignment(.leading)
-                                        Text(place.subtitle)
-                                            .font(WP.body(11.5)).foregroundStyle(kind.tint).tnum()
+                        // Directions, a call and the site are three different errands, so
+                        // they are three controls rather than one row that guesses. Apple
+                        // Maps has carried the number and the website on every result all
+                        // along; only the directions were ever wired up.
+                        DividedRow(vertical: 10) {
+                            HStack(spacing: 8) {
+                                Button {
+                                    place.mapItem.openInMaps(launchOptions: [
+                                        MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
+                                    ])
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: kind.glyph)
+                                            .font(.system(size: 14))
+                                            .foregroundStyle(kind.tint)
+                                            .frame(width: 28, height: 28)
+                                            .background(kind.tintSoft, in: Circle())
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            // Three controls to the right leave less room
+                                            // for the name; two lines and then a tail, so
+                                            // a long resort name cannot push a row to
+                                            // four.
+                                            Text(place.name)
+                                                .font(WP.rowTitle(15))
+                                                .multilineTextAlignment(.leading)
+                                                .lineLimit(2)
+                                            Text(place.subtitle)
+                                                .font(WP.body(11.5)).foregroundStyle(kind.tint).tnum()
+                                        }
+                                        Spacer(minLength: 0)
+                                        // The size the driving day's own open-in-Maps
+                                        // control is, so the same action is the same
+                                        // target on both.
+                                        Image(systemName: "arrow.triangle.turn.up.right.circle")
+                                            .font(.system(size: 20))
+                                            .foregroundStyle(WP.accent700)
+                                            .frame(width: 36, height: 40)
                                     }
-                                    Spacer(minLength: 0)
-                                    // The size the driving day's own open-in-Maps control
-                                    // is, so the same action is the same target on both.
-                                    Image(systemName: "arrow.triangle.turn.up.right.circle")
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(WP.accent700)
-                                        .frame(width: 36, height: 40)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(PressStyle(scale: 0.995))
+
+                                if let call = place.callLink {
+                                    Link(destination: call) {
+                                        PlaceAction(glyph: "phone.fill")
+                                    }
+                                    .accessibilityLabel("Call \(place.name)")
+                                }
+
+                                if let site = place.url {
+                                    Link(destination: site) {
+                                        PlaceAction(glyph: "safari")
+                                    }
+                                    .accessibilityLabel("Open the website for \(place.name)")
                                 }
                             }
                         }
-                        .buttonStyle(PressStyle(scale: 0.995))
                     }
                 }
             } else if let why = PlacesService.shared.failure(park, kind) {
