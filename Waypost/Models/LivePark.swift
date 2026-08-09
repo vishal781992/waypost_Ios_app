@@ -139,6 +139,16 @@ extension CuratedPark {
         for tail in [" Boundary", " boundary", " (boundary)"] where name.hasSuffix(tail) {
             name = String(name.dropLast(tail.count))
         }
+        // A park with units names them after itself: "Ray Roberts Lake State Park - Isle
+        // Du Bois Unit". Only a *trailing* designation was dropped, so three separate
+        // units all came out as "Ray Roberts Lake State Park" and read as the same row
+        // repeated. The unit is the half that tells them apart, so it is kept.
+        for separator in [" State Park - ", " State Park — ", " State Recreation Area - "] {
+            if let range = name.range(of: separator) {
+                name = name.replacingCharacters(in: range, with: " · ")
+                break
+            }
+        }
         for suffix in [" National Park and Preserve", " National Park", " National Monument",
                        " National Recreation Area", " National Seashore", " National Forest",
                        " State Park", " Wilderness"] {

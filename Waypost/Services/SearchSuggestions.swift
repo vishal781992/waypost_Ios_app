@@ -45,17 +45,38 @@ final class SearchSuggestions {
     private let failures = FailureLog()
     private let library = CuratedLibrary.shared
 
+    /// Towns, from Apple's completer. Nominatim knows them too, but it answers behind a
+    /// one-request-per-1.1-seconds door shared with the park search, so its places landed
+    /// seconds after the typing had stopped. These land while it is still going on.
+    private let towns = CitySearch()
+
+    /// What to put under the field: the local matches, then the towns the completer has
+    /// so far. Read from a view body, so a completion arriving later redraws the list.
+    var offered: [Suggestion] {
+        let seen = Set(items.map { $0.title.lowercased() })
+        let cities = towns.matches
+            .filter { !seen.contains($0.city.lowercased()) }
+            .prefix(4)
+            .map {
+                Suggestion(kind: .place, title: $0.city, subtitle: "City · \($0.state)",
+                           query: "\($0.city), \($0.state)")
+            }
+        return items + cities
+    }
+
     /// Extra names to match against — the parks the live directory has already found.
     var knownParks: [(name: String, state: String)] = []
 
     func clear() {
         inFlight?.cancel()
+        towns.clear()
         items = []
     }
 
     func update(_ raw: String) {
         let text = raw.trimmingCharacters(in: .whitespaces)
         inFlight?.cancel()
+        towns.update(text)
 
         guard text.count >= 2 else {
             items = []

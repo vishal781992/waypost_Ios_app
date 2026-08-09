@@ -40,7 +40,7 @@ enum PushedScreen: Hashable, Identifiable {
     /// `date` is the day the park is being opened *for* — a trip's arrival date, say. Nil
     /// means today. Without it the weather panel had no way to know it was being read for
     /// a trip next month, so it always asked for today's forecast.
-    case park(code: String, segment: ParkSegment = .overview, date: Date? = nil)
+    case park(code: String, segment: ParkSegment = .brief, date: Date? = nil)
     case trip(id: String)
     /// The catalogue, which used to be a tab of its own.
     ///
@@ -70,6 +70,32 @@ enum ParkSegment: String, CaseIterable, Hashable {
         case .stay: return "Stay"
         case .plan: return "Plans"
         case .near: return "Nearby"
+        }
+    }
+
+    /// What the rail's pill calls it. "AI Overview" beside five 44pt discs does not fit
+    /// across a phone, and the word that distinguishes it is not "overview".
+    var shortLabel: String {
+        switch self {
+        case .brief: return "Brief"
+        case .overview: return "Park"
+        case .weather: return "Weather"
+        case .stay: return "Stay"
+        case .plan: return "Plans"
+        case .near: return "Near"
+        }
+    }
+
+    /// The glyph the rail wears when there is no room for the word — which is every
+    /// section but the one being read.
+    var icon: String {
+        switch self {
+        case .brief: return "sparkles"
+        case .overview: return "map"
+        case .weather: return "cloud.sun"
+        case .stay: return "bed.double"
+        case .plan: return "calendar"
+        case .near: return "location.circle"
         }
     }
 }
@@ -169,11 +195,16 @@ final class AppState {
             suggestions.knownParks = directory.hits.map { ($0.park.name, $0.park.state) }
             suggestions.update(discoverQuery)
             directory.search(discoverQuery)
+            placeAnchor.locate(discoverQuery)
         }
     }
 
     /// What you might mean, offered while you are still typing it.
     let suggestions = SearchSuggestions()
+
+    /// Where the typed words are, so the state-park table can be ranked around a city it
+    /// has never heard of.
+    let placeAnchor = PlaceAnchor()
 
     /// Set when the app is opened straight into a search, so the field takes the caret
     /// and the suggestions are visible without a tap.
@@ -554,7 +585,7 @@ final class AppState {
         return Datasets.shared.statePark(code: code)
     }
 
-    func openPark(_ code: String, segment: ParkSegment = .overview, date: Date? = nil) {
+    func openPark(_ code: String, segment: ParkSegment = .brief, date: Date? = nil) {
         parkSegment[code] = segment
         push(.park(code: code, segment: segment, date: date))
     }

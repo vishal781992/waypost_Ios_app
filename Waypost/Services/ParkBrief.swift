@@ -180,8 +180,59 @@ final class ParkBrief {
         let worst = facts.alerts.min { rank($0.cat) < rank($1.cat) } ?? facts.alerts[0]
         let headline = sentence(worst.title)
         guard facts.alerts.count > 1 else { return headline }
-        let others = facts.alerts.count - 1
-        return "\(headline) \(others) more \(others == 1 ? "alert is" : "alerts are") posted."
+
+        // What the rest of them *are*, not merely how many. "Five more alerts are posted"
+        // reads the same whether they are five closures or five car-park notices, and the
+        // reader has to open the list to find out which.
+        var rest = facts.alerts
+        if let lead = rest.firstIndex(where: { $0.title == worst.title && $0.cat == worst.cat }) {
+            rest.remove(at: lead)
+        }
+        // Spelled out in steps: as one chain of grouping, mapping and sorting it was past
+        // what the type-checker would take in a single expression.
+        let groups: [String: [CuratedAlert]] = Dictionary(grouping: rest) {
+            normalisedCategory($0.cat)
+        }
+        let categories: [String] = groups.keys.sorted { rank($0) < rank($1) }
+        let counted: [String] = categories.map { category in
+            let count = groups[category]?.count ?? 0
+            return "\(count) \(noun(for: category, plural: count != 1))"
+        }
+
+        return "\(headline) Also posted: \(list(counted))."
+    }
+
+    /// The park service's categories, as the app spells them.
+    private static func normalisedCategory(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "danger": return "danger"
+        case "park closure", "closure": return "park closure"
+        case "caution": return "caution"
+        case "information", "": return "information"
+        default: return raw.lowercased()
+        }
+    }
+
+    private static func noun(for category: String, plural: Bool) -> String {
+        let singular: String
+        switch category {
+        case "danger": return plural ? "dangers" : "danger"
+        case "park closure": singular = "closure"
+        case "caution": singular = "caution"
+        case "information": singular = "information notice"
+        default: singular = "\(category) notice"
+        }
+        return plural ? singular + "s" : singular
+    }
+
+    /// "2 closures, 3 cautions and 1 information notice".
+    private static func list(_ parts: [String]) -> String {
+        switch parts.count {
+        case 0: return ""
+        case 1: return parts[0]
+        case 2: return "\(parts[0]) and \(parts[1])"
+        default: return parts.dropLast().joined(separator: ", ") + " and " + (parts.last ?? "")
+        }
     }
 
     /// Which alert to lead with. The park service's own categories, most serious first.

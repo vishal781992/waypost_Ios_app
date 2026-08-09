@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// One park, pushed over whatever opened it. The web app's six in-park tabs become one
 /// screen with a scrolling segment rail.
@@ -9,7 +10,33 @@ struct ParkScreen: View {
     /// The day this park is being read for — a trip's arrival date. Nil means today.
     var date: Date?
 
-    @State private var segment: ParkSegment = .overview
+    @State private var segment: ParkSegment = .brief
+    /// Which way the next page comes in from.
+    @State private var forward = true
+    /// Where the in-flow rail is on the display, and the line it turns into a header at.
+    @State private var railTop: CGFloat = .greatestFiniteMagnitude
+    /// Whether the page was pinned when the section was last changed.
+    @State private var heldPinned = false
+
+    /// 0 while the rail is part of the park page, 1 once it has become the page's header.
+    /// Everything that changes between the two states reads this, so the swap happens over
+    /// 56 points of scrolling rather than snapping at a line.
+    private var pinned: CGFloat {
+        min(max((Self.statusBarInset + Self.barHeight + 56 - railTop) / 56, 0), 1)
+    }
+
+    /// The page header: a row for the title, a row for the discs. One row cannot hold
+    /// both — a 24pt serif title and six 42pt discs come to more than a phone is wide.
+    static let barHeight: CGFloat = 46 + 42 + 14
+
+    /// The status bar's height. Asked of the window rather than of a `GeometryReader`:
+    /// this screen's scroll view ignores the top safe area, and the proxy inside it
+    /// reports zero — which put the pinned header under the clock.
+    static var statusBarInset: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let inset = scenes.flatMap(\.windows).first { $0.isKeyWindow }?.safeAreaInsets.top
+        return inset ?? 47
+    }
 
     private var packState: PackState { app.packState(park.code) }
     private var isSaved: Bool { app.saved.contains(park.code) }
@@ -205,45 +232,73 @@ struct ParkScreen: View {
         // reading a page about it. Only the scroll view ignores the safe area; the back
         // control sits inside it, floating over the picture.
         ZStack(alignment: .topLeading) {
+            ScrollViewReader { scroller in
             ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 0) {
-                    hero
-                    masthead
-                    actions
-                    SegmentRail(options: ParkSegment.allCases.map { ($0, $0.label) }, selection: $segment)
-                        .padding(.top, 14)
-                        .padding(.bottom, 10)
-                        .background {
-                            Rectangle().fill(WP.bg.opacity(0.94))
-                                .overlay(alignment: .bottom) { Hairline() }
-                        }
+                    VStack(alignment: .leading, spacing: 0) {
+                        hero
+                        masthead
+                        actions
 
-                    Group {
-                        switch segment {
-                        case .brief: AIBriefSection(park: park, date: date)
-                        case .overview: OverviewSection(park: park)
-                        case .weather: WeatherSection(park: park, date: date)
-                        case .stay: StaySection(park: park)
-                        case .plan: PlansSection(park: park)
-                        case .near: NearbySection(park: park)
+                        SegmentDiscRail(options: railOptions, selection: segmentBinding)
+                            .id(Self.railAnchor)
+                            .padding(.horizontal, WP.gutter)
+                            .padding(.top, 14)
+                            .padding(.bottom, 10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background {
+                                Rectangle().fill(WP.bg.opacity(0.94))
+                                    .overlay(alignment: .bottom) { Hairline() }
+                            }
+                            // Where the rail is on the display, which is what decides
+                            // whether the section is still part of the park page or has
+                            // become a page of its own.
+                            .modifier(TracksTopEdge { railTop = $0 })
+                            // It does not scroll away so much as hand over: the pinned bar
+                            // above is fading in on the same movement.
+                            .opacity(1 - pinned)
+
+                        section
+                            .padding(.horizontal, WP.gutter)
+                            .padding(.top, Self.sectionTop)
+                            .padding(.bottom, WP.tabBarClearance)
+                            // Every section is at least a screen tall, so a short one —
+                            // weather is six figures and a line — can still be scrolled
+                            // into the pinned state the long ones reach.
+                            .frame(minHeight: Self.pageHeight, alignment: .top)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .scrollIndicators(.hidden)
+                .captureScrollPosition()
+                // Turning the page while pinned puts the new section's first line under
+                // the header — the scroll offset is wherever the reading left it. Put the
+                // rail back at the top and the stand-in above does the rest.
+                .onChange(of: segment) { _, _ in
+                    guard heldPinned else { return }
+                    Task { @MainActor in
+                        withAnimation(.snappy(duration: 0.2)) {
+                            scroller.scrollTo(Self.railAnchor, anchor: .top)
                         }
                     }
-                    .padding(.horizontal, WP.gutter)
-                    .padding(.top, 18)
-                    .padding(.bottom, WP.tabBarClearance)
-                    .panelTransition(id: segment)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .scrollIndicators(.hidden)
-            .captureScrollPosition()
-            .ignoresSafeArea(edges: .top)
 
-            backControl
+                // Back floats over the photograph until the bar takes the job over.
+                backControl.opacity(1 - pinned)
+
+                pinnedBar
+                    .opacity(pinned)
+                    .allowsHitTesting(pinned > 0.5)
         }
+        .simultaneousGesture(pageTurn)
+        .overlay(alignment: .bottom) { pageDots }
+        .onPreferenceChange(RailTopKey.self) { railTop = $0 }
         .background(WP.bg)
         .toolbar(.hidden, for: .navigationBar)
-        .onAppear { segment = app.parkSegment[park.code] ?? initialSegment }
+        // The brief is what a park screen opens on. It was whichever section was read
+        // last, which meant opening a park you had once checked the campgrounds for put
+        // you in the campgrounds rather than at the top of the page.
+        .onAppear { segment = initialSegment }
         .task(id: park.code) {
             ParkFacts.shared.load(park)
             ParkWebsite.shared.load(park)
@@ -251,11 +306,163 @@ struct ParkScreen: View {
         .onChange(of: segment) { _, new in app.parkSegment[park.code] = new }
     }
 
+    /// The rail, as something the scroll view can be told to go back to.
+    private static let railAnchor = "park-sections"
+
+    /// The rail's own height: a 44pt disc with 14 above it and 10 below.
+    private static let railHeight: CGFloat = 68
+
+    /// The air above a section.
+    ///
+    /// 34 of it is spent standing in for the header, which is two rows deep where the rail
+    /// it replaces is one — so a section anchored under the header keeps the other 34 as
+    /// actual space between the hairline and the first line it prints.
+    private static let sectionTop: CGFloat = 68
+
+    /// A section's minimum height: the display, less the pinned header.
+    ///
+    /// This is what holds the page pinned when it is turned. Every section being at least
+    /// a screen tall means switching to a shorter one — weather is six figures and a line
+    /// — cannot make the scroll view spring back to the photograph, so nothing has to be
+    /// scrolled back into place afterwards.
+    static var pageHeight: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let window = scenes.flatMap(\.windows).first { $0.isKeyWindow }
+        let height = window?.bounds.height ?? 852
+        return max(320, height - statusBarInset - barHeight)
+    }
+
+    private var railOptions: [(value: ParkSegment, label: String, short: String, icon: String)] {
+        ParkSegment.allCases.map { ($0, $0.label, $0.shortLabel, $0.icon) }
+    }
+
+    /// Picking a section, from a disc or from a swipe. The direction is worked out here,
+    /// before the change lands, so the outgoing page leaves the way the incoming one
+    /// arrives rather than both sliding the same way.
+    private var segmentBinding: Binding<ParkSegment> {
+        Binding(
+            get: { segment },
+            set: { new in
+                guard new != segment else { return }
+                heldPinned = pinned > 0.5
+                let all = ParkSegment.allCases
+                forward = (all.firstIndex(of: new) ?? 0) > (all.firstIndex(of: segment) ?? 0)
+                withAnimation(.snappy(duration: 0.28)) { segment = new }
+                Haptics.tap()
+            }
+        )
+    }
+
+    /// The section itself: one page, the full width of the screen, scrolling as far as it
+    /// needs to. A horizontal drag moves to the next one.
+    private var section: some View {
+        Group {
+            switch segment {
+            case .brief: AIBriefSection(park: park, date: date)
+            case .overview: OverviewSection(park: park)
+            case .weather: WeatherSection(park: park, date: date)
+            case .stay: StaySection(park: park)
+            case .plan: PlansSection(park: park)
+            case .near: NearbySection(park: park)
+            }
+        }
+        .id(segment)
+        .transition(.asymmetric(
+            insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),
+            removal: .move(edge: forward ? .leading : .trailing).combined(with: .opacity)
+        ))
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Turning the page with a sideways drag.
+    ///
+    /// Simultaneous and screen-wide, so a vertical drag still scrolls and a sideways one
+    /// anywhere on the page turns it. Drags that begin at the left edge are left alone:
+    /// that is the system's back-swipe, and stealing it would strand anybody who leaves a
+    /// park the way they leave every other screen.
+    private var pageTurn: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onEnded { drag in
+                guard drag.startLocation.x > 32 else { return }
+                let across = drag.translation.width
+                guard abs(across) > 48, abs(across) > abs(drag.translation.height) * 1.4 else { return }
+                let all = ParkSegment.allCases
+                guard let here = all.firstIndex(of: segment) else { return }
+                let next = here + (across < 0 ? 1 : -1)
+                guard all.indices.contains(next) else { return }
+                segmentBinding.wrappedValue = all[next]
+            }
+    }
+
+    /// The page header: what the old rail turns into once it reaches the top. The section
+    /// gives the page its name, the discs stay within reach on the right.
+    private var pinnedBar: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Button { app.pop() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 19, weight: .semibold))
+                        .frame(width: 34, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PressStyle(scale: 0.9))
+
+                // The same 24pt serif every other pushed screen puts its name in.
+                Text(segment.label)
+                    .font(WP.display(24))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .contentTransition(.opacity)
+
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(WP.text)
+            .padding(.horizontal, WP.gutter)
+            .frame(height: 46)
+
+            SegmentDiscRail(options: railOptions, selection: segmentBinding, compact: true)
+                .padding(.horizontal, WP.gutter)
+                .padding(.bottom, 14)
+
+            Hairline()
+        }
+        // No top padding: the ZStack already places this below the status bar, and adding
+        // the inset again put the header a second status bar down the screen. Only the
+        // plate behind it runs up under the clock.
+        .background {
+            Rectangle().fill(WP.bg).ignoresSafeArea(edges: .top)
+        }
+    }
+
+    /// Which page of six this is — the one thing the discs alone do not say, because a
+    /// glyph does not tell you how many are left.
+    private var pageDots: some View {
+        HStack(spacing: 5) {
+            ForEach(ParkSegment.allCases, id: \.self) { page in
+                Capsule()
+                    .fill(page == segment ? WP.ink : WP.text.opacity(0.22))
+                    .frame(width: page == segment ? 15 : 5, height: 5)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .liquidGlass(.pill, radius: 999)
+        .padding(.bottom, 18)
+        .opacity(pinned)
+        .allowsHitTesting(false)
+    }
+
     /// The photograph, full-bleed, dissolving into the page rather than stopping at an
     /// edge — so the name below it reads as being written on the same sheet.
     private var hero: some View {
         ParkImage(park: park, showsScrim: false, topLight: false)
-            .frame(height: 372)
+            // Taller than its layout by the height of the status bar, then pulled up by
+            // the same amount: the photograph runs under the clock and the island as it
+            // always did, but the scroll view below it keeps its safe area — which is what
+            // lets a page turn land the section's first line under the header instead of
+            // 93 points above it.
+            .frame(height: 372 + Self.statusBarInset)
+            .padding(.top, -Self.statusBarInset)
             .overlay(alignment: .bottom) {
                 LinearGradient(
                     stops: [
@@ -628,8 +835,10 @@ struct WeatherSection: View {
                     .overlay(alignment: .bottom) { Hairline() }
                 }
             }
-            .padding(.top, 14)
-            .overlay(alignment: .top) { Hairline() }
+            // No rule under the verdict line. The grid's own row hairlines already say
+            // where the readings start, and a second one directly above them read as an
+            // underline struck through the sentence.
+            .padding(.top, 18)
 
             Text(hasNumbers ? wx.note : "No forecast has come back for this park yet.")
                 .font(WP.bodyItalic(13)).lineSpacing(3).opacity(0.8)
@@ -893,11 +1102,13 @@ struct SectionTitle: View {
     init(_ text: String) { self.text = text }
 
     var body: some View {
+        // 14, not 12: at a point and a half of tracking these are the only signposts in a
+        // long page of readings, and they were reading as captions rather than headings.
         Text(text.uppercased())
-            .font(WP.body(12))
+            .font(WP.body(14))
             .tracking(1.5)
             .foregroundStyle(WP.accent700)
-            .padding(.bottom, 2)
+            .padding(.bottom, 4)
     }
 }
 
@@ -987,4 +1198,38 @@ struct LiveCampgroundRow: View {
             if let id = camp.facilityID { Recreation.shared.load(facility: id) }
         }
     }
+}
+
+/// Reports where a view's top edge is on the display, as it scrolls.
+///
+/// `onGeometryChange` writes straight to the state that reads it. The preference-key path
+/// below it is the iOS 17 fallback and nothing more — a preference published from inside
+/// this screen's scroll view did not reach the root, and chasing why was not worth it when
+/// the newer API says the same thing in one line.
+private struct TracksTopEdge: ViewModifier {
+    var onChange: (CGFloat) -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.frame(in: .global).minY
+            } action: { top in
+                onChange(top)
+            }
+        } else {
+            content.background {
+                GeometryReader { proxy in
+                    Color.clear.preference(key: RailTopKey.self,
+                                           value: proxy.frame(in: .global).minY)
+                }
+            }
+        }
+    }
+}
+
+/// Where the section rail sits on the display, reported up out of the scroll view.
+private struct RailTopKey: PreferenceKey {
+    static var defaultValue: CGFloat = .greatestFiniteMagnitude
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }

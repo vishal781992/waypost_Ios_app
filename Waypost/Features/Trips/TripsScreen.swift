@@ -151,7 +151,7 @@ struct NoTripsYet: View {
             GlowButton(title: "Plan the first one", minHeight: 50) { app.startBuilder() }
                 .padding(.top, 20)
 
-            Text("Saved parks are the usual place to start — Discover keeps them for you.")
+            Text("Saved parks are the usual place to start — Explore keeps them for you.")
                 .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.top, 14)
         }
         .padding(.top, 30)
@@ -274,7 +274,7 @@ struct TripCard: View {
             .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(.white.opacity(0.18), lineWidth: 0.5))
             .shadow(color: Color(hex: 0x181008, opacity: 0.3), radius: 15, y: 12)
-            .zoomSource("trip:" + trip.id, in: zoom)
+            .zoomSource("trip:" + trip.id, in: zoom, clip: .card(20))
         }
         .buttonStyle(PressStyle(scale: 0.99))
         .contextMenu {

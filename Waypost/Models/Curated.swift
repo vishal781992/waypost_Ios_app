@@ -118,7 +118,12 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     /// picture named on Wikimedia Commons has no photo to show — but it has coordinates, so
     /// the tile becomes a pin on the map instead of a blank colour field. National parks
     /// and photographed state parks always have a picture, so this is false for them.
-    var usesMapHero: Bool { code.hasPrefix("sp-") && photoFile == nil }
+    var usesMapHero: Bool { isStatePark && photoFile == nil }
+
+    /// Whether this is a state park rather than one of the park service's units. The
+    /// prefix is put on when a row of `state-parks.json` is converted, and is the one
+    /// thing that says so on every path into this type.
+    var isStatePark: Bool { code.hasPrefix("sp-") }
 
     /// The designation, always in words. Never "Protected area" for something whose own
     /// name says National Park, and never "National Park" for something that isn't one.

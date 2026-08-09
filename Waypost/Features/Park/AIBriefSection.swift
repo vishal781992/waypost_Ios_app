@@ -40,7 +40,7 @@ struct AIBriefSection: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(WP.accent700)
             Text("Before you plan".uppercased())
-                .font(WP.body(11)).tracking(1.3).opacity(0.55)
+                .font(WP.body(14)).tracking(1.5).opacity(0.55)
         }
     }
 
@@ -65,7 +65,7 @@ struct AIBriefSection: View {
                         .frame(width: 22)
                     VStack(alignment: .leading, spacing: 7) {
                         Text("How busy, by month".uppercased())
-                            .font(WP.body(10)).tracking(1.3).foregroundStyle(WP.accent800)
+                            .font(WP.body(12)).tracking(1.3).foregroundStyle(WP.accent800)
                         VisitationChart(profile: profile, month: monthIndex)
                     }
                 }
@@ -88,7 +88,7 @@ struct AIBriefSection: View {
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 3) {
                 Text(label.uppercased())
-                    .font(WP.body(10)).tracking(1.3).foregroundStyle(WP.accent800)
+                    .font(WP.body(12)).tracking(1.3).foregroundStyle(WP.accent800)
                 Text(text)
                     .font(WP.body(13.5)).lineSpacing(3)
                     .foregroundStyle(WP.text.opacity(0.9))

@@ -442,6 +442,65 @@ struct SegmentRail<T: Hashable>: View {
     }
 }
 
+/// A rail of sections where only the one being read says its name.
+///
+/// Six labels do not fit across a phone: the old rail scrolled, so two of them sat
+/// off-screen with nothing to say they existed, and "AI Overview" stood next to
+/// "Overview" — two labels a glance cannot separate. A glyph each and a word for the
+/// current one fits all six with room to spare, and the sparkle carries the "AI" that the
+/// two near-identical words could not.
+///
+/// `compact` is the pinned form: the page header names the section, so the rail drops its
+/// pill and shows six discs of equal weight.
+struct SegmentDiscRail<T: Hashable>: View {
+    var options: [(value: T, label: String, short: String, icon: String)]
+    @Binding var selection: T
+    /// The page-header form: every section a disc of equal weight, spread across the
+    /// width, because the header itself names the one being read.
+    var compact: Bool = false
+
+    /// 44 points, the smallest thing a finger should be asked to hit — and what every
+    /// other round control in this app already is.
+    private var disc: CGFloat { compact ? 42 : 44 }
+
+    var body: some View {
+        HStack(spacing: compact ? 0 : 6) {
+            ForEach(options, id: \.value) { option in
+                let active = option.value == selection
+                Button { selection = option.value } label: {
+                    if active, !compact {
+                        HStack(spacing: 7) {
+                            Image(systemName: option.icon)
+                                .font(.system(size: 15, weight: .semibold))
+                            Text(option.short).font(WP.body(14)).lineLimit(1).fixedSize()
+                        }
+                        .foregroundStyle(WP.onInk)
+                        .padding(.horizontal, 16)
+                        .frame(height: disc)
+                        .background(WP.ink, in: Capsule())
+                    } else {
+                        Image(systemName: option.icon)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(active ? WP.onInk : WP.text)
+                            .frame(width: disc, height: disc)
+                            .background {
+                                if active {
+                                    Circle().fill(WP.ink)
+                                } else {
+                                    Circle().stroke(WP.text.opacity(0.16), lineWidth: 0.5)
+                                }
+                            }
+                    }
+                }
+                .buttonStyle(PressStyle(scale: 0.92))
+                .frame(maxWidth: compact ? .infinity : nil)
+                .accessibilityLabel(option.label)
+                .accessibilityAddTraits(active ? [.isSelected] : [])
+            }
+        }
+    }
+}
+
 /// The design's primary action: ink plate, brass-and-dusk glow bleeding through a frosted
 /// pane. Used for Compose, Share, Understood.
 struct GlowButton: View {

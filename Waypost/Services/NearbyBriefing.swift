@@ -168,7 +168,7 @@ final class NearbyBriefing {
 
         candidates = rank(from: fix.lat, lon: fix.lon)
         guard !candidates.isEmpty else {
-            state = .failed("No national or state park is within 120 miles of here. Search Discover for somewhere further afield.")
+            state = .failed("No national or state park is within 120 miles of here. Search Explore for somewhere further afield.")
             return
         }
 

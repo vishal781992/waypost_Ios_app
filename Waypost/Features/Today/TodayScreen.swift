@@ -8,6 +8,7 @@ import SwiftUI
 /// near it, and the stamps you could collect on the way.
 struct TodayScreen: View {
     @Environment(AppState.self) private var app
+    @Environment(\.zoomNamespace) private var zoom
 
 
     var body: some View {
@@ -55,8 +56,13 @@ struct TodayScreen: View {
 
             Spacer(minLength: 0)
 
-            MarkPill(title: "Explore") { app.push(.explore) }
+            // A disc rather than the word: it takes a third of the width the pill did,
+            // and it is the same 48pt round control in the same corner that Explore's
+            // close button is — the screen opens out of the shape it shuts back into.
+            GlassDisc(icon: "magnifyingglass", size: 48) { app.push(.explore) }
+                .accessibilityLabel("Explore")
                 .accessibilityHint("Every national and state park, to search or browse")
+                .zoomSource("explore", in: zoom, clip: .pill(height: 48))
         }
         .frame(minHeight: 52)
         .padding(.horizontal, WP.gutter)
@@ -124,7 +130,7 @@ struct WhereYouAreCard: View {
             .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(.white.opacity(0.42), lineWidth: 0.5))
             .shadow(color: Color(hex: 0x1E1208, opacity: 0.2), radius: 17, y: 14)
-            .zoomSource("park:" + park.code, in: zoom)
+            .zoomSource("park:" + park.code, in: zoom, clip: .card(28))
         }
         .buttonStyle(PressStyle(scale: 0.995))
     }
@@ -288,7 +294,7 @@ struct NearbyTile: View {
                 .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .stroke(.white.opacity(0.6), lineWidth: 0.5))
                 .shadow(color: Color(hex: 0x1E1208, opacity: 0.2), radius: 10, y: 7)
-                .zoomSource("park:" + park.code, in: zoom)
+                .zoomSource("park:" + park.code, in: zoom, clip: .card(22))
             }
             .buttonStyle(PressStyle(scale: 0.98))
 

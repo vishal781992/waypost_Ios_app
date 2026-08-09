@@ -118,12 +118,40 @@ extension EnvironmentValues {
     }
 }
 
+/// The outlines a zoom source can take. `matchedTransitionSource` accepts a
+/// `RoundedRectangle` and nothing else — a `Capsule` is a compile error there — so a
+/// round-ended control is written as a rectangle whose radius is half its height.
+extension RoundedRectangle {
+    /// The shape of the app's round-ended controls. Circular corners, not continuous:
+    /// at radius = height / 2 a squircle is visibly not a capsule.
+    static func pill(height: CGFloat) -> RoundedRectangle {
+        RoundedRectangle(cornerRadius: height / 2, style: .circular)
+    }
+
+    /// The shape of a card. The radius has to be the card's own — the zoom draws this
+    /// outline over the real one, and a 22 over a 28 is a visible corner popping.
+    static func card(_ radius: CGFloat) -> RoundedRectangle {
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+    }
+}
+
 extension View {
     /// Marks the view a pushed screen should grow out of.
+    ///
+    /// The shape is not optional in practice. Left unconfigured, UIKit lays its own plate
+    /// under the source for the length of the transition — an opaque rounded *rectangle*
+    /// with a drop shadow, sized to the frame — so a capsule pill flashed as a block for
+    /// the half-second the zoom ran. Handing it the control's real outline, no fill and no
+    /// shadow leaves nothing to see but the view itself growing.
     @ViewBuilder
-    func zoomSource(_ id: String, in namespace: Namespace.ID?) -> some View {
+    func zoomSource(_ id: String, in namespace: Namespace.ID?, clip: RoundedRectangle) -> some View {
         if #available(iOS 18.0, *), let namespace {
-            matchedTransitionSource(id: id, in: namespace)
+            matchedTransitionSource(id: id, in: namespace) { source in
+                source
+                    .clipShape(clip)
+                    .background(Color.clear)
+                    .shadow(color: .clear, radius: 0)
+            }
         } else {
             self
         }

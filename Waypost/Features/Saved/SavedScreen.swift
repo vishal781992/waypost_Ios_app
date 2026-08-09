@@ -41,74 +41,140 @@ struct SavedScreen: View {
 struct SavedParksList: View {
     @Environment(AppState.self) private var app
 
+    /// Whether the two-colour key at the bottom has anything to explain.
+    private var mixed: Bool {
+        let parks = app.saved.compactMap { app.park($0) }
+        return parks.contains { $0.isStatePark } && parks.contains { !$0.isStatePark }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(app.saved, id: \.self) { code in
                 if let park = app.park(code) {
-                    VStack(spacing: 0) {
-                        HStack(spacing: 13) {
-                            Button { app.openPark(code) } label: {
-                                ParkImage(park: park, blur: 7, saturation: 1.15,
-                                          showsScrim: false, topLight: false)
-                                .frame(width: 52, height: 52)
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            }
-                            .buttonStyle(PressStyle(scale: 0.95))
-
-                            Button { app.openPark(code) } label: {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(park.name).font(WP.rowTitle(17))
-                                    Text("\(park.state) · \(park.fee)")
-                                        .font(WP.body(12)).opacity(0.62).lineLimit(1)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(PressStyle(scale: 0.99))
-
-                            Button { app.toggleSaved(code) } label: {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .frame(width: 44, height: 44)
-                                    .glassControl(shadow: false)
-                            }
-                            .buttonStyle(PressStyle(scale: 0.9))
-                        }
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 12)
-                        .liquidGlass(.pill, radius: 18)
-                        .overlay(alignment: .top) {
-                            LinearGradient(colors: [.clear, .white.opacity(0.9), .clear],
-                                           startPoint: .leading, endPoint: .trailing)
-                                .frame(height: 1)
-                                .padding(.horizontal, 14)
-                        }
-                        .shadow(color: Color(hex: 0x181008, opacity: 0.1), radius: 7, y: 4)
-                        .padding(.bottom, 11)
-                        .contextMenu {
-                            Button {
-                                app.openPark(code)
-                            } label: {
-                                Label("Open \(park.name)", systemImage: "arrow.up.forward.square")
-                            }
-                            Button(role: .destructive) {
-                                app.toggleSaved(code)
-                            } label: {
-                                Label("Remove from saved", systemImage: "bookmark.slash")
-                            }
-                        }
-                    }
+                    SavedParkRow(park: park, code: code)
                 }
             }
             .animation(Motion.panel, value: app.saved)
 
             if app.saved.isEmpty {
-                Text("Nothing saved yet. Bookmark a park from Discover and it waits here for the next trip.")
+                Text("Nothing saved yet. Bookmark a park from Explore and it waits here for the next trip.")
                     .font(WP.bodyItalic(14)).opacity(0.6).padding(.top, 24)
             }
 
+            // A saved list held national parks and state parks in identical rows, and
+            // nothing on the row said which was which. The colour says it now, and this
+            // says what the colour means.
+            if mixed {
+                HStack(spacing: 9) {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(WP.ink)
+                        .frame(width: 22, height: 14)
+                    Text("Dark rows are state parks. The pale ones are the park service's.")
+                        .font(WP.bodyItalic(11.5)).opacity(0.6).lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 20)
+            }
+
             Text("Saved parks appear first when you build a trip.")
-                .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3).padding(.top, 20)
+                .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3).padding(.top, mixed ? 10 : 20)
+        }
+    }
+}
+
+/// One saved park.
+///
+/// A state park is drawn the other way up — ink plate, pale type — because the list mixes
+/// two catalogues that behave differently: a national park here carries a fee, hours and a
+/// stamp, and a state park carries a name, a place and a link to whoever runs it. Telling
+/// them apart was impossible when both rows were the same pale glass.
+struct SavedParkRow: View {
+    @Environment(AppState.self) private var app
+    var park: CuratedPark
+    var code: String
+
+    private var dark: Bool { park.isStatePark }
+
+    /// The fee where there is one on the phone, and what kind of unit it is where there
+    /// is not — a state park has no fee here, and neither does a national park that came
+    /// out of the live directory rather than the curated eight. Both printed "Not
+    /// published" next to "$35 / vehicle", which says nothing about either park.
+    private var subtitle: String {
+        let detail = park.fee == "Not published" ? park.designationLabel : park.fee
+        return "\(park.state) · \(detail)"
+    }
+
+    /// The remove button. On ink it cannot be pale glass — that is the same plate the
+    /// row behind it is not made of, and it disappears.
+    @ViewBuilder
+    private var dismiss: some View {
+        if dark {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .background {
+                    Circle().fill(.white.opacity(0.14))
+                        .overlay(Circle().stroke(.white.opacity(0.22), lineWidth: 0.5))
+                }
+        } else {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .glassControl(shadow: false)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 13) {
+            Button { app.openPark(code) } label: {
+                ParkImage(park: park, blur: 7, saturation: 1.15,
+                          showsScrim: false, topLight: false)
+                .frame(width: 52, height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(PressStyle(scale: 0.95))
+
+            Button { app.openPark(code) } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(park.name).font(WP.rowTitle(17))
+                    Text(subtitle)
+                        .font(WP.body(12)).opacity(0.62).lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressStyle(scale: 0.99))
+
+            Button { app.toggleSaved(code) } label: {
+                dismiss
+            }
+            .buttonStyle(PressStyle(scale: 0.9))
+        }
+        .foregroundStyle(dark ? WP.onInk : WP.text)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 12)
+        .modifier(SavedPlate(dark: dark))
+        .overlay(alignment: .top) {
+            // The lit edge both plates carry, dimmed on the dark one — white at nine
+            // tenths over ink is a hairline scar rather than a highlight.
+            LinearGradient(colors: [.clear, .white.opacity(dark ? 0.22 : 0.9), .clear],
+                           startPoint: .leading, endPoint: .trailing)
+                .frame(height: 1)
+                .padding(.horizontal, 14)
+        }
+        .shadow(color: Color(hex: 0x181008, opacity: dark ? 0.18 : 0.1), radius: 7, y: 4)
+        .padding(.bottom, 11)
+        .contextMenu {
+            Button {
+                app.openPark(code)
+            } label: {
+                Label("Open \(park.name)", systemImage: "arrow.up.forward.square")
+            }
+            Button(role: .destructive) {
+                app.toggleSaved(code)
+            } label: {
+                Label("Remove from saved", systemImage: "bookmark.slash")
+            }
         }
     }
 }
@@ -217,5 +283,19 @@ struct StampFace: View {
             .padding(nameSize)
         }
         .shadow(color: Color(hex: 0x3C260A, opacity: 0.26), radius: 5, y: 5)
+    }
+}
+
+/// The plate under a saved row: glass for a national park, ink for a state one.
+private struct SavedPlate: ViewModifier {
+    var dark: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if dark {
+            content.background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(WP.ink))
+        } else {
+            content.liquidGlass(.pill, radius: 18)
+        }
     }
 }
