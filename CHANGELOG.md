@@ -21,6 +21,114 @@ so a tester can say which build they were looking at.
 The longest run in the log, and most of it is the same argument applied in new places: the
 app may show what a source published, or say it could not ask, and nothing in between.
 
+### Builds .27 – .43
+
+**How busy a park really is, measured** (.39). Busyness was inferred from the month — May
+through September hard-coded as the busy season for every park in the catalogue, which is
+Yellowstone's year and nobody else's. The park service has counted every visitor since 1979
+and publishes the monthly totals, so `tools/build-visitation.mjs` pulls them and the app
+ships the curve. There is no JSON API: the numbers live behind an SSRS report viewer, so it
+takes three hops per park — the report page (an iframe wrapper), the iframe (which carries a
+ReportSession and a ControlID), then the export handler with `Format=CSV`, which returns 6 KB
+of exactly the table rather than 272 KB of nested viewer markup. Averaged over three complete
+years, bundled rather than fetched, all 62 parks under both code schemes. What it corrects,
+in the data: Big Bend peaks in March and empties in August, Hawai'i Volcanoes peaks in
+January, Great Smoky Mountains peaks in October — all three read "busy season, arrive early"
+in August before this.
+
+**What is near a park, and what each day of a trip holds** (.43). Nearby read a written-down
+list that existed for the eight parks in `curated.json` — one row for Yellowstone, nothing for
+the other fifty-five; it now asks the park service for every unit it runs and joins the
+state-park table already on the phone, with the closest handful driven through OSRM because
+seventy miles over a mountain range and seventy miles down an interstate are not the same
+afternoon. National parks are deliberately absent: a second one an hour away is a trip of its
+own. Days said "day plans are written when the trip is composed online", which was true and
+useless — nothing composed them. They are built from the leg geometry and the park service's
+own lists, on two rules: a driving-day stop is only offered once the detour has been
+*measured* against the same drive without it, and a park day's list keeps the park service's
+own order, because NPS publishes no rating and ordering by anything invented would be worse
+than ordering by nothing.
+
+**Alerts get a severity** (.43). NPS publishes four categories and three tones carry them,
+which is what a reader can tell apart on a row they are scrolling past: a danger and a park
+closure both bear on whether the trip happens and read red, a caution reads amber, an
+information notice reads green. A category the park service adds that this app has not been
+taught reads amber rather than green — it used to sort and colour itself alongside
+information, so a new serious category would have arrived looking like a car-park notice and
+sorted below one. The tone is never the only signal; the tag carries the category's own word.
+
+**NPS photographs, twice wrong** (.27, .31). The photo lookup sent the bundled slug
+(`np-zion`) as a `parkCode`. NPS does not recognise it and fails *open* — ignoring the code
+and returning the first fifty units alphabetically — so every national park in the app pulled
+Abraham Lincoln Birthplace's three photographs and showed them. Then, with the right park
+answering, the resolver hashed the park code to a random index, which reliably threw away the
+marquee shot NPS puts first (Zion's Watchman, Grand Canyon from Mather Point) in favour of
+carriage-road bike tours and fee signs. Take `images.first`.
+
+**Real timed-entry and reservation information** (.28). The app called `/parks` and four
+sub-endpoints and never `/feespasses`, which is where the park service keeps timed entry,
+reservations and the free-park flag — so every screen showed a hard-coded "Entry reservations
+are not listed here. Check with the park before you travel", whatever the park required.
+
+**The trip builder stops guessing** (.35, .36, .37). The date field was a button cycling four
+canned strings, which is exactly the "random date" it looked like; it is a real `DatePicker`
+that disallows a past start. The date and origin bars were dark glass with default label
+colour — black on near-black, invisible — and are light bars with dark text. And the 4–5 hour
+window meant for the traffic estimate was gating the whole section, so fuel, charging and food
+along the route vanished precisely when someone was planning the drive; the stops load
+whenever the leg is opened and only traffic waits for the day.
+
+**Every sample gets asked, and Maps gets the whole drive** (.38). Twenty-one concurrent
+searches on a 600-mile leg had MapKit answering `loadingThrottled`, and those refusals were
+discarded as `nil` — indistinguishable from an empty road — so a leg showed three stops at one
+mile and claimed Apple Maps listed nothing along the route. A sliding window of four, backoff
+retries on the refusals that are "not now" rather than "no", and a worded-search fallback for
+the installs where the category request answers `GEOError -8`. Sample miles were wrong too:
+the route arrives simplified, its vertices up to seventy miles apart, so samples piled onto
+one point and the line ran short of the road. Interpolated along the segment, walked in
+polyline miles, reported in road miles. And "Open in Maps" built a `?daddr=` URL carrying a
+park *name* and no stops; ticked stops are handed over as waypoints in mile order.
+
+**Find a state park by the city you are near** (.40). The table matched a park's own name or
+its state and nothing else, so "Austin" found nothing though there are a dozen state parks
+within an hour of it. `PlaceAnchor` geocodes the words once and ranks the on-device rows
+around the point that comes back; an empty field ranks from the phone. A *state* is
+deliberately not anchored — "Texas" geocodes to scrub near Brady, and the state filter already
+answers that query. The table is deduplicated on the way in: the shipped file lists "Ray
+Roberts Lake" and "Ray Roberts Lake State Park" as two parks in one county and "Lake
+Dardanelle State Park" three times, which read as a mistake and gave two rows one `ForEach` id.
+
+**State parks stop being the lesser catalogue** (.33, .34). Plain text rows beside the national
+parks' photo cards; they render as the same `DiscoverCard` now, filled by the Commons
+photograph where one is named and by a pinned monochrome map where none is.
+
+**Near-you recommends what is actually near** (.32). The card ranked the eight shipped parks
+with no distance limit, so it showed the same eight from anywhere in the country. Every
+national park is measured and those within 120 miles kept, falling back to the nearest only
+when none is in reach.
+
+**The weather panel reads as one instrument** (.41). Six glass tiles, each drawing its number
+by the nature of the reading rather than the metric — a level fills bottom-up, an index fills
+along its own scale and takes that scale's colour at the cut, a speed swings a dial, the day's
+light draws a band. Two figures fetched all along and never shown are drawn: the day's highest
+hourly chance of rain, and the gust on the same track as the sustained wind. A tile with no
+number shows a dash and stays empty, because a tile drawn at zero is a reading.
+
+**A tab bar that ends where its items do** (.42). The iOS 26 system bar owns its geometry — it
+spans the screen, and the legacy `UITabBar.appearance()` layout properties are read by the old
+bar and ignored by the new one, which was measured rather than assumed. `CompactTabBar` is
+drawn by hand as a sibling of the `TabView`, which keeps the selection, the per-tab stacks and
+the zoom transitions; the selection pill morph and the scroll-down minimise come back by hand.
+The tab glyphs stop being flattened into template images, because a system tab item accepts an
+`Image` and nothing else.
+
+**An AI Overview tab** (.30), written on the phone by Apple's on-device model under the same
+rule as the nearby briefing: the model gets no facts of its own and the figures are printed by
+the app beside the prose, never by the model. The page colour default moves from the olive
+`#D1CFA5` to `#EFF2F0` (.29), the tint control still overriding it.
+
+### Builds .9 – .26
+
 **The profile stops inventing a person** (.14). Every install opened on "Miriam Halloran —
 Trips synced by iCloud · 3 devices": a name nobody entered, a device count nobody has, and
 a sync that does not exist — there is no account in this app and nothing leaves the phone.
@@ -182,6 +290,190 @@ Location anyway. `requestLocation()` was also issued while authorization was sti
 continuation with a deadline task that resumes it, waiters held in an array so concurrent
 callers share one fix, four `LocationService` instances collapsed into one. The network
 layer is bounded too: `timeoutIntervalForResource` was unset, which is a seven-day default.
+
+
+## 2.21.0 — A trip from any park
+
+The builder button was gated behind a designation check, so a national park screen offered no
+way into trip planning even though it is the likeliest first stop. "Plan a trip here" shows on
+every park screen.
+
+
+## 2.20.0 — Back, and one navigation path per tab
+
+All five `NavigationStack`s were bound to the same `$app.stack`. Five stacks driven by one
+array: a park pushed from Discover was in the history of Today, Trips, Saved and Profile as
+well, and popping it popped all of them. Each tab owns its path now and keeps it across
+switches.
+
+
+## 2.19.0 — Plan a trip from the park you are looking at
+
+A state park's screen offered to save it and to download a pack it has no day plans, stamps or
+curated content to fill — and no way to do the one thing somebody looking at one actually
+wants. A third action opens the builder with that park picked, at step two, because the park
+was the answer to step one.
+
+**The shipped state parks open** (2.19.1). Three thousand state-park rows ship with the app
+and tapping one produced a toast — "a name and a location is all any nationwide source
+publishes" — and went nowhere. True of the row and untrue of the park: the row carries
+coordinates, and coordinates are all the live sources need.
+
+
+## 2.18.0 — Navigation controls stop reading as borrowed chrome
+
+Back was 15pt with a 16pt UI title and the builder's Cancel 14.5, all sitting under a masthead
+set in 44pt serif — system chrome from another app pasted onto the top of this one. Back and
+Cancel are 19pt with a matching chevron and a 44-point target; the pushed title is the display
+serif at 24.
+
+
+## 2.17.0 — Campgrounds, availability and things to do, all live
+
+NPS answers for more than the fee. `ParkFacts` fetches the park's campgrounds, its things to
+do and its parking lots alongside the record and its alerts, concurrently, each absent rather
+than fatal when it fails. Stay lists the park service's own campgrounds with site counts,
+nightly fees and reservation notes; Plans lists what the service publishes beneath the curated
+day plans.
+
+**A trip can be built from any park** (2.17.1). `TripBuilder.results` filtered
+`library.orderedParks` and nothing else, so the one screen where a park has to be chosen could
+only offer the curated eight — a park found on Discover could be opened and saved and then not
+planned around.
+
+
+## 2.16.0 — NPS answers now
+
+The service was never broken. The worker allowlists the website's origin, and the app
+introduced itself as `app://waypost-ios`, which it answers 403 to. Every NPS call the app had
+ever made had failed, and the empty panels were read as the API being down. The header was
+never authentication — the key lives on the worker — so the app sends the site's own origin
+and `X-Waypost-Client` still says which client is calling.
+
+
+## 2.15.0 — Screen titles match the masthead
+
+Trips, Discover, Saved, Profile and Find a park are Cormorant Garamond Bold at 44, the same as
+ParkHop on the home screen. Doing it exposed the bug `HP_changes` lists first under Design:
+`scaled()` rebuilt every font from a hard-coded `CormorantGaramond-SemiBold`, so `displayBold`
+asked for the Bold cut, passed its own check that the Bold cut exists, and then drew SemiBold —
+including the masthead the weight was cut for. Carries the P0 trust fixes from `HP_changes`.
+
+
+## 2.14.0 — The page is #D1CFA5
+
+One token: the page colour goes from near-white to the sage the design asked for. It needed one
+split to stay that way — `WP.bg` was doing two jobs, the page and the pale type that sits on
+ink, which were the same colour by coincidence rather than by intent.
+
+
+## 2.13.0 — The home screen answers with your location
+
+**The masthead is Cormorant Garamond at 700.** The weight did not exist as a static face — the
+repository ships SemiBold only — so it was cut from Google's variable original with fontTools
+and renamed.
+
+**Trips shows where you have actually been** (2.13.1): the empty screen promised that ParkHop
+"leaves blank whatever it cannot measure", which is a claim about the app rather than help with
+the task, and "Behind you" listed two trips that never happened. **The find-a-park sheet
+answers before it is asked** (2.13.2) — it opens on six national parks rather than a blank page
+under a paragraph of explanation. **The close button matches the one that opened it** (2.13.3):
+a 52-point light-glass `+` and a 34-point ink `×` were two ends of one gesture agreeing about
+nothing; both are a single `GlassDisc`. **Stop telling people where the data is kept** (2.13.4)
+— where a record came from is worth saying (NPS, Apple Maps, OpenStreetMap); which disc it is
+sitting on is not the reader's problem.
+
+
+## 2.12.0 — Every national park on the phone
+
+The instinct was right and the number was ten times too big. Measured rather than guessed: a
+Wikipedia original averages a megabyte — Delicate Arch is 1.8 MB — for a card the phone draws
+393 points wide. Stored at a size the screen can actually show, all sixty-two national parks
+come to twenty-five megabytes, not two hundred. `national-parks.json` is 9.6 KB and ships with
+every park in it.
+
+**Every screen, named, for feedback** (2.12.1, 2.12.2) — `docs/SCREENS.md` and all thirty-six
+captures, including the halves below the fold.
+
+
+## 2.11.0 — Parks on screen in about a second
+
+The search ran its sources in order, so the wait was all of them added together: three
+Nominatim calls one after another, then a request to a proxy that answers 403, and only then
+the slow sweep. They run together now.
+
+
+## 2.10.0 — A recommendation that actually changes
+
+The home screen led with day five of the seed trip — the same park, the same photograph, every
+launch, forever, however far you had travelled and whatever the weather was doing there. Four
+things decide it now, and the card says which of them applied.
+
+**Park WeatherKit, keep the code** (2.10.1). The entitlement requires a paid Apple Developer
+Program membership; signed with a free personal team, Xcode cannot generate a provisioning
+profile carrying it and the build fails before any of the code runs. Deleting a working
+implementation for a billing reason is the wrong trade, so it is compiled out rather than
+removed.
+
+
+## 2.9.0 — What is actually around the park, from Apple Maps
+
+The camper's questions — where do I charge, where do I fill up, where is the last shop before
+the gate, where can I sleep — were answered from lists that existed for four of the eight
+shipped parks and for nowhere else in the country. `PlacesService` asks Apple Maps instead.
+
+
+## 2.8.0 — Suggestions while you type
+
+Two letters in there was nothing on screen and nothing to pick from, and the field ran a search
+that could take the better part of a minute. Typing "te" offers Tennessee, Texas and Grand
+Teton before any request has been made — states match locally against the fifty names and their
+postal codes, so they cost nothing.
+
+**Say what kind of park it is** (2.8.1). Every result read as a national park. A search for
+Utah returns five of those, ten national monuments, thirty-two state parks, three national
+recreation areas and over a hundred wilderness areas, and the cards said none of it. The
+designation is a field on the record rather than something inferred at the point of drawing.
+
+
+## 2.7.0 — Results as they arrive
+
+A state-wide Overpass query takes thirty to ninety seconds — Texas took ninety — and the whole
+search waited on it before showing anything, so a search that was working looked like one that
+had failed. The sources answer independently and publish as they land: Nominatim first at about
+a second, NPS next, Overpass last. Apple Weather, and a sheet for routed legs.
+
+
+## 2.6.0 — Live park search, and the leg from where you actually are
+
+Two things were missing and they were the same thing: the screens read the eight-park library
+that ships with the app, so every search answered with the same handful and no trip knew how
+far away it started. `ParkDirectory` answers the four ways a person actually looks for a park —
+by name, by state, by city, and near me.
+
+**Search actually answers when you type** (2.6.1). Five faults, of which the middle one did
+most of the damage: the search was started by an `onChange` on the Discover screen, so it
+depended on which view was mounted — and the state-park side of the toggle never started one at
+all. Typing searches from the property itself now, where nothing can miss it.
+
+
+## 2.5.0 — Every button and tab on ink glass
+
+The controls were a mix — light glass pills, hairline outlines, accent-tinted capsules, one
+flat ink plate — and none read as the same kind of object. One thing now: ink glass carrying
+white type, applied through `glassControl()` so a button and a selected tab agree.
+
+
+## 2.4.0 — Real photographs on the park tiles
+
+The design binds a photograph to every park card and the app drew only the colour field
+underneath it. `ParkPhotos` resolves one per park and remembers the URL, asking NPS first
+because those are the park service's own pictures and the ones the design was drawn against.
+
+**The photograph runs to the top of the display** (2.4.1). A picture in a 196pt band below a
+header bar read as a page about the park rather than an arrival at it. It bleeds to the very
+top — under the status bar, around the island — and dissolves into the page, so the name below
+sits on the same sheet.
 
 
 ## 2.3.0 — Reachable
