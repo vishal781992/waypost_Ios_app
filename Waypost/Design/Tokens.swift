@@ -31,16 +31,26 @@ enum WP {
     /// is the mark's colour rather than the page's, and it should stay that way: everything
     /// wearing it is a control you press.
     static let mark = Color(hex: 0xFF9932)
+    /// The mark taken down a step, for the one place two oranges have to be told apart at a
+    /// glance: the busiest bar standing among the other eleven.
+    static let markDeep = Color(hex: 0xD9822B)
+
     /// The page behind the device in the design — used for the deepest scrim.
     static let clay = Color(hex: 0xDCD7CF)
+
+    /// The brand's lime, and the colour every control in the app is filled with.
+    ///
+    /// Too pale to letter on the page, so it is only ever a fill with ink on top — 12.1:1
+    /// against `text`, against 1.4:1 for white, which is why nothing wearing it carries
+    /// white type.
+    static let lime = Color(hex: 0xDBE64C)
 
     /// The booking pills: a campground's page on Recreation.gov or on nps.gov.
     ///
     /// One colour for both because they are one action — "go and read the official page
     /// for this campground" — and which register happens to hold it is the app's problem,
-    /// not the reader's. Too pale to letter on the page, so the pill is filled with it and
-    /// the type sits on top in ink.
-    static let book = Color(hex: 0xDBE64C)
+    /// not the reader's.
+    static let book = lime
 
     static let neutral100 = Color(hex: 0xF8F4F4)
     static let neutral200 = Color(hex: 0xEAE7E7)
@@ -52,10 +62,8 @@ enum WP {
     static let neutral800 = Color(hex: 0x444141)
     static let neutral900 = Color(hex: 0x2D2B2B)
 
-    /// The selected tab's capsule. The one place the palette leaves its warm neutrals and
-    /// its amber: a marker, not a surface, and it earns the jump by only ever being on one
-    /// item at a time.
-    static let tabSelection = Color(hex: 0xDBE64C)
+    /// The selected tab's capsule.
+    static let tabSelection = lime
 
     static let accent100 = Color(hex: 0xFFF3E4)
     static let accent200 = Color(hex: 0xFFE3BF)
@@ -71,8 +79,14 @@ enum WP {
     static let divider = text.opacity(0.16)
     /// `color-mix(in srgb, var(--color-neutral-900) 94%, black)` — the ink plate.
     static let ink = Color(hex: 0x2A2829)
-    /// Destructive actions — the design's `oklch(0.55 0.21 27)`.
+    /// Destructive actions, and the park service's dangers and closures — the design's
+    /// `oklch(0.55 0.21 27)`.
     static let danger = Color(oklch: 0.55, 0.21, 27)
+    /// A caution, and any alert category the app has not been taught. Amber runs light, so
+    /// this sits darker than the weather ramp's warm: it has to letter on the page.
+    static let caution = Color(oklch: 0.58, 0.13, 70)
+    /// An information notice — posted, but not a reason to change the trip.
+    static let notice = Color(oklch: 0.50, 0.12, 155)
     /// The live-feed dot: `oklch(0.62 0.14 150)`
     static let live = Color(oklch: 0.62, 0.14, 150)
 
@@ -297,6 +311,50 @@ extension View {
             .textCase(.uppercase)
             .foregroundStyle(color)
     }
+}
+
+/// How serious an alert the park service has posted is, and the one place the app decides.
+///
+/// NPS publishes four categories. Three tones carry them, because three is what a reader
+/// can tell apart at a glance on a row they are scrolling past: a danger and a park closure
+/// both bear on whether the trip happens at all and read red; a caution reads amber; an
+/// information notice is posted but is not a reason to change anything, and reads green.
+///
+/// A category the park service adds that this app has not been taught reads amber rather
+/// than green. It used to sort and colour itself alongside information — so a new serious
+/// category would have arrived looking like a car-park notice and sorted below one.
+///
+/// The tone is never the only signal: the tag carries the category's own word beside it,
+/// so the row reads the same to someone who cannot separate the three hues.
+enum AlertSeverity: Int, Comparable {
+    case danger = 0
+    case closure = 1
+    case caution = 2
+    case information = 3
+
+    init(category raw: String) {
+        switch raw.lowercased() {
+        case "danger": self = .danger
+        case "park closure", "closure": self = .closure
+        case "caution": self = .caution
+        case "information", "": self = .information
+        default: self = .caution
+        }
+    }
+
+    /// Whether the alert bears on going at all, as against how to behave once there.
+    /// These are the ones the AI overview names in full rather than counting.
+    var isSevere: Bool { self == .danger || self == .closure }
+
+    var color: Color {
+        switch self {
+        case .danger, .closure: return WP.danger
+        case .caution: return WP.caution
+        case .information: return WP.notice
+        }
+    }
+
+    static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
 }
 
 /// The traffic-light rating the design applies to a day's high temperature.

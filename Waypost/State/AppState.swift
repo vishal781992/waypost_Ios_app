@@ -494,8 +494,15 @@ final class AppState {
             if let sheet = value("wpSheet") {
                 switch sheet {
                 case "alert":
-                    if let park = self.library.park("zion"), let alert = park.alerts.first {
-                        self.sheet = .alert(park: park.name, alert: alert)
+                    // A fixture, and only ever reachable from the capture flag. This used to
+                    // borrow Zion's first bundled alert; alerts are the park service's now,
+                    // and a screenshot run cannot wait on the network for one.
+                    if let park = self.library.park("zion") {
+                        self.sheet = .alert(park: park.name, alert: CuratedAlert(
+                            cat: "Danger",
+                            title: "Flash flood risk in the narrows",
+                            body: "Sample alert for screenshot capture. Live alerts come from the National Park Service."
+                        ))
                     }
                 case "permit":
                     if let drop = PermitDrop.byPark["arch"] { self.sheet = .permit(drop: drop) }
@@ -736,6 +743,24 @@ final class AppState {
         }
     }
 
+    /// Reopens a planned trip in the builder, filled in as it was saved.
+    func editTrip(_ trip: SavedTrip) {
+        startBuilder()
+        guard let builder else { return }
+        builder.editingID = trip.id
+        builder.picks = trip.codes
+        builder.days = trip.days ?? [:]
+        if let start = trip.startDate { builder.startDate = start }
+        builder.origin = trip.origin
+        // The searched city, where the trip was planned from one. Without this an edited
+        // trip would silently fall back to whichever of the shipped six `origin` names.
+        if let name = trip.originName, let lat = trip.originLat, let lon = trip.originLon {
+            builder.pickedOrigin = TripOrigin(name: name, lat: lat, lon: lon)
+        }
+        builder.liveResults = trip.codes.compactMap { park($0) }
+        Haptics.tap()
+    }
+
     /// Hands the directory's findings to the open builder, if there is one.
     func refreshBuilderResults() {
         builder?.liveResults = directory.hits.map(\.park)
@@ -744,9 +769,20 @@ final class AppState {
     func finishBuilder() {
         guard let builder else { return }
         let trip = builder.compose()
-        myTrips.insert(trip, at: 0)
-        self.builder = nil
-        show("\(trip.title) composed")
+        // An edit composes a fresh identity — the id carries the parks, the origin and the
+        // date, and the routing cache is keyed on it, so keeping the old one would hand
+        // back the legs of the trip as it used to be. The new trip takes the old one's
+        // place in the list rather than appearing above it.
+        if let editingID = builder.editingID,
+           let index = myTrips.firstIndex(where: { $0.id == editingID }) {
+            myTrips[index] = trip
+            self.builder = nil
+            show("\(trip.title) updated")
+        } else {
+            myTrips.insert(trip, at: 0)
+            self.builder = nil
+            show("\(trip.title) composed")
+        }
         tab = .trips
         persist()
     }
@@ -901,6 +937,11 @@ struct SavedTrip: Codable, Hashable, Identifiable {
     var originName: String? = nil
     var originLat: Double? = nil
     var originLon: Double? = nil
+    /// Nights in each park, by code. The builder has always collected these and then
+    /// thrown them away on compose, so a trip could be planned as two days at Zion and
+    /// three at Bryce and remembered as neither. Optional, so a trip saved before this
+    /// existed still decodes and simply reopens at the builder's default.
+    var days: [String: Int]? = nil
 
     /// Where this trip actually starts. Prefers the searched city; falls back to the code.
     func resolvedOrigin(_ library: CuratedLibrary) -> TripOrigin? {
@@ -952,6 +993,12 @@ final class TripBuilder {
     var step = 1
     var picks: [String] = []
     var days: [String: Int] = [:]
+    /// The trip being changed, where this is not a new one.
+    ///
+    /// A planned trip could be deleted and started again and nothing else — so correcting
+    /// a date meant re-picking every park. The three questions the builder already asks
+    /// are exactly the three a reader wants to change, so it answers both jobs.
+    var editingID: String?
     /// The day the trip starts, as a real date. This was a string cycled through four
     /// hard-coded weeks, which is why tapping the field jumped to a random-looking date
     /// rather than opening a calendar.
@@ -1080,7 +1127,7 @@ final class TripBuilder {
 
     var subtitle: String {
         switch step {
-        case 1: return "Pick them in the order you want to visit. Days in each park are set with the steppers."
+        case 1: return "Pick them in the order you want to visit. How long in each comes next."
         case 2: return "Waypost sizes the legs and the offline packs from these."
         default: return "Composing takes a moment — the order of the legs is worked out from the coordinates."
         }
@@ -1092,7 +1139,8 @@ final class TripBuilder {
         switch step {
         case 1: return picks.isEmpty ? "Pick a park to continue" : "Dates and origin"
         case 2: return "Review"
-        default: return "Compose the itinerary"
+        // An edit is not a composition: the trip already exists and this replaces it.
+        default: return editingID == nil ? "Compose the itinerary" : "Save changes"
         }
     }
 
@@ -1165,7 +1213,8 @@ final class TripBuilder {
             live: false,
             originName: start?.name,
             originLat: start?.lat,
-            originLon: start?.lon
+            originLon: start?.lon,
+            days: days
         )
     }
 }

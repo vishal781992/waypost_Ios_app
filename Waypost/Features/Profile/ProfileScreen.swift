@@ -293,7 +293,7 @@ struct ProfileScreen: View {
                             HStack(spacing: 10) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(park.name).font(WP.body(14)).lineLimit(1)
-                                    Text([park.state, park.designationLabel]
+                                    Text([park.stateName, park.designationLabel]
                                             .filter { !$0.isEmpty }.joined(separator: " · "))
                                         .font(WP.body(11)).opacity(0.55)
                                 }

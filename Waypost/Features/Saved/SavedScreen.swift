@@ -96,33 +96,31 @@ struct SavedParkRow: View {
 
     private var dark: Bool { park.isStatePark }
 
-    /// The fee where there is one on the phone, and what kind of unit it is where there
-    /// is not — a state park has no fee here, and neither does a national park that came
-    /// out of the live directory rather than the curated eight. Both printed "Not
-    /// published" next to "$35 / vehicle", which says nothing about either park.
+    /// The state and what kind of unit this is.
+    ///
+    /// The fee used to sit here, off the bundled record — which meant a written-down price
+    /// for eight parks and "Not published" for the other fifty-five. A saved row is not
+    /// worth a network request for a number, and a stale price is worse than no price, so
+    /// it names the park rather than costing it. The park's own screen prints the fee the
+    /// park service publishes today.
     private var subtitle: String {
-        let detail = park.fee == "Not published" ? park.designationLabel : park.fee
-        return "\(park.state) · \(detail)"
+        "\(park.stateName) · \(park.designationLabel)"
     }
 
-    /// The remove button. On ink it cannot be pale glass — that is the same plate the
-    /// row behind it is not made of, and it disappears.
-    @ViewBuilder
+    /// The remove button: the mark's orange, laid solid, on both kinds of row.
+    ///
+    /// It used to be two controls — pale glass on the park-service rows, a translucent
+    /// white disc on the state-park plate — which put two different-looking buttons doing
+    /// the same job one above the other in the same list. Opaque orange is legible on
+    /// either ground and does not take its colour from the row behind it.
     private var dismiss: some View {
-        if dark {
-            Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .semibold))
-                .frame(width: 44, height: 44)
-                .background {
-                    Circle().fill(.white.opacity(0.14))
-                        .overlay(Circle().stroke(.white.opacity(0.22), lineWidth: 0.5))
-                }
-        } else {
-            Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .semibold))
-                .frame(width: 44, height: 44)
-                .glassControl(shadow: false)
-        }
+        Image(systemName: "xmark")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.black)
+            .frame(width: 44, height: 44)
+            .background(Circle().fill(WP.mark))
+            .overlay(Circle().stroke(Color.black.opacity(0.12), lineWidth: 0.5))
+            .contentShape(Circle())
     }
 
     var body: some View {

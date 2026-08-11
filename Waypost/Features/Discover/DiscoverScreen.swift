@@ -71,6 +71,60 @@ struct DiscoverScreen: View {
 
     private var results: [CuratedPark] { curated + live }
 
+    /// Every national park on the phone: the curated shelf and the bundled register behind
+    /// it, without the duplicates.
+    private var allNational: [CuratedPark] {
+        let shelf = app.library.orderedParks
+        let seen = Set(shelf.map { $0.name.lowercased() })
+        return shelf + NationalParks.all
+            .map(CuratedPark.init(bundled:))
+            .filter { !seen.contains($0.name.lowercased()) }
+    }
+
+    /// The city the words name, once Apple Maps has put it on the map.
+    ///
+    /// The state-park side has ranked its table around a typed city since it shipped; the
+    /// national side matched park names and state names only, so "Castle Pines" — a real
+    /// place with Rocky Mountain up the road — answered with nothing at all. The anchor
+    /// was already being fetched for every query, whichever half of the toggle was on; it
+    /// simply went unread here.
+    private var cityAnchor: PlaceAnchor.Anchor? {
+        guard !app.discoverQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return app.placeAnchor.anchor
+    }
+
+    /// National parks around that city, nearest first, minus anything the name search
+    /// already answered with.
+    private var aroundCity: [(park: CuratedPark, miles: Int)] {
+        guard let anchor = cityAnchor else { return [] }
+        let shown = Set(results.map { $0.name.lowercased() })
+        let point = (lat: anchor.lat, lon: anchor.lon)
+        return allNational
+            .filter { !shown.contains($0.name.lowercased()) }
+            .map { ($0, Geo.haversine(point, ($0.lat, $0.lon))) }
+            .sorted { $0.1 < $1.1 }
+            .prefix(6)
+            .map { (park: $0.0, miles: Int($0.1.rounded())) }
+    }
+
+    /// What to say over that list.
+    ///
+    /// Two different answers wear the same heading: parks genuinely near the city, and —
+    /// when the nearest is hours away — the nearest one in the city's own state, which is
+    /// the honest answer to "what can I see from here" for most of the country.
+    private var aroundCityNote: String? {
+        guard let anchor = cityAnchor, let nearest = aroundCity.first else { return nil }
+        let place = anchor.label
+        if nearest.miles <= 120 {
+            return "No national park is in \(place) itself. \(nearest.park.name) is \(nearest.miles) miles away."
+        }
+        let inState = aroundCity.first { anchor.state != nil && $0.park.stateName == anchor.state }
+        if let inState, let state = anchor.state {
+            return "No national park is near \(place). The nearest in \(state) is \(inState.park.name), \(inState.miles) miles away."
+        }
+        return "No national park is near \(place). The nearest is \(nearest.park.name), \(nearest.miles) miles away."
+    }
+
     /// What the line over the masthead is counting — the catalogue the toggle is on.
     private var kicker: String {
         app.discoverShowsState
@@ -170,11 +224,16 @@ struct DiscoverScreen: View {
                             Button {
                                 withAnimation(.snappy(duration: 0.2)) { app.discoverChip = chip.id }
                             } label: {
+                                // The mark's orange rather than the lime the other selected
+                                // controls wear: these chips filter the list under them
+                                // rather than switching between two of anything, and they
+                                // sit directly under the National / State trough, which is
+                                // the control they were being mistaken for.
                                 Text(chip.label)
                                     .font(WP.body(12.5))
                                     .padding(.horizontal, 15)
                                     .frame(minHeight: 44)
-                                    .modifier(SelectedControl(active: active))
+                                    .modifier(SelectedChip(active: active))
                             }
                             .buttonStyle(PressStyle(scale: 0.96))
                         }
@@ -202,7 +261,36 @@ struct DiscoverScreen: View {
                             DiscoverCard(park: park).liftOnScroll()
                         }
 
-                        if results.isEmpty { NothingByThatName() }
+                        // A city is not a park name, so the catalogue above has nothing to
+                        // say about one. This is the same question the state-park side has
+                        // always answered: what is near the place you typed.
+                        if let anchor = cityAnchor, !aroundCity.isEmpty {
+                            SectionRule(dot: WP.accent, tint: WP.accent800,
+                                        title: "Around \(anchor.label)",
+                                        tail: "nearest first")
+                                .padding(.top, results.isEmpty ? 0 : 8)
+
+                            if let aroundCityNote {
+                                Text(aroundCityNote)
+                                    .font(WP.bodyItalic(12)).lineSpacing(3).opacity(0.65)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+
+                            ForEach(aroundCity, id: \.park.id) { entry in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    DiscoverCard(park: entry.park).liftOnScroll()
+                                    Text("\(entry.miles) miles from \(anchor.label)")
+                                        .font(WP.body(11.5)).opacity(0.6).tnum()
+                                }
+                            }
+                        } else if app.placeAnchor.isLocating {
+                            Text("Finding “\(app.discoverQuery)” on the map…")
+                                .font(WP.bodyItalic(11.5)).opacity(0.55)
+                        }
+
+                        if results.isEmpty, aroundCity.isEmpty, !app.placeAnchor.isLocating {
+                            NothingByThatName()
+                        }
                     }
                 }
                 .panelTransition(id: app.discoverShowsState)
@@ -272,7 +360,7 @@ struct DiscoverCard: View {
                         // State, then what kind of unit it is. The designation is the
                         // thing that tells a national park from a state park from a
                         // wildlife area, so it goes here rather than in a subtitle.
-                        Text([park.state, park.designationLabel].filter { !$0.isEmpty }
+                        Text([park.stateName, park.designationLabel].filter { !$0.isEmpty }
                                 .joined(separator: " · ").uppercased())
                             .font(WP.body(9)).tracking(1.5)
                             .foregroundStyle(.white.opacity(0.88))
@@ -351,7 +439,7 @@ struct DiscoverCard: View {
                         .font(WP.headingUI(13))
                         .padding(.horizontal, 16)
                         .frame(minHeight: 44)
-                        .glassControl(shadow: false)
+                        .limeControl(shadow: false)
                 }
                 .buttonStyle(PressStyle(scale: 0.96))
             }
@@ -519,7 +607,7 @@ struct StateParkList: View {
                                     Text(park.name)
                                         .font(WP.rowTitle(17))
                                         .multilineTextAlignment(.leading)
-                                    Text("\(park.state.isEmpty ? "—" : park.state) · \(park.designationLabel)")
+                                    Text("\(park.state.isEmpty ? "—" : park.stateName) · \(park.designationLabel)")
                                         .font(WP.body(12)).opacity(0.6)
                                 }
                                 Spacer(minLength: 0)

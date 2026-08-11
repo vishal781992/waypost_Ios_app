@@ -67,7 +67,7 @@ struct TripsScreen: View {
                                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(park.name).font(WP.rowTitle(17))
-                                        Text([park.state, park.designationLabel]
+                                        Text([park.stateName, park.designationLabel]
                                                 .filter { !$0.isEmpty }
                                                 .joined(separator: " · "))
                                             .font(WP.body(12)).opacity(0.6)
@@ -173,18 +173,60 @@ struct TripCard: View {
             + parks.map { (lat: $0.lat, lon: $0.lon) }
     }
 
+    /// The roads of the trip, end to end, once the router has answered for every leg.
+    ///
+    /// Legs meet at a park, so each one's first point repeats the previous one's last;
+    /// the repeat is dropped or the path doubles back on itself at every stop.
+    private var routeShape: [(lat: Double, lon: Double)] {
+        var out: [(lat: Double, lon: Double)] = []
+        for leg in app.routing.legs(for: trip) {
+            for point in leg.coordinates {
+                if let last = out.last, last.lat == point.lat, last.lon == point.lon { continue }
+                out.append(point)
+            }
+        }
+        return out
+    }
+
     @State private var confirmingDelete = false
 
     var body: some View {
         // The delete control sits over the card rather than inside its button, so the
         // tap target is its own and does not open the trip on the way past.
         cardButton
+        // The roads, asked for by the card that draws them. Routing used to be kicked off
+        // by the trip's own screen alone, so the shelf could only ever draw the straight
+        // line — and a reader who never opened a trip never saw its actual drive. `route`
+        // returns early when the legs are already cached, so this costs nothing on the way
+        // back from the detail screen.
+        .task(id: trip.id) {
+            let parks = trip.codes.compactMap { app.park($0) }
+            guard !parks.isEmpty else { return }
+            app.routing.route(trip, parks: parks, origin: trip.resolvedOrigin(app.library))
+        }
         .confirmationDialog("Remove this trip?", isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Remove trip", role: .destructive) { app.deleteTrip(trip.id) }
             Button("Keep it", role: .cancel) { }
         } message: {
             Text("\(trip.title) and its day plans are removed. This cannot be undone.")
         }
+    }
+
+    /// Reopens the builder on this trip — its parks, its dates, its days in each park.
+    private var editButton: some View {
+        Button {
+            app.editTrip(trip)
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(WP.onInk)
+                .frame(width: 44, height: 44)
+                .background(.white.opacity(0.12), in: Circle())
+                .overlay(Circle().stroke(.white.opacity(0.22), lineWidth: 0.5))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressStyle(scale: 0.9))
+        .accessibilityLabel("Edit \(trip.title)")
     }
 
     /// A liquid-glass disc, so it reads as chrome floating over the card rather than
@@ -225,7 +267,7 @@ struct TripCard: View {
                 Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.68).padding(.top, 4)
                     .multilineTextAlignment(.leading)
 
-                RouteMapPlate(points: points)
+                RouteMapPlate(points: points, route: routeShape)
                     .frame(height: 132)
                     .padding(.top, 11)
 
@@ -244,6 +286,9 @@ struct TripCard: View {
                         }
                     }
                     Spacer(minLength: 8)
+                    // Correcting a trip used to mean deleting it and picking every park
+                    // again. Beside the control that removes it, the one that changes it.
+                    editButton
                     deleteButton
                 }
                 .padding(.top, 10)
@@ -308,9 +353,36 @@ struct TripCard: View {
 /// It is a picture, not a map to explore — no interaction modes, so a drag over it
 /// scrolls the list underneath.
 struct RouteMapPlate: View {
+    /// Where the route starts, stops and ends.
     var points: [(lat: Double, lon: Double)]
+    /// The drive as it is actually driven, when the router has answered.
+    ///
+    /// `TripRouting.Leg` has carried OSRM's own geometry all along and this plate drew a
+    /// straight line between origin and park regardless — so a trip over the Sierra read
+    /// as a ruler laid across the mountains, through country with no road in it. The
+    /// straight line survives only as the thing shown while the route is still being
+    /// fetched, and it is dashed to say so.
+    var route: [(lat: Double, lon: Double)] = []
+
+    private var routedCoordinates: [CLLocationCoordinate2D] {
+        route.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
+    }
+
+    /// The straight line between the places, for while the road is still being asked for.
+    private var straightCoordinates: [CLLocationCoordinate2D] {
+        points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
+    }
+
+    private var isRouted: Bool { routedCoordinates.count > 1 }
 
     private var coordinates: [CLLocationCoordinate2D] {
+        isRouted ? routedCoordinates : straightCoordinates
+    }
+
+    /// Where the route starts, stops and ends — drawn as discs on top of the line. Off the
+    /// places, not off the geometry, which has thousands of points and no idea which of
+    /// them is a park.
+    private var stops: [CLLocationCoordinate2D] {
         points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
     }
 
@@ -335,7 +407,8 @@ struct RouteMapPlate: View {
                 // projection is good. Interaction is off, so this cannot churn.
                 .onMapCameraChange(frequency: .onEnd) { _ in projection += 1 }
                 .overlay {
-                    RouteOverlay(coordinates: coordinates, proxy: proxy, projection: projection)
+                    RouteOverlay(coordinates: coordinates, stops: stops, routed: isRouted,
+                                 proxy: proxy, projection: projection)
                 }
                 .task {
                     // A card scrolled into view whose camera never reports a change would
@@ -374,6 +447,12 @@ struct RouteMapPlate: View {
 /// filter, and anything drawn as map content would be greyed with it.
 struct RouteOverlay: View {
     var coordinates: [CLLocationCoordinate2D]
+    /// The places on the route — where it starts, where it stops, where it ends.
+    var stops: [CLLocationCoordinate2D]
+    /// Whether `coordinates` is the road or the straight line standing in for it. A real
+    /// route is drawn solid; a placeholder stays dashed, which is the difference between
+    /// "this is the drive" and "this is roughly where you are going".
+    var routed: Bool
     var proxy: MapProxy
     /// Not read: it exists so that the projection becoming available re-runs this body.
     /// The conversion below is only meaningful once the map has laid out.
@@ -382,14 +461,18 @@ struct RouteOverlay: View {
     var body: some View {
         GeometryReader { _ in
             let points = coordinates.compactMap { proxy.convert($0, to: .local) }
+            let stopPoints = stops.compactMap { proxy.convert($0, to: .local) }
             if points.count == coordinates.count, points.count > 1 {
                 Path { path in
                     path.move(to: points[0])
                     points.dropFirst().forEach { path.addLine(to: $0) }
                 }
-                .stroke(WP.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 4]))
+                .stroke(WP.accent, style: StrokeStyle(lineWidth: routed ? 2.4 : 2,
+                                                      lineCap: .round,
+                                                      lineJoin: .round,
+                                                      dash: routed ? [] : [5, 4]))
 
-                ForEach(Array(points.enumerated()), id: \.offset) { index, point in
+                ForEach(Array(stopPoints.enumerated()), id: \.offset) { index, point in
                     Circle()
                         .fill(index == 0 ? WP.accent700 : WP.bg)
                         .overlay(Circle().stroke(WP.accent700, lineWidth: 1.5))

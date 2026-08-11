@@ -26,29 +26,33 @@ struct NearbyCandidate: Identifiable, Hashable {
     }
 
     /// The line the app shows whether or not the model ever answers.
+    ///
+    /// The temperatures are printed only once a forecast has answered. They used to come
+    /// off the bundled record — one August day, written down once for eight parks — so a
+    /// card read "76°/40°" in February.
     var factLine: String {
-        "\(roadMiles) mi · \(driveLabel) · \(park.wx.hi)°/\(park.wx.lo)° · \(park.crowd)"
+        let measured = "\(roadMiles) mi · \(driveLabel)"
+        guard park.wx.isPublished else { return measured }
+        return "\(measured) · \(park.wx.hi)°/\(park.wx.lo)°"
     }
 
-    /// Exactly what the model is told about this park. Nothing here is invented: the
-    /// distance is measured, the rest is the curated record.
+    /// Exactly what the model is told about this park. Nothing here is invented and
+    /// nothing here is written down: the distance is measured, the forecast is fetched.
+    ///
+    /// The fee, the opening hours, the reservation rule and the current alert used to be
+    /// passed in from `curated.json`. Every one of them is the kind of fact that changes
+    /// without the app being rebuilt, and handing a stale one to a model that then writes
+    /// it into a confident sentence is the worst version of getting it wrong. The park
+    /// service answers for all of them on the park's own screen.
     var promptFacts: String {
         var lines = [
             "\(park.name) (\(park.full))",
             "  region: \(park.region), state: \(park.state), gateway town: \(park.gw)",
             "  distance: \(roadMiles) road miles, about \(driveLabel) of driving",
-            "  August normals: high \(park.wx.hi)F, low \(park.wx.lo)F, UV \(park.wx.uv)",
-            "  crowds: \(park.crowd)",
-            "  entry: \(park.fee); hours: \(park.hours)",
             "  what it is: \(park.tag)",
         ]
-        if park.res {
-            lines.append("  reservation required: yes — \(park.resNote)")
-        } else {
-            lines.append("  reservation required: no")
-        }
-        if let alert = park.alerts.first {
-            lines.append("  current alert (\(alert.cat)): \(alert.title) — \(alert.body)")
+        if park.wx.isPublished {
+            lines.append("  forecast: high \(park.wx.hi)F, low \(park.wx.lo)F, UV \(park.wx.uv)")
         }
         return lines.joined(separator: "\n")
     }

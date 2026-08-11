@@ -22,6 +22,17 @@ struct ParkScreen: View {
         min(max((Self.statusBarInset + Self.barHeight + 56 - railTop) / 56, 0), 1)
     }
 
+    /// The in-flow rail's fade and the pinned bar's — staggered, rather than crossed.
+    ///
+    /// Both used to read `pinned` straight: the rail at `1 - pinned`, the bar at `pinned`.
+    /// Halfway through the handover that put two rails on the display at half strength, in
+    /// two different places, and the discs of one read through the words of the other. The
+    /// rail now finishes fading out before the bar has much of itself drawn, so only one of
+    /// them is ever substantially on the page and the swap reads as a hand-over instead of
+    /// a double exposure.
+    private var railFade: CGFloat { 1 - min(1, pinned / 0.62) }
+    private var barFade: CGFloat { min(max((pinned - 0.38) / 0.62, 0), 1) }
+
     /// The page header: a row for the title, a row for the discs. One row cannot hold
     /// both — a 24pt serif title and six 42pt discs come to more than a phone is wide.
     static let barHeight: CGFloat = 46 + 42 + 14
@@ -37,6 +48,40 @@ struct ParkScreen: View {
 
     private var packState: PackState { app.packState(park.code) }
     private var isSaved: Bool { app.saved.contains(park.code) }
+
+    /// Whether this park is already on the visited rail — stamped on the ground, written
+    /// into a trip that has been, or added here by hand.
+    private var hasVisited: Bool { app.visitRail.contains { $0.id == park.code } }
+
+    /// "I have been here." The mark's orange when it is still an action; a settled state
+    /// once it is a fact, because a filled control that does nothing is a trap.
+    @ViewBuilder
+    private var visitButton: some View {
+        if hasVisited {
+            HStack(spacing: 5) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .semibold))
+                Text("Visited").font(WP.headingUI(14))
+            }
+            .frame(maxWidth: .infinity, minHeight: 46)
+            .foregroundStyle(WP.text.opacity(0.55))
+            .background {
+                Capsule().stroke(WP.text.opacity(0.18), lineWidth: 1)
+            }
+            .accessibilityLabel("\(park.name) is on your visited list")
+        } else {
+            Button {
+                app.addVisit(park.code)
+            } label: {
+                Text("Visited")
+                    .font(WP.headingUI(14))
+                    .frame(maxWidth: .infinity, minHeight: 46)
+                    .markControl()
+            }
+            .buttonStyle(PressStyle(scale: 0.98))
+            .accessibilityLabel("Mark \(park.name) as visited")
+        }
+    }
 
     /// What the park service publishes today, in preference to anything bundled.
     private var facts: ParkFacts.Facts? {
@@ -251,8 +296,8 @@ struct ParkScreen: View {
                             // become a page of its own.
                             .modifier(TracksTopEdge { railTop = $0 })
                             // It does not scroll away so much as hand over: the pinned bar
-                            // above is fading in on the same movement.
-                            .opacity(1 - pinned)
+                            // above is fading in behind it, a beat later.
+                            .opacity(railFade)
 
                         section
                             .padding(.horizontal, WP.gutter)
@@ -285,10 +330,10 @@ struct ParkScreen: View {
             }
 
                 // Back floats over the photograph until the bar takes the job over.
-                backControl.opacity(1 - pinned)
+                backControl.opacity(railFade)
 
                 pinnedBar
-                    .opacity(pinned)
+                    .opacity(barFade)
                     .allowsHitTesting(pinned > 0.5)
         }
         .simultaneousGesture(pageTurn)
@@ -480,7 +525,7 @@ struct ParkScreen: View {
     /// The name, on the page, under the photograph.
     private var masthead: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text([park.state, park.designationLabel, park.source == nil ? park.crowd : park.region]
+            Text([park.stateName, park.designationLabel, park.source == nil ? park.crowd : park.region]
                     .filter { !$0.isEmpty }
                     .joined(separator: " · ").uppercased())
                 .font(WP.body(10)).tracking(1.4)
@@ -536,18 +581,33 @@ struct ParkScreen: View {
                 .buttonStyle(PressStyle(scale: 0.98))
             }
 
-            // The park in front of somebody is the likeliest first stop of a trip, whatever
-            // its designation — so the builder opens from here on every park screen, not
-            // only the state ones.
-            Button {
-                app.startBuilder(around: park)
-            } label: {
-                Text("Plan a trip here")
-                    .font(WP.headingUI(14))
-                    .frame(maxWidth: .infinity, minHeight: 46)
-                    .glassControl()
+            // Two things a reader wants from a park screen: to plan going, and to say they
+            // have already been. Planning ran the full width and being-there had nowhere to
+            // be said at all — the visited rail could only be filled from the Profile
+            // screen, or by standing in the park with the geofence running.
+            //
+            // 65/35 rather than half and half: planning is the larger errand and the one
+            // most readers came for, and "Visited" is a word where the other is four.
+            GeometryReader { geo in
+                let gap: CGFloat = 9
+                let usable = geo.size.width - gap
+                HStack(spacing: gap) {
+                    Button {
+                        app.startBuilder(around: park)
+                    } label: {
+                        Text("Plan a trip here")
+                            .font(WP.headingUI(14))
+                            .frame(maxWidth: .infinity, minHeight: 46)
+                            .glassControl()
+                    }
+                    .buttonStyle(PressStyle(scale: 0.98))
+                    .frame(width: usable * 0.65)
+
+                    visitButton
+                        .frame(width: usable * 0.35)
+                }
             }
-            .buttonStyle(PressStyle(scale: 0.98))
+            .frame(height: 46)
             .padding(.top, 9)
 
             factsRow.padding(.top, 13)
@@ -580,10 +640,14 @@ struct OverviewSection: View {
             // note whatever the park actually required.
             if let reservation = facts?.reservation {
                 reserveBlock(reservation, label: "Timed entry · NPS")
-            } else if park.res {
-                reserveBlock(park.resNote, label: "Reserve before you arrive")
             } else {
-                Text(park.resNote)
+                // Two bundled lines used to stand in here — a written-down reservation note
+                // for the eight parks in `curated.json`, and "not listed" for everywhere
+                // else. A reservation rule that changes between seasons is not something to
+                // ship in a build.
+                Text(facts == nil
+                     ? "Asking the park service whether an entry reservation is required…"
+                     : "The park service lists no entry reservation for \(park.name).")
                     .font(WP.bodyItalic(13)).lineSpacing(3).opacity(0.75)
             }
 
@@ -610,6 +674,12 @@ struct OverviewSection: View {
             VStack(alignment: .leading, spacing: 4) {
                 SectionTitle("Know before you go")
                 ForEach(alerts) { alert in
+                    // Red for a danger or a closure, amber for a caution, green for an
+                    // information notice. The tag was one brass outline whatever it said,
+                    // so a flash-flood warning and a car-park notice were the same object
+                    // on the page and the reader had to read every row to find the one
+                    // that mattered.
+                    let tone = AlertSeverity(category: alert.cat).color
                     Button {
                         app.sheet = .alert(park: park.name, alert: alert)
                     } label: {
@@ -619,8 +689,9 @@ struct OverviewSection: View {
                                     Text(alert.cat)
                                         .font(WP.body(10))
                                         .padding(.horizontal, 9).padding(.vertical, 2)
-                                        .overlay(Capsule().stroke(WP.accent, lineWidth: 1))
-                                        .foregroundStyle(WP.accent700)
+                                        .background(tone.opacity(0.12), in: Capsule())
+                                        .overlay(Capsule().stroke(tone, lineWidth: 1))
+                                        .foregroundStyle(tone)
                                     Spacer(minLength: 0)
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 12, weight: .semibold))
@@ -645,8 +716,11 @@ struct OverviewSection: View {
                         Text(gate).font(WP.body(13.5)).lineSpacing(2)
                     }
                 }
-                if !park.parking.isEmpty {
-                    Text(park.parking)
+                // The park service's own car parks. A single written-down sentence used to
+                // sit here — "Midway Geyser Basin and Grand Prismatic fill 9 am–4 pm" —
+                // true of one summer and shipped for eight parks.
+                ForEach(facts?.parking ?? [], id: \.self) { lot in
+                    Text(lot)
                         .font(WP.bodyItalic(12.5)).lineSpacing(3).opacity(0.7)
                         .padding(.top, 9)
                 }
@@ -725,11 +799,22 @@ struct OverviewSection: View {
     private var liveFee: String? { facts?.fee }
     private var liveHours: String? { facts?.hours }
 
-    /// Alerts the park is posting right now — closures, fire, road work — ahead of the
-    /// bundled ones, which are editorial rather than current.
+    /// Alerts the park is posting right now — closures, fire, road work. Only the park
+    /// service's; there used to be a bundled list behind these for eight parks, and an
+    /// alert that is out of date is worse than no alert.
+    ///
+    /// Most serious first: dangers, then closures, then cautions, then information. These
+    /// arrive in whatever order the park service returns them, which is neither severity
+    /// nor date — so a flash-flood danger could sit fourth, below two car-park notices, on
+    /// the one list in the app that exists to be read top-down before setting off. Sorting
+    /// is stable, so alerts of equal severity keep the park's own order.
     private var alerts: [CuratedAlert] {
-        if let live = facts?.alerts, !live.isEmpty { return live }
-        return park.alerts
+        (facts?.alerts ?? []).enumerated()
+            .sorted {
+                let (a, b) = (AlertSeverity(category: $0.element.cat), AlertSeverity(category: $1.element.cat))
+                return a == b ? $0.offset < $1.offset : a < b
+            }
+            .map(\.element)
     }
 
     /// True when the park service refused the alerts request, as distinct from answering
@@ -755,12 +840,45 @@ struct WeatherSection: View {
     /// The day being asked about. Nil means today.
     var date: Date?
 
-    private var day: Date { date ?? Date() }
+    /// The day the screen was opened on — today, or the trip's day where there is one.
+    private var base: Date { date ?? Date() }
+
+    /// How many days past `base` is being read. A forecast is worth having in advance of
+    /// the trip as much as on it: the question this panel is really asked is not "what is
+    /// the weather" but "should I go on a different day", and that cannot be answered by a
+    /// panel that only ever shows one.
+    @State private var offset: Int = 0
+
+    /// Five days out, and no further. Open-Meteo carries about a fortnight and the
+    /// climatology carries the rest, but past a few days a forecast stops being a forecast
+    /// — and a week of arrows is a control nobody reaches the end of.
+    private static let horizon = 5
+
+    private var day: Date {
+        Calendar.current.date(byAdding: .day, value: offset, to: base) ?? base
+    }
     private var isToday: Bool { Calendar.current.isDateInToday(day) }
 
     /// How the day reads in a sentence: "today", or the date itself when it is not.
     private var dayLabel: String {
         isToday ? "today" : day.formatted(.dateTime.day().month(.wide))
+    }
+
+    /// How the day reads as a heading, where it is the subject rather than an aside.
+    private var dayTitle: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(day) { return "Today" }
+        if calendar.isDateInTomorrow(day) { return "Tomorrow" }
+        return day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+    }
+
+    /// The line under the day, where there is one worth adding. "Today" and "Tomorrow" do
+    /// not say which date they are; a date already has, and printing it twice in two
+    /// formats is the sort of thing that reads as a placeholder nobody finished.
+    private var daySubtitle: String? {
+        let calendar = Calendar.current
+        guard calendar.isDateInToday(day) || calendar.isDateInTomorrow(day) else { return nil }
+        return day.formatted(.dateTime.weekday(.wide).day().month(.wide))
     }
 
     /// Live weather for a park the curated library has never heard of — and, once it has
@@ -779,7 +897,12 @@ struct WeatherSection: View {
         return park.wx
     }
 
-    private var hasNumbers: Bool { live != nil || park.wx.isPublished || park.source == nil }
+    /// Whether a service has actually answered for this day.
+    ///
+    /// `park.source == nil` used to be enough — a curated park was assumed to have numbers
+    /// because eight of them shipped a written-down August day. There are no bundled
+    /// numbers now, so this asks the only question that matters: has a forecast arrived.
+    private var hasNumbers: Bool { live != nil || park.wx.isPublished }
 
     private var light: WeatherLight { WeatherLight(high: wx.hi) }
 
@@ -951,11 +1074,68 @@ struct WeatherSection: View {
             : "Sunset · \(WeatherClock.span(remaining)) left"
     }
 
+    /// Which day is being read, and the two controls that change it.
+    ///
+    /// The date was only ever said in the source line under the tiles and in the label on
+    /// the temperature tile, both of them in passing — so a reader stepping through days
+    /// had to hunt for what they were looking at.
+    /// One control rather than three: the trough the segmented controls are built from,
+    /// with the day written across it and a disc lifted onto each end.
+    ///
+    /// It was two 38pt outlines with the date loose between them, a third of a screen
+    /// apart — three objects that had to be read as one thing, and the arrows looked like
+    /// chrome rather than the way to change the day.
+    private var dayBar: some View {
+        HStack(spacing: 6) {
+            stepper("chevron.left", by: -1, enabled: offset > 0)
+            VStack(spacing: 1) {
+                Text(dayTitle).font(WP.headingUI(17))
+                if let daySubtitle {
+                    Text(daySubtitle).font(WP.body(11)).opacity(0.55)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            stepper("chevron.right", by: 1, enabled: offset < Self.horizon)
+        }
+        .padding(6)
+        .frame(height: 56)
+        .background(WP.neutral200, in: Capsule())
+        .padding(.bottom, 14)
+    }
+
+    private func stepper(_ icon: String, by delta: Int, enabled: Bool) -> some View {
+        Button {
+            withAnimation(.snappy(duration: 0.2)) { offset += delta }
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(WP.mark))
+                .overlay(Circle().stroke(Color.black.opacity(0.12), lineWidth: 0.5))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressStyle(scale: 0.92))
+        .disabled(!enabled)
+        // Faded rather than recoloured: an arrow that has run out of days is the same
+        // control, not a different one.
+        .opacity(enabled ? 1 : 0.32)
+        .accessibilityLabel(delta < 0 ? "Previous day" : "Next day")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 9) {
-                Circle().fill(light.color).frame(width: 10, height: 10)
-                Text(light.label).font(WP.bodyItalic(13)).opacity(0.8)
+            dayBar
+
+            // Only where there are figures to read it off. Stepping to a day whose forecast
+            // has not come back left "Kind — hike any hour" and a green dot standing over
+            // six dashes — a verdict on a day the app knows nothing about, which is the one
+            // thing this panel is built not to do.
+            if hasNumbers {
+                HStack(spacing: 9) {
+                    Circle().fill(light.color).frame(width: 10, height: 10)
+                    Text(light.label).font(WP.bodyItalic(13)).opacity(0.8)
+                }
             }
 
             WeatherSlab(tiles: tiles, selected: $openTile)
@@ -972,7 +1152,10 @@ struct WeatherSection: View {
         // Keyed on the day as well as the park: this asked for `Date()` regardless, so a
         // trip being planned for next month still read today's forecast.
         .task(id: "\(park.code)|\(WPDate.iso(day))") {
-
+            // Cleared first, or stepping to the next day left the day before's figures on
+            // the tiles under the new date until the request came back — the one way this
+            // panel can be actually wrong rather than merely empty.
+            live = nil
             live = await WeatherService(failures: FailureLog())
                 .forecast(lat: park.lat, lon: park.lon, iso: WPDate.iso(day))
         }
@@ -984,10 +1167,7 @@ struct WeatherSection: View {
                 ? "Today at this park, from \(live.source)."
                 : "\(dayLabel) at this park, from \(live.source)."
         }
-        if park.wx.isPublished || park.source == nil {
-            return "Bundled normals. The forecast for \(dayLabel) is being fetched; when it answers, this panel says so."
-        }
-        return "\(park.sourceName) does not publish weather. Open-Meteo is being asked for this park's forecast — until it answers there is nothing here to read."
+        return "Asking Open-Meteo and the National Weather Service for \(dayLabel) at this park — until one answers there is nothing here to read."
     }
 }
 
@@ -996,9 +1176,34 @@ struct WeatherSection: View {
 struct StaySection: View {
     var park: CuratedPark
 
+    /// The park service's campgrounds, its own pages first.
+    ///
+    /// They arrived in whatever order NPS returned them. Ordered by who answers for them:
+    /// a campground with a page on nps.gov, then one that books on Recreation.gov, then
+    /// anything the app can only name. Sorting is stable, so campgrounds with the same
+    /// answer keep the park service's own order.
     private var liveCampgrounds: [ParkFacts.Campground] {
-        if case .loaded(let facts) = ParkFacts.shared.state(for: park) { return facts.campgrounds }
-        return []
+        guard case .loaded(let facts) = ParkFacts.shared.state(for: park) else { return [] }
+        return facts.campgrounds.enumerated()
+            .sorted {
+                let (a, b) = (Self.rank($0.element), Self.rank($1.element))
+                return a == b ? $0.offset < $1.offset : a < b
+            }
+            .map(\.element)
+    }
+
+    /// Ranked by the pill the row actually draws, not by which links the record happens to
+    /// carry.
+    ///
+    /// Most park-service campgrounds have both an nps.gov page and a Recreation.gov
+    /// facility, and `official` prefers the booking link — so ranking on `npsURL` first put
+    /// campgrounds wearing a Recreation.gov pill at the top of the NPS group and the list
+    /// came out looking unsorted. `facilityID` is tested first here for the same reason the
+    /// row tests it first.
+    private static func rank(_ camp: ParkFacts.Campground) -> Int {
+        if camp.facilityID != nil { return 1 }
+        if camp.npsURL != nil { return 0 }
+        return 2
     }
 
     var body: some View {
@@ -1013,50 +1218,11 @@ struct StaySection: View {
                 }
             }
 
-            if liveCampgrounds.isEmpty, !park.camping.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
-                SectionTitle("Campgrounds")
-                ForEach(park.camping) { camp in
-                    DividedRow(vertical: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text(camp.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
-                                Spacer(minLength: 0)
-                                Text(camp.av)
-                                    .font(WP.body(10))
-                                    .padding(.horizontal, 9).padding(.vertical, 2)
-                                    .background(chipBackground(camp), in: Capsule())
-                                    .foregroundStyle(chipForeground(camp))
-                            }
-                            Text("\(camp.whereText) · \(camp.sites) · \(camp.price)")
-                                .font(WP.body(12)).opacity(0.7).lineSpacing(2).tnum()
-                            Text("\(camp.status) · \(camp.src)")
-                                .font(WP.bodyItalic(12)).foregroundStyle(WP.accent700)
-                        }
-                    }
-                }
-            }
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                SectionTitle("Lodges & hotels")
-                ForEach(park.lodging) { stay in
-                    DividedRow(vertical: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text(stay.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
-                                Spacer(minLength: 0)
-                                Text(stay.price).font(WP.body(12.5)).foregroundStyle(WP.accent700)
-                            }
-                            Text("\(stay.whereText) · \(stay.note)")
-                                .font(WP.body(12)).opacity(0.7).lineSpacing(2)
-                        }
-                    }
-                }
-            }
-
-            // The curated lists cover the campgrounds inside four parks. Everything
-            // around every other park in the country comes from Apple Maps.
+            // Two bundled lists used to sit here: a hand-written campground list for the
+            // eight parks in `curated.json`, and "Lodges & hotels" — four strings a piece,
+            // no source, no date, and a nightly rate nobody has checked since it was typed.
+            // A price a reader budgets against has to come from somewhere that can be
+            // asked again. Both are gone; what is below is fetched every time.
             VStack(alignment: .leading, spacing: 12) {
                 SectionTitle("Camping & RV around the park")
                 PlaceRows(park: park, kind: .campground, limit: 6)
@@ -1076,27 +1242,61 @@ struct StaySection: View {
         }
     }
 
-    /// Two catalogues, named separately: what is inside the park, and what is around it.
+    /// Every row on this screen, and who was asked for it. Nothing here ships with the app.
     private var staySource: String {
-        (park.camping.isEmpty
-            ? "No in-park campground list ships for this park."
-            : "In-park campgrounds and lodges from ParkHop's own records.")
-        + " Everything under them is Apple Maps, within thirty miles of the park, nearest first."
-        + " Campgrounds and nightly availability from the National Park Service and Recreation.gov."
-    }
-
-    private func chipBackground(_ camp: CuratedCamp) -> Color {
-        if camp.isClosed { return WP.neutral200 }
-        if camp.isOpen { return WP.accent100 }
-        return WP.neutral100
-    }
-
-    private func chipForeground(_ camp: CuratedCamp) -> Color {
-        camp.isOpen ? WP.accent800 : WP.neutral800
+        "In-park campgrounds and nightly availability from the National Park Service and"
+        + " Recreation.gov. Everything under them is Apple Maps, within thirty miles of the"
+        + " park, nearest first."
     }
 }
 
 // MARK: - Plans
+
+/// When in the day a thing to do suits — read off the park service's own words, never
+/// guessed.
+///
+/// NPS publishes no time-of-day field, so this is a reading of the title and the
+/// description: a night-sky programme says "stargazing", a summit hike says "sunrise". Most
+/// entries say nothing about time at all, and those get no answer rather than a guessed
+/// one. Deciding that a four-hour trail is "morning" would be inventing a fact about a
+/// park, which is the one thing this screen must not do.
+enum DayPart: String, CaseIterable {
+    case morning, afternoon, evening, night
+
+    var label: String { rawValue.capitalized }
+
+    var glyph: String {
+        switch self {
+        case .morning: return "sunrise"
+        case .afternoon: return "sun.max"
+        case .evening: return "sunset"
+        case .night: return "moon.stars"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .morning: return Color(oklch: 0.58, 0.13, 70)
+        case .afternoon: return WP.mark
+        case .evening: return Color(oklch: 0.55, 0.16, 30)
+        case .night: return Color(oklch: 0.46, 0.10, 260)
+        }
+    }
+
+    /// Nil where the words say nothing about when.
+    static func read(_ text: String) -> DayPart? {
+        let s = text.lowercased()
+        func says(_ words: [String]) -> Bool { words.contains { s.contains($0) } }
+        // Night first: "night sky" also contains "sky", and a moonlight walk is an evening
+        // word away from being mis-filed.
+        if says(["night sky", "stargaz", "star gaz", "astronomy", "after dark",
+                 "nocturnal", "moonlight", "milky way", "night hike", "owl prowl"]) { return .night }
+        if says(["sunrise", "dawn", "first light", "early morning", "morning"]) { return .morning }
+        if says(["sunset", "dusk", "evening", "golden hour", "twilight"]) { return .evening }
+        if says(["afternoon", "midday", "mid-day", "noon"]) { return .afternoon }
+        return nil
+    }
+}
 
 struct PlansSection: View {
     var park: CuratedPark
@@ -1106,39 +1306,43 @@ struct PlansSection: View {
         return []
     }
 
+    private func dayPart(_ activity: ParkFacts.Activity) -> DayPart? {
+        DayPart.read(activity.title + " " + (activity.note ?? ""))
+    }
+
+    /// One line over the list: which part of the day the park service's own descriptions
+    /// keep pointing at, and how much of the list said nothing.
+    private var dayPartSummary: String? {
+        guard !thingsToDo.isEmpty else { return nil }
+        let read = thingsToDo.compactMap(dayPart)
+        let silent = thingsToDo.count - read.count
+        guard !read.isEmpty else {
+            return "None of these say what time of day they suit — the park's own page will."
+        }
+        let counts = Dictionary(grouping: read, by: { $0 }).mapValues(\.count)
+        guard let top = counts.max(by: { ($0.value, $0.key.rawValue) < ($1.value, $1.key.rawValue) })
+        else { return nil }
+        let lead = "\(top.key.label) comes up most — \(top.value) of \(read.count) that name a time."
+        return silent == 0 ? lead : "\(lead) The other \(silent) do not say."
+    }
+
     var body: some View {
+        // Hand-written day plans used to open this section — "Day 1 in park · Geyser
+        // basins", three rows with clock times typed into the record. They shipped for
+        // eight parks, and their times were guesses the app could already do better than:
+        // the weather panel on this same screen knows the real first light for the date
+        // being planned. What the park service publishes covers every park it runs.
         VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(park.days.enumerated()), id: \.element.title) { index, plan in
-                VStack(alignment: .leading, spacing: 0) {
-                    Kicker(text: "Day \(index + 1) in park")
-                    Text(plan.title).font(WP.rowTitle(18)).padding(.top, 5)
-                        .multilineTextAlignment(.leading)
-                    VStack(spacing: 0) {
-                        ForEach(plan.items) { item in
-                            HStack(alignment: .top, spacing: 10) {
-                                Text(item.time.clockPadded)
-                                    .font(WP.body(11.5))
-                                    .foregroundStyle(WP.accent700)
-                                    .frame(width: 52, alignment: .leading)
-                                Text(item.text).font(WP.body(12.5)).lineSpacing(2)
-                                    .multilineTextAlignment(.leading)
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.vertical, 8)
-                            .overlay(alignment: .top) { Hairline() }
-                        }
-                    }
-                    .padding(.top, 8)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-                .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(WP.divider, lineWidth: 1))
-            }
 
             if !thingsToDo.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     SectionTitle("Things to do")
+                    if let dayPartSummary {
+                        Text(dayPartSummary)
+                            .font(WP.bodyItalic(12.5)).lineSpacing(3).opacity(0.7)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.bottom, 6)
+                    }
                     ForEach(thingsToDo) { activity in
                         DividedRow(vertical: 11) {
                             VStack(alignment: .leading, spacing: 3) {
@@ -1146,6 +1350,18 @@ struct PlansSection: View {
                                     Text(activity.title)
                                         .font(WP.rowTitle(16)).multilineTextAlignment(.leading)
                                     Spacer(minLength: 0)
+                                    if let part = dayPart(activity) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: part.glyph)
+                                                .font(.system(size: 9, weight: .semibold))
+                                            Text(part.label).font(WP.body(10))
+                                        }
+                                        .padding(.horizontal, 8).padding(.vertical, 3)
+                                        .background(part.tint.opacity(0.12), in: Capsule())
+                                        .overlay(Capsule().stroke(part.tint, lineWidth: 0.75))
+                                        .foregroundStyle(part.tint)
+                                        .fixedSize()
+                                    }
                                     if let duration = activity.duration {
                                         Text(duration).font(WP.body(11.5)).opacity(0.6)
                                     }
@@ -1174,28 +1390,75 @@ struct NearbySection: View {
     @Environment(AppState.self) private var app
     var park: CuratedPark
 
+    private var units: [NearbyUnits.Unit] {
+        if case .ready(let units) = NearbyUnits.shared.state(for: park) { return units }
+        return []
+    }
+
+    /// The ones an afternoon reaches — the window the whole tab is arranged around.
+    private var afternoon: [NearbyUnits.Unit] { units.filter(\.isAfternoon) }
+    private var closer: [NearbyUnits.Unit] { units.filter { ($0.minutes ?? .max) < 55 } }
+    private var further: [NearbyUnits.Unit] {
+        units.filter { !$0.isAfternoon && ($0.minutes ?? .max) >= 55 }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Passport pages beyond the big park — monuments, historic sites and memorials within striking distance. A cancellation stamp waits at each visitor centre.")
+            Text("Everything the park service runs near here that is not another national park — monuments, historic sites, memorials, battlefields — and the state parks around them. A cancellation stamp waits at each park-service visitor centre.")
                 .font(WP.body(13)).lineSpacing(3).opacity(0.8)
-                .padding(.bottom, 6)
+                .padding(.bottom, 10)
 
-            ForEach(park.stamps) { stamp in
+            switch NearbyUnits.shared.state(for: park) {
+            case .idle, .loading:
+                HStack(spacing: 9) {
+                    ProgressView().controlSize(.small)
+                    Text("Asking the park service what else is near \(park.name)…")
+                        .font(WP.bodyItalic(12.5)).opacity(0.7)
+                }
+            case .failed(let why):
+                Text(why).font(WP.bodyItalic(12.5)).opacity(0.7).lineSpacing(3)
+            case .ready:
+                group("Under an hour", closer)
+                group("An afternoon away · 1–1½ hours", afternoon, highlight: true)
+                group("Further out", further)
+            }
+
+            SourceLine("Units from the National Park Service, state parks from the table on this phone. Drive times from OSRM for the nearest ten; the rest are straight-line miles.")
+                .padding(.top, 16)
+        }
+        .task(id: park.code) { NearbyUnits.shared.load(park) }
+    }
+
+    /// One band of the list. Empty bands say nothing rather than showing a bare heading.
+    @ViewBuilder
+    private func group(_ title: String, _ rows: [NearbyUnits.Unit], highlight: Bool = false) -> some View {
+        if !rows.isEmpty {
+            HStack(spacing: 8) {
+                Text(title.uppercased())
+                    .font(WP.body(11)).tracking(1.3)
+                    .foregroundStyle(highlight ? WP.mark : WP.accent700)
+                Rectangle().fill(WP.divider).frame(height: 1)
+            }
+            .padding(.top, 14)
+            .padding(.bottom, 2)
+
+            ForEach(rows) { unit in
                 Button {
-                    app.sheet = .stamp(name: stamp.name, city: stamp.city, dist: stamp.dist)
+                    app.sheet = .stamp(name: unit.name, city: unit.place, dist: unit.distanceLine)
                 } label: {
                     DividedRow(vertical: 12) {
                         HStack(spacing: 12) {
-                            Text(stamp.dist)
-                                .font(WP.body(12)).foregroundStyle(WP.accent700)
-                                .frame(width: 52, alignment: .leading)
+                            Text(unit.distanceLine)
+                                .font(WP.body(12)).tnum()
+                                .foregroundStyle(unit.isAfternoon ? WP.mark : WP.accent700)
+                                .frame(width: 82, alignment: .leading)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(stamp.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
-                                Text("\(stamp.city) · \(stamp.desig)")
+                                Text(unit.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
+                                Text("\(unit.place) · \(unit.designation)")
                                     .font(WP.bodyItalic(11.5)).opacity(0.6)
                             }
                             Spacer(minLength: 0)
-                            if app.isStamped(app.stampKey(forName: stamp.name)) {
+                            if !unit.isStatePark, app.isStamped(app.stampKey(forName: unit.name)) {
                                 Text("Stamped")
                                     .font(WP.body(10))
                                     .padding(.horizontal, 9).padding(.vertical, 2)
@@ -1210,9 +1473,6 @@ struct NearbySection: View {
                 }
                 .buttonStyle(PressStyle(scale: 0.99))
             }
-
-            SourceLine("Passport units near this park.")
-                .padding(.top, 16)
         }
     }
 }

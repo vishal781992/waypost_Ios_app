@@ -2,14 +2,18 @@ import Foundation
 
 // MARK: - The curated field library
 //
-// This is the dataset the design ships with, converted verbatim by
-// `tools/extract-curated.mjs`: eight parks with their own colour identity, August
-// normals, gates, campgrounds, day plans and nearby stamps; the four legs of the seed
-// trip; the ten days of that trip; and the passport book.
+// This is the dataset the design ships with, converted by `tools/extract-curated.mjs`:
+// eight parks with their own colour identity, gates, airports, fuel and nearby stamps;
+// the four legs of the seed trip; the ten days of that trip; and the passport book.
 //
-// It is *curated*, and the app says so wherever it is shown. The live services in
-// `Services/` overlay it when a source answers; nothing here is presented as a
-// measurement taken today.
+// What it no longer carries is anything a service can be asked for. The fee, the opening
+// hours, the entry reservation, the current alerts, the campgrounds, the lodges, the day
+// plans and a written-down August forecast all shipped here once — eight parks' worth of
+// facts fixed at build time, presented beside the same facts fetched live for the other
+// fifty-five. The park service, Recreation.gov, Open-Meteo, the National Weather Service
+// and Apple Maps answer for all of them now, for every park and on the date being asked
+// about. What is left is either identity (a name, a place, a colour) or reference the
+// services do not publish (which gates a park has, which airports fly there).
 
 struct CuratedLibrary: Decodable {
     let cities: [CuratedCity]
@@ -73,23 +77,21 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     let gw: String
     let region: String
     let crowd: String
-    let fee: String
-    let hours: String
-    let res: Bool
-    let resNote: String
     /// The park's OKLCH identity — deep, mid, light. Drives every hero card and thumbnail.
     let c: [String]
     /// Offline pack size, e.g. "112 MB".
     let pack: String
-    var wx: CuratedWeather
+    /// Today's weather, once a service has answered. Never bundled.
+    ///
+    /// This used to ship a written-down high, low, UV, wind, sunrise and sunset for each of
+    /// the eight parks in `curated.json` — a single August day, typed once, presented as
+    /// this park's weather whatever the date. The forecast services answer for every park in
+    /// the country and for any date asked, so the record starts unpublished and only a
+    /// service fills it.
+    var wx: CuratedWeather = .unpublished
     let gates: [String]
-    let parking: String
     let airports: [CuratedAirport]
-    let camping: [CuratedCamp]
-    let lodging: [CuratedLodging]
     let fuel: CuratedFuel
-    let alerts: [CuratedAlert]
-    let days: [CuratedDayPlan]
     let stamps: [CuratedStamp]
     /// Which catalogue this park came out of. Absent in `curated.json`, which is the
     /// curated library by definition.
@@ -111,6 +113,19 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     /// knows one. 1,821 of the 3,003 state parks carry one and the app was drawing a
     /// generated colour tile for every one of them.
     var photoFile: String? = nil
+
+    /// Only what `curated.json` actually carries.
+    ///
+    /// `wx` is deliberately absent: it is non-optional with a default, and a synthesised
+    /// decoder does not fall back to a default for a missing key — it throws, which took
+    /// the whole library down at launch the moment the bundled forecasts came out of the
+    /// file. Leaving it out of the keys is what makes the default the value. The optional
+    /// fields below it decode as normal, absent or not.
+    enum CodingKeys: String, CodingKey {
+        case code, name, full, state, lat, lon, tag, gw, region, crowd, c, pack
+        case gates, airports, fuel, stamps
+        case source, designation, npsCode, website, photoFile
+    }
 
     var id: String { code }
 
@@ -134,6 +149,16 @@ struct CuratedPark: Decodable, Identifiable, Hashable {
     }
     /// Named wherever the park is shown, so a live record is never read as a curated one.
     var sourceName: String { (source ?? .curated).rawValue }
+
+    /// The state in words, wherever the record only carries the postal code.
+    ///
+    /// `curated.json` writes "Colorado"; `national-parks.json` and the park service write
+    /// "CO", so the same kicker read "Colorado · National Park" on one park and "CA ·
+    /// National Park" on the next. Several of the codes are a genuine stumble at a glance
+    /// — MI, MN, MO, MS, MT are five states and one letter apart — and a kicker is read in
+    /// passing or not at all. A park spanning states carries them comma-separated, and
+    /// each is expanded in place.
+    var stateName: String { USState.spellOut(state) }
 
     /// Megabytes, for the storage total on the Profile screen.
     var packMB: Int { Int(pack.split(separator: " ").first.flatMap { Int($0) } ?? 0) }
@@ -163,41 +188,6 @@ struct CuratedAirport: Decodable, Hashable, Identifiable {
     let note: String
     let best: Bool?
     var id: String { code }
-}
-
-struct CuratedCamp: Decodable, Hashable, Identifiable {
-    let name: String
-    let whereText: String
-    let sites: String
-    let price: String
-    let status: String
-    let src: String
-    /// The availability chip the design shows: "3 left", "Full", "Walk-up", "Waitlist"…
-    let av: String
-
-    var id: String { name }
-
-    enum CodingKeys: String, CodingKey {
-        case name, sites, price, status, src, av
-        case whereText = "where"
-    }
-
-    /// Availability colour follows the wording, as in the design.
-    var isOpen: Bool { av.contains("left") || av == "Open" }
-    var isClosed: Bool { av == "Full" }
-}
-
-struct CuratedLodging: Decodable, Hashable, Identifiable {
-    let name: String
-    let whereText: String
-    let price: String
-    let note: String
-    var id: String { name }
-
-    enum CodingKeys: String, CodingKey {
-        case name, price, note
-        case whereText = "where"
-    }
 }
 
 struct CuratedFuel: Decodable, Hashable {
@@ -247,18 +237,6 @@ struct CuratedAlert: Decodable, Hashable, Identifiable {
     let title: String
     let body: String
     var id: String { cat + title }
-}
-
-struct CuratedDayPlan: Decodable, Hashable, Identifiable {
-    let title: String
-    let items: [CuratedPlanItem]
-    var id: String { title }
-}
-
-struct CuratedPlanItem: Decodable, Hashable, Identifiable {
-    let time: String
-    let text: String
-    var id: String { time + text }
 }
 
 struct CuratedStamp: Decodable, Hashable, Identifiable {
@@ -329,4 +307,44 @@ struct PermitDrop: Hashable {
         "zion": .init(what: "Angels Landing lottery closes", when: "today 3:00 pm MT", countdown: "5 h 19 m"),
         "glac": .init(what: "Next-day vehicle reservations", when: "release 7:00 pm MT", countdown: "9 h 19 m"),
     ]
+}
+
+/// The states, by postal code.
+///
+/// Only ever used to spell one out: nothing in the app abbreviates a state the reader has
+/// given it in full.
+enum USState {
+    static let names: [String: String] = [
+        "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
+        "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
+        "DC": "District of Columbia", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii",
+        "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
+        "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine",
+        "MD": "Maryland", "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota",
+        "MS": "Mississippi", "MO": "Missouri", "MT": "Montana", "NE": "Nebraska",
+        "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico",
+        "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio",
+        "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island",
+        "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas",
+        "UT": "Utah", "VT": "Vermont", "VA": "Virginia", "WA": "Washington",
+        "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming",
+        "AS": "American Samoa", "GU": "Guam", "MP": "Northern Mariana Islands",
+        "PR": "Puerto Rico", "VI": "US Virgin Islands",
+    ]
+
+    /// "CA" → "California"; "ID, MT, WY" → "Idaho, Montana and Wyoming". Anything already
+    /// spelled out, or not a code at all, is handed back untouched.
+    static func spellOut(_ raw: String) -> String {
+        let parts = raw
+            .split(whereSeparator: { $0 == "," || $0 == "/" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        guard !parts.isEmpty else { return raw }
+        let spelled = parts.map { names[$0.uppercased()] ?? $0 }
+        switch spelled.count {
+        case 1: return spelled[0]
+        case 2: return "\(spelled[0]) and \(spelled[1])"
+        default: return spelled.dropLast().joined(separator: ", ") + " and " + (spelled.last ?? "")
+        }
+    }
 }

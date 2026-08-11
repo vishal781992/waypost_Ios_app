@@ -114,6 +114,37 @@ extension View {
             .shadow(color: shadow ? Color(hex: 0x181008, opacity: 0.22) : .clear, radius: 8, y: 5)
     }
 
+    /// A control in the brand's lime: the same shape and the same press shadow as
+    /// `glassControl`, filled rather than glazed.
+    ///
+    /// Opaque, for the reason the orange discs are opaque — glass takes its colour partly
+    /// from whatever sits behind it, and these controls sit over a photograph on one
+    /// screen and the plain page on the next. A brand colour that changes with the
+    /// wallpaper is not a brand colour.
+    ///
+    /// Type is `WP.text`, never white: white on lime is 1.4:1 and unreadable at any size.
+    func limeControl(radius: CGFloat = 999, shadow: Bool = true) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return foregroundStyle(WP.text)
+            .background(WP.lime, in: shape)
+            .overlay { shape.stroke(Color.black.opacity(0.12), lineWidth: 0.5) }
+            .clipShape(shape)
+            .contentShape(shape)
+            .shadow(color: shadow ? Color(hex: 0x181008, opacity: 0.22) : .clear, radius: 8, y: 5)
+    }
+
+    /// A control in the mark's orange: the same shape and press shadow as `limeControl`,
+    /// filled with the colour off the app's own icon. Black type, at 9.9:1.
+    func markControl(radius: CGFloat = 999, shadow: Bool = true) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return foregroundStyle(.black)
+            .background(WP.mark, in: shape)
+            .overlay { shape.stroke(Color.black.opacity(0.12), lineWidth: 0.5) }
+            .clipShape(shape)
+            .contentShape(shape)
+            .shadow(color: shadow ? Color(hex: 0x181008, opacity: 0.22) : .clear, radius: 8, y: 5)
+    }
+
     /// Puts the view on a liquid-glass surface.
     func liquidGlass(_ style: GlassStyle = .pill, radius: CGFloat = 999, interactive: Bool = false) -> some View {
         modifier(LiquidGlass(style: style, radius: radius, interactive: interactive))
@@ -483,18 +514,20 @@ struct SegmentDiscRail<T: Hashable>: View {
                                 .font(.system(size: 15, weight: .semibold))
                             Text(option.short).font(WP.body(14)).lineLimit(1).fixedSize()
                         }
-                        .foregroundStyle(WP.onInk)
+                        .foregroundStyle(.black)
                         .padding(.horizontal, 16)
                         .frame(height: disc)
-                        .background(WP.ink, in: Capsule())
+                        .background(WP.mark, in: Capsule())
+                        .overlay { Capsule().stroke(Color.black.opacity(0.12), lineWidth: 0.5) }
                     } else {
                         Image(systemName: option.icon)
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(active ? WP.onInk : WP.text)
+                            .foregroundStyle(active ? .black : WP.text)
                             .frame(width: disc, height: disc)
                             .background {
                                 if active {
-                                    Circle().fill(WP.ink)
+                                    Circle().fill(WP.mark)
+                                        .overlay(Circle().stroke(Color.black.opacity(0.12), lineWidth: 0.5))
                                 } else {
                                     Circle().stroke(WP.text.opacity(0.16), lineWidth: 0.5)
                                 }
@@ -525,10 +558,7 @@ struct GlowButton: View {
                 .font(WP.headingUI(filled ? 17 : 15))
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: minHeight)
-                // The brass-and-dusk glow still bleeds through, now from under glass
-                // rather than from under a flat plate.
-                .background { ButtonGlow(strong: strongGlow).clipShape(Capsule()) }
-                .glassControl()
+                .limeControl()
         }
         .buttonStyle(PressStyle())
     }
@@ -630,12 +660,27 @@ struct ToastView: View {
 /// A segment or chip in its two states: ink glass when it is the one you chose, plain
 /// type when it is not. Kept in one place so every tab in the app agrees on what
 /// "selected" looks like.
+/// A filter chip: the mark's orange when it is the one being filtered by.
+struct SelectedChip: ViewModifier {
+    var active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.markControl(shadow: false)
+        } else {
+            content
+                .foregroundStyle(WP.text.opacity(0.62))
+                .contentShape(Capsule())
+        }
+    }
+}
+
 struct SelectedControl: ViewModifier {
     var active: Bool
 
     func body(content: Content) -> some View {
         if active {
-            content.glassControl(shadow: false)
+            content.limeControl(shadow: false)
         } else {
             // The active branch gets a hit-testable background from `glassControl`. Without
             // one here an *unselected* segment was tappable only on its letters — and an

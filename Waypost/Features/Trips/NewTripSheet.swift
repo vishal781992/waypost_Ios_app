@@ -200,7 +200,7 @@ struct NewTripSheet: View {
                                 HStack(spacing: 12) {
                                     VStack(alignment: .leading, spacing: 3) {
                                         HStack(spacing: 8) {
-                                            Text(park.state.uppercased())
+                                            Text(park.stateName.uppercased())
                                                 .font(WP.body(10)).tracking(1.4)
                                                 .foregroundStyle(WP.accent)
                                             Text(park.designationLabel.uppercased())
@@ -237,23 +237,16 @@ struct NewTripSheet: View {
         }
     }
 
+    /// A picked park: its place in the order, its name, and a way to drop it.
+    ///
+    /// The nights in each park were also set here, on a stepper inside the chip — the same
+    /// question the next step asks in full, on a labelled row with room to read it. Asking
+    /// twice meant the two could disagree, and the chip's copy was the one nobody saw
+    /// again. Step one picks the parks; step two says how long in each.
     private func pickChip(code: String, index: Int) -> some View {
         HStack(spacing: 8) {
             Text("\(index + 1)").font(WP.headingUI(13))
             Text(app.park(code)?.name ?? code).font(WP.body(12.5)).lineLimit(1)
-            Button { builder.adjustDays(code, by: -1) } label: {
-                Image(systemName: "minus").font(.system(size: 10, weight: .bold))
-                    .frame(width: 22, height: 22)
-                    .background(Color.black.opacity(0.07), in: Circle())
-            }
-            .buttonStyle(.plain)
-            Text("\(builder.days(for: code))").font(WP.headingUI(13)).frame(minWidth: 9)
-            Button { builder.adjustDays(code, by: 1) } label: {
-                Image(systemName: "plus").font(.system(size: 10, weight: .bold))
-                    .frame(width: 22, height: 22)
-                    .background(Color.black.opacity(0.07), in: Circle())
-            }
-            .buttonStyle(.plain)
             Button {
                 withAnimation(.snappy(duration: 0.2)) { builder.toggle(code) }
             } label: {

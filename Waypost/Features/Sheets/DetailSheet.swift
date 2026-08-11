@@ -22,6 +22,9 @@ struct DetailSheet: View {
     /// here are handed over as waypoints in mile order and the drive arrives in Maps with
     /// the stops already in it.
     @State private var chosen: Set<String> = []
+    /// Park-service places picked for this drive, kept apart from the fuel-and-food picks
+    /// because they come from a different source and are handed to Maps in their own order.
+    @State private var chosenUnits: Set<String> = []
 
     var body: some View {
         ScrollView(.vertical) {
@@ -276,6 +279,7 @@ struct DetailSheet: View {
             // the departure window — so it is fetched only when the drive is live.
             LegStops.shared.load(leg, electric: app.vehicleIsElectric,
                                  includeTraffic: LegStops.isLive(driveDate))
+            TripDays.shared.loadStops(for: leg)
         }
     }
 
@@ -289,6 +293,11 @@ struct DetailSheet: View {
             Text("\(leg.from) → \(leg.to)").font(WP.heading(23)).padding(.top, 9)
                 .multilineTextAlignment(.leading)
 
+            // Places first, then the roadside. A long leg lists thirty petrol stations and
+            // charging points, and the park service's monuments were under all of them —
+            // the one part of the list somebody might change their day for was the part
+            // they had to scroll furthest to find.
+            worthStopping(leg)
             legStops(leg)
 
             // Distance, wheel time and the button now live in the pinned footer; the roads
@@ -309,6 +318,98 @@ struct DetailSheet: View {
         }
     }
 
+    /// The park service's own places worth breaking the drive for.
+    ///
+    /// The same section the day-by-day plan carries, in the sheet where the drive is
+    /// actually handed to Maps — a monument twenty minutes off the road is no use to
+    /// anybody if reading about it and driving to it are on two different screens. Each
+    /// one gets the two controls the fuel and food rows already have: add it to the drive,
+    /// or open it on its own.
+    @ViewBuilder
+    private func worthStopping(_ leg: TripRouting.Leg) -> some View {
+        let units = TripDays.shared.legStops[leg.id] ?? []
+        if TripDays.shared.isMeasuring(leg) {
+            HStack(spacing: 9) {
+                ProgressView().controlSize(.small)
+                Text("Measuring what the park service has near this road…")
+                    .font(WP.bodyItalic(12.5)).opacity(0.7)
+            }
+            .padding(.top, 16)
+        } else if !units.isEmpty {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Worth stopping for".uppercased())
+                    .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.mark)
+                Text("detour measured against this drive")
+                    .font(WP.bodyItalic(11)).opacity(0.5)
+            }
+            .padding(.top, 18).padding(.bottom, 2)
+
+            ForEach(units) { unit in
+                let picked = chosenUnits.contains(unit.id)
+                DividedRow(vertical: 11) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "leaf.fill")
+                            .font(.system(size: 13))
+                            .foregroundStyle(WP.notice)
+                            .frame(width: 28, height: 28)
+                            .background(WP.notice.opacity(0.12), in: Circle())
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(unit.name).font(WP.rowTitle(15))
+                                .multilineTextAlignment(.leading)
+                            Text("\(unit.place) · \(unit.designation) · \(unit.diversionLine)")
+                                .font(WP.body(11.5)).foregroundStyle(WP.accent700)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+
+                        Button {
+                            withAnimation(.snappy(duration: 0.18)) {
+                                if picked { chosenUnits.remove(unit.id) } else { chosenUnits.insert(unit.id) }
+                            }
+                            Haptics.tap()
+                        } label: {
+                            Image(systemName: picked ? "checkmark.circle.fill" : "plus.circle")
+                                .font(.system(size: 22))
+                                .foregroundStyle(picked ? WP.accent : WP.accent700.opacity(0.55))
+                                .frame(width: 40, height: 40)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressStyle(scale: 0.9))
+                        .accessibilityLabel(picked
+                            ? "Remove \(unit.name) from the drive"
+                            : "Add \(unit.name) to the drive")
+
+                        Button {
+                            Self.mapItem(lat: unit.lat, lon: unit.lon, name: unit.name)
+                                .openInMaps(launchOptions: [
+                                    MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
+                                ])
+                        } label: {
+                            Image(systemName: "arrow.triangle.turn.up.right.circle")
+                                .font(.system(size: 20)).foregroundStyle(WP.accent700)
+                                .frame(width: 36, height: 40)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Open \(unit.name) in Maps")
+                    }
+                }
+            }
+        }
+    }
+
+    private static func mapItem(lat: Double, lon: Double, name: String) -> MKMapItem {
+        let item = MKMapItem(placemark: MKPlacemark(
+            coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)))
+        item.name = name
+        return item
+    }
+
+    /// The park-service stops picked for this drive, nearest detour first.
+    private func pickedUnits(_ leg: TripRouting.Leg) -> [TripDays.Stop] {
+        (TripDays.shared.legStops[leg.id] ?? []).filter { chosenUnits.contains($0.id) }
+    }
+
     /// The stops this leg has found, if it has finished looking.
     private func readyStops(_ leg: TripRouting.Leg) -> [LegStops.Stop] {
         if case .ready(let stops, _) = LegStops.shared.state(for: leg) { return stops }
@@ -321,7 +422,7 @@ struct DetailSheet: View {
     }
 
     private func openTitle(_ leg: TripRouting.Leg) -> String {
-        let count = pickedStops(leg).count
+        let count = pickedStops(leg).count + pickedUnits(leg).count
         guard count > 0 else { return "Open in Maps" }
         return "Open in Maps · \(count) stop\(count == 1 ? "" : "s")"
     }
@@ -343,6 +444,10 @@ struct DetailSheet: View {
         var chain: [MKMapItem] = []
         if let start = leg.coordinates.first { chain.append(item(start, leg.from)) }
         chain += pickedStops(leg).map(\.mapItem)
+        // The park-service stops after the roadside ones: fuel and food are ordered by the
+        // mile they sit at, and a monument has no mile — it has a detour, which is what
+        // `pickedUnits` is already sorted by.
+        chain += pickedUnits(leg).map { Self.mapItem(lat: $0.lat, lon: $0.lon, name: $0.name) }
         if let end = leg.coordinates.last { chain.append(item(end, leg.to)) }
 
         // A leg with no geometry has nothing to hand over but the name it is going to.

@@ -44,7 +44,10 @@ struct VisitationChart: View {
         // than a gap that reads as missing data.
         let height = max(2, 46 * profile.share(index))
         return RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(index == peak ? WP.accent : WP.accent300.opacity(0.55))
+            // The mark, let down to 0.55 so twelve of them stay a chart rather than twelve
+            // things asking to be pressed; the busiest month is the same colour a step
+            // deeper, which reads as the top of the ramp instead of a different subject.
+            .fill(index == peak ? WP.markDeep : WP.mark.opacity(0.55))
             .frame(height: height)
             .frame(maxWidth: .infinity, alignment: .bottom)
             .overlay(alignment: .bottom) {

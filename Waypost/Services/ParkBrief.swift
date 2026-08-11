@@ -103,26 +103,29 @@ final class ParkBrief {
     // MARK: Gathering the facts
 
     private static func gather(_ park: CuratedPark, date: Date?) async -> Facts {
-        // NPS, if it has arrived. The overview does not block on it — it reads whatever is
-        // loaded and says so where a piece is missing.
+        // NPS, waited for. This used to read whatever `ParkFacts` happened to hold at the
+        // moment the overview was composed, and the overview is composed once — so on the
+        // common path, where the park screen opens and both requests start together, the
+        // brief was written before the park service had answered. `blurb` was nil, the
+        // model is forbidden from writing a significance without one, and every park in
+        // the country got "X is a national park."
         //
-        // Nothing here is fetched: dropping the fee and busyness lines took the forecast
-        // request with them, because nothing left in the brief reads the weather.
+        // Nothing else here is fetched: dropping the fee and busyness lines took the
+        // forecast request with them, because nothing left in the brief reads the weather.
         var reservation: String?
         var blurb: String?
         var topics: [String] = []
         var alerts: [CuratedAlert] = []
         var alertsUnavailable = false
-        if case .loaded(let f) = ParkFacts.shared.state(for: park) {
+        if case .loaded(let f) = await ParkFacts.shared.settled(for: park) {
             reservation = f.reservation
             blurb = f.blurb
             topics = Array(f.topics.prefix(6))
-            // Same precedence the park screen uses: what the park is posting now, ahead of
-            // the bundled alerts, which are editorial rather than current.
-            alerts = f.alerts.isEmpty ? park.alerts : f.alerts
+            // Only what the park is posting now. There used to be a bundled alert list to
+            // fall back on for eight parks — editorial rather than current, and an alert
+            // that is out of date is the one kind of fact worth nothing at all.
+            alerts = f.alerts
             alertsUnavailable = f.unavailable.contains("alerts") && alerts.isEmpty
-        } else {
-            alerts = park.alerts
         }
 
         return Facts(
@@ -177,23 +180,36 @@ final class ParkBrief {
                 : "No alerts are posted for \(facts.parkName) right now."
         }
 
-        let worst = facts.alerts.min { rank($0.cat) < rank($1.cat) } ?? facts.alerts[0]
-        let headline = sentence(worst.title)
-        guard facts.alerts.count > 1 else { return headline }
+        let ordered = facts.alerts.sorted {
+            AlertSeverity(category: $0.cat) < AlertSeverity(category: $1.cat)
+        }
+
+        // Dangers and closures are named, never counted. A park posting three closures used
+        // to print one of them and "Also posted: 2 closures" — which tells the reader that
+        // roads are shut without telling them which, and which is the whole of what they
+        // opened this line for. Three is where a glance stops being a glance; past that the
+        // remainder is counted with the rest, and the full list is one tap away.
+        let severe = ordered.filter { AlertSeverity(category: $0.cat).isSevere }
+        let named = severe.isEmpty ? Array(ordered.prefix(1)) : Array(severe.prefix(3))
+        let headline = named.map { sentence($0.title) }.joined(separator: " ")
 
         // What the rest of them *are*, not merely how many. "Five more alerts are posted"
         // reads the same whether they are five closures or five car-park notices, and the
         // reader has to open the list to find out which.
-        var rest = facts.alerts
-        if let lead = rest.firstIndex(where: { $0.title == worst.title && $0.cat == worst.cat }) {
-            rest.remove(at: lead)
+        var rest = ordered
+        rest.removeAll { alert in
+            named.contains { $0.cat == alert.cat && $0.title == alert.title }
         }
+        guard !rest.isEmpty else { return headline }
+
         // Spelled out in steps: as one chain of grouping, mapping and sorting it was past
         // what the type-checker would take in a single expression.
         let groups: [String: [CuratedAlert]] = Dictionary(grouping: rest) {
             normalisedCategory($0.cat)
         }
-        let categories: [String] = groups.keys.sorted { rank($0) < rank($1) }
+        let categories: [String] = groups.keys.sorted {
+            AlertSeverity(category: $0) < AlertSeverity(category: $1)
+        }
         let counted: [String] = categories.map { category in
             let count = groups[category]?.count ?? 0
             return "\(count) \(noun(for: category, plural: count != 1))"
@@ -232,16 +248,6 @@ final class ParkBrief {
         case 1: return parts[0]
         case 2: return "\(parts[0]) and \(parts[1])"
         default: return parts.dropLast().joined(separator: ", ") + " and " + (parts.last ?? "")
-        }
-    }
-
-    /// Which alert to lead with. The park service's own categories, most serious first.
-    private static func rank(_ category: String) -> Int {
-        switch category.lowercased() {
-        case "danger": return 0
-        case "park closure": return 1
-        case "caution": return 2
-        default: return 3
         }
     }
 

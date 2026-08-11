@@ -60,7 +60,12 @@ final class ParkFacts {
     struct Activity: Hashable, Identifiable {
         var title: String
         var duration: String?
+        /// Clipped to a couple of sentences, for a row that shows it in passing.
         var note: String?
+        /// What the park service actually wrote, whole. A screen that offers to open the
+        /// description out has to have the rest of it to open — the clipped `note` ends in
+        /// an ellipsis, so expanding it revealed a longer truncation.
+        var detail: String?
         var id: String { title }
     }
 
@@ -103,6 +108,33 @@ final class ParkFacts {
 
     func state(for park: CuratedPark) -> State { states[park.code] ?? .idle }
 
+    /// Whoever is waiting on a park's request to finish, by park code.
+    private var waiters: [String: [CheckedContinuation<State, Never>]] = [:]
+
+    /// The park's facts once the request has settled — loaded, not covered, or failed.
+    ///
+    /// `load` is deliberately fire-and-forget: every panel on the park screen draws what
+    /// has arrived and redraws when more does, so none of them need to wait. The AI
+    /// overview is the exception. It is written once, from whatever is on hand at that
+    /// instant, and the park service's description is the raw material for the whole
+    /// "why it matters" line — so racing the request meant the overview was routinely
+    /// written before the description existed, and the sentence fell all the way through
+    /// to "X is a national park."
+    func settled(for park: CuratedPark) async -> State {
+        load(park)
+        let now = state(for: park)
+        guard case .loading = now else { return now }
+        return await withCheckedContinuation { waiters[park.code, default: []].append($0) }
+    }
+
+    /// Records a request's final state and releases anyone waiting on it.
+    private func finish(_ code: String, _ state: State) {
+        states[code] = state
+        for waiter in waiters.removeValue(forKey: code) ?? [] {
+            waiter.resume(returning: state)
+        }
+    }
+
     func load(_ park: CuratedPark) {
         switch state(for: park) {
         case .idle, .failed: break
@@ -113,12 +145,12 @@ final class ParkFacts {
         Task { [weak self] in
             guard let self else { return }
             guard let code = await npsCode(for: park) else {
-                states[park.code] = .notCovered
+                finish(park.code, .notCovered)
                 return
             }
             do {
                 guard let row = try await proxy.park(code: code) else {
-                    states[park.code] = .notCovered
+                    finish(park.code, .notCovered)
                     return
                 }
                 // The park record is the one that must arrive; the rest fill in what they
@@ -130,14 +162,14 @@ final class ParkFacts {
                 // Where the timed-entry and free-park facts live. The park record does not
                 // carry them; this endpoint does.
                 async let feespasses = proxy.rows("feespasses", code: code)
-                states[park.code] = .loaded(Self.facts(
+                finish(park.code, .loaded(Self.facts(
                     from: row, code: code,
                     alerts: await alerts, camps: await camps,
                     things: await things, lots: await lots,
                     feespasses: await feespasses
-                ))
+                )))
             } catch {
-                states[park.code] = .failed(String(describing: error).prefix(80).description)
+                finish(park.code, .failed(String(describing: error).prefix(80).description))
             }
         }
     }
@@ -341,7 +373,9 @@ final class ParkFacts {
                 return Activity(
                     title: title,
                     duration: (thing["duration"] as? String).flatMap { $0.isEmpty ? nil : $0 },
-                    note: (thing["shortDescription"] as? String).map { Self.sentences($0, within: 160) }
+                    note: (thing["shortDescription"] as? String).map { Self.sentences($0, within: 160) },
+                    detail: (thing["shortDescription"] as? String)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
                 )
             },
             parking: lots.compactMap { $0["name"] as? String },

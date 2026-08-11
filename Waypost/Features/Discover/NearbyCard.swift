@@ -45,6 +45,16 @@ struct NearbyCard: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 9) {
+            // The same sparkle the park screen's AI Overview wears, so the two AI-written
+            // things in the app are marked the same way. Only when the model can actually
+            // run: where it cannot, this card ranks parks by measured distance and nothing
+            // on it is written, so a sparkle would be claiming something untrue.
+            if briefing.modelAvailability == nil {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(WP.accent700)
+                    .accessibilityLabel("Written on this iPhone")
+            }
             Kicker(text: briefing.placeName.map { "Near \($0)" } ?? "Near you")
             Spacer(minLength: 0)
             if case .ready = briefing.state {
@@ -69,9 +79,16 @@ struct NearbyCard: View {
                 .font(WP.body(12.5)).lineSpacing(2).opacity(0.72)
                 .fixedSize(horizontal: false, vertical: true)
 
-            GlowButton(title: "Brief me", minHeight: 44) {
+            // The button says what it does; the sparkle says who writes it. A reader who
+            // presses "Brief me" should already know a model is about to compose the
+            // answer rather than the app looking it up.
+            GlowButton(title: briefing.modelAvailability == nil ? "✦  Brief me" : "Rank them",
+                       minHeight: 44) {
                 Task { await briefing.run() }
             }
+            .accessibilityLabel(briefing.modelAvailability == nil
+                                ? "Brief me, written on this iPhone"
+                                : "Rank the parks near me")
         }
     }
 

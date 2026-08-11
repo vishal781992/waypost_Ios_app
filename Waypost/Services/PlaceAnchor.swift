@@ -21,6 +21,10 @@ final class PlaceAnchor {
         var label: String
         var lat: Double
         var lon: Double
+        /// The state the place is in, in words, where the geocoder said. A city is asked
+        /// "what is near you"; a city with no park near it is asked "then what is the
+        /// nearest one in your own state", and that question needs the state named.
+        var state: String?
     }
 
     private(set) var anchor: Anchor?
@@ -74,9 +78,14 @@ final class PlaceAnchor {
             // The bounding region centres on the place that was searched for, and holds
             // for a city as well as for a single address.
             let centre = response.boundingRegion.center
-            anchor = Anchor(label: response.mapItems.first?.name ?? text,
+            let first = response.mapItems.first
+            // `administrativeArea` is the two-letter code on a US result; spelled out here
+            // so the sentence it lands in reads "the nearest in Colorado".
+            let area = first?.placemark.administrativeArea
+            anchor = Anchor(label: first?.name ?? text,
                             lat: centre.latitude,
-                            lon: centre.longitude)
+                            lon: centre.longitude,
+                            state: area.map(USState.spellOut))
         }
     }
 }
