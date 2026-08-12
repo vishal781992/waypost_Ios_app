@@ -19,10 +19,14 @@ struct CompactTabBar: View {
 
     @Namespace private var pill
 
-    /// Wide enough for "Profile" at 10.5pt and no wider. The whole point of the bar is
+    /// Wide enough for "Profile" at 11pt and no wider. The whole point of the bar is
     /// that it ends where its items do.
-    private let itemWidth: CGFloat = 62
-    private let itemHeight: CGFloat = 46
+    ///
+    /// 68×52 rather than 62×46: the bar is the app's most-used control and it was the
+    /// smallest target on the screen, a couple of points over the 44pt floor in one
+    /// direction and reached with a thumb at the far end of its stretch.
+    private let itemWidth: CGFloat = 68
+    private let itemHeight: CGFloat = 52
 
     var body: some View {
         HStack(spacing: 0) {
@@ -53,9 +57,9 @@ struct CompactTabBar: View {
         } label: {
             VStack(spacing: 3) {
                 TabIcon(tab: tab)
-                    .frame(width: 26, height: 26)
+                    .frame(width: 29, height: 29)
                 Text(tab.label)
-                    .font(WP.body(10.5, semibold: isSelected))
+                    .font(WP.body(11, semibold: isSelected))
                     .lineLimit(1)
             }
             .foregroundStyle(isSelected ? WP.neutral900 : WP.neutral600)

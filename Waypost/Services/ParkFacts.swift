@@ -344,7 +344,11 @@ final class ParkFacts {
             code: code,
             fee: fee,
             hours: hours.map { Self.sentences($0, within: 260) },
-            directions: (row["directionsInfo"] as? String).map { Self.sentences($0, within: 260) },
+            // Longer than the other clips: hours and fees are read in passing on a row,
+            // but the directions are read in a sheet opened for that one purpose, and the
+            // park service writes them as a route — cutting them at 260 characters stops
+            // the driver somewhere on the interstate.
+            directions: (row["directionsInfo"] as? String).map { Self.sentences($0, within: 900) },
             website: (row["url"] as? String).flatMap(URL.init(string:)),
             alerts: alerts.compactMap { alert in
                 guard let title = alert["title"] as? String else { return nil }

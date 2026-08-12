@@ -36,6 +36,32 @@ struct TodayScreen: View {
             .tracksTabBarMinimize()
             .scrollIndicators(.hidden)
             .captureScrollPosition()
+            // The masthead has no plate, so the page simply stopped at the scroll view's
+            // top edge — a photograph scrolling up met that line and was cut across it.
+            // The same treatment the section bar has at the foot of a park: frosted glass
+            // and a wash of page colour, masked to nothing over twenty-eight points, so
+            // what is arriving softens into the name above it rather than being sheared.
+            .overlay(alignment: .top) {
+                ZStack {
+                    Rectangle().fill(.ultraThinMaterial)
+                    LinearGradient(
+                        colors: [WP.bg, WP.bg.opacity(0.45), WP.bg.opacity(0)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                }
+                .mask {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0),
+                            .init(color: .black.opacity(0.5), location: 0.45),
+                            .init(color: .clear, location: 1),
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                }
+                .frame(height: 28)
+                .allowsHitTesting(false)
+            }
         }
         .task {
             app.refreshRecommendation()

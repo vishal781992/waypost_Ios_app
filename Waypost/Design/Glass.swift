@@ -498,14 +498,37 @@ struct SegmentDiscRail<T: Hashable>: View {
     /// The page-header form: every section a disc of equal weight, spread across the
     /// width, because the header itself names the one being read.
     var compact: Bool = false
+    /// Drawn on ink glass rather than on the page. `WP.text` at 16% is a hairline on
+    /// off-white and nothing at all on near-black, so the unselected discs need the
+    /// other end of the scale — and their glyphs need to be the light, not the dark.
+    var onInk: Bool = false
+
+    private var glyph: Color { onInk ? WP.onInk : WP.text }
+    private var ring: Color { onInk ? Color.white.opacity(0.3) : WP.text.opacity(0.16) }
+
+    /// The selected fill is one shape that moves, not six that appear and disappear —
+    /// the same `matchedGeometryEffect` the app's own tab bar uses for its pill, so the
+    /// two bars behave alike now that this one is welded to the foot of the screen.
+    @Namespace private var pill
 
     /// 44 points, the smallest thing a finger should be asked to hit — and what every
     /// other round control in this app already is.
     private var disc: CGFloat { compact ? 42 : 44 }
 
     var body: some View {
-        HStack(spacing: compact ? 0 : 6) {
-            ForEach(options, id: \.value) { option in
+        // Both forms fill the width, by different means. Compact gives every disc an equal
+        // share of it, because they are all the same size. In-flow one of them is a pill
+        // with a word in it and the rest are discs, so equal shares would centre each item
+        // in a column of its own and read as ragged; equal *gaps* is what looks uniform.
+        // Six points was a fixed gap, which left the row short of the right margin by
+        // however much the selected word happened not to be.
+        HStack(spacing: 0) {
+            ForEach(Array(options.enumerated()), id: \.element.value) { index, option in
+                // Two points rather than six: each disc now carries three points of
+                // transparent padding a side, which is hit area rather than air. The gap
+                // you see between two discs is unchanged; the dead ground between them
+                // is gone.
+                if !compact, index > 0 { Spacer(minLength: 2) }
                 let active = option.value == selection
                 Button { selection = option.value } label: {
                     if active, !compact {
@@ -517,29 +540,51 @@ struct SegmentDiscRail<T: Hashable>: View {
                         .foregroundStyle(.black)
                         .padding(.horizontal, 16)
                         .frame(height: disc)
-                        .background(WP.mark, in: Capsule())
+                        .background {
+                            Capsule()
+                                .fill(WP.mark)
+                                .matchedGeometryEffect(id: "rail-selection", in: pill)
+                        }
                         .overlay { Capsule().stroke(Color.black.opacity(0.12), lineWidth: 0.5) }
                     } else {
                         Image(systemName: option.icon)
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(active ? .black : WP.text)
+                            .foregroundStyle(active ? .black : glyph)
                             .frame(width: disc, height: disc)
                             .background {
                                 if active {
                                     Circle().fill(WP.mark)
+                                        .matchedGeometryEffect(id: "rail-selection", in: pill)
                                         .overlay(Circle().stroke(Color.black.opacity(0.12), lineWidth: 0.5))
                                 } else {
-                                    Circle().stroke(WP.text.opacity(0.16), lineWidth: 0.5)
+                                    Circle().stroke(ring, lineWidth: onInk ? 1 : 0.5)
                                 }
                             }
                     }
                 }
                 .buttonStyle(PressStyle(scale: 0.92))
+                // The disc was tappable on the glyph and nowhere else.
+                //
+                // A `Button` gets its hit area from what its label actually draws, and
+                // from iOS 26 a `glassEffect` surface underneath contributes none — the
+                // same fault `ControlHitArea` fixes for every other control in the app,
+                // which this rail predates. So the ring was decoration, the middle of the
+                // disc was a hole, and a tap that missed the 17pt glyph did nothing. An
+                // explicit content shape over the padded frame makes the whole disc, and
+                // half the gap either side of it, the button.
+                .padding(.horizontal, compact ? 0 : 3)
+                .padding(.vertical, 2)
                 .frame(maxWidth: compact ? .infinity : nil)
+                .contentShape(Rectangle())
                 .accessibilityLabel(option.label)
                 .accessibilityAddTraits(active ? [.isSelected] : [])
             }
         }
+        // The word inside the selected pill arrives and leaves on its own — the fill is
+        // travelling, and a label that stretched with it would read as the text being
+        // dragged along the bar.
+        .animation(Motion.panel, value: selection)
+        .sensoryFeedback(.selection, trigger: selection)
     }
 }
 

@@ -35,6 +35,7 @@ struct DetailSheet: View {
                 case .leg(let index, let date): legBody(index: index, date: date)
                 case .routedLeg(let leg, let label): routedLegBody(leg, label: label)
                 case .stamp(let name, let city, let dist): stampBody(name: name, city: city, dist: dist)
+                case .directions(let park, let text): directionsBody(park: park, text: text)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -57,11 +58,26 @@ struct DetailSheet: View {
         .presentationCornerRadius(WP.sheetCorner)
     }
 
-    /// The bar welded to the bottom of a routed leg. Nothing for the other four sheets,
-    /// which are short enough to read in one screen and have no standing action.
+    /// The bar welded to the bottom of a routed leg, and of the directions.
+    ///
+    /// Nothing for the other three sheets, which are short enough to read in one screen
+    /// and whose buttons answer the text — "Understood" belongs under the sentence it
+    /// answers. Directions are read and then left, at whichever detent the reader dragged
+    /// the sheet to, so the way out sits at the bottom edge rather than wherever the
+    /// park service's last sentence happened to end.
     @ViewBuilder
     private var pinnedFooter: some View {
-        if case .routedLeg(let leg, _) = sheet {
+        if case .directions = sheet {
+            VStack(spacing: 0) {
+                GlowButton(title: "Done", minHeight: 48) { dismiss() }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, WP.gutter)
+            .padding(.top, 9)
+            .padding(.bottom, -12)
+            .background(WP.bg.ignoresSafeArea(edges: .bottom))
+            .overlay(alignment: .top) { Hairline() }
+        } else if case .routedLeg(let leg, _) = sheet {
             VStack(spacing: 9) {
                 // The three-column block this replaces was worth about a hundred points of
                 // a phone sheet — most of the room the stops need. The same three numbers
@@ -92,6 +108,36 @@ struct DetailSheet: View {
         case .permit: return [.medium, .large]
         case .leg, .routedLeg: return [.medium, .large]
         case .stamp: return [.medium]
+        // A paragraph for a park a mile off the highway, most of a page for one reached
+        // by three named roads. Both detents, so neither is read through a letterbox.
+        case .directions: return [.medium, .large]
+        }
+    }
+
+    // MARK: Getting there
+
+    /// The park service's own written approach.
+    ///
+    /// This text has been in every park's record since the app first called NPS, and no
+    /// screen ever drew it — the road in was written down for the eight bundled parks and
+    /// nowhere at all for the other four hundred and sixty. It is deliberately the park's
+    /// wording rather than a route the app computes: it names the seasonal closures, the
+    /// gates that are the wrong way round, and the last town with fuel.
+    private func directionsBody(park: String, text: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 10)
+            // The park's name in the serif it wears on its own screen, at the size the
+            // masthead there uses, rather than in the sheet's system heading — the sheet
+            // is about a park, and this is the same object under a different roof. Set
+            // down off the drag indicator too: 18 points put the kicker in the corner.
+            Text("GETTING THERE · NPS")
+                .font(WP.body(11.5)).tracking(1.4).opacity(0.5)
+            Text(park).font(WP.display(32)).padding(.top, 4)
+            Text(text)
+                .font(WP.body(14)).lineSpacing(4).opacity(0.85)
+                .padding(.top, 10)
+            Text("Written by the park. Roads close by season — check the alerts before a winter drive.")
+                .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.top, 14)
         }
     }
 

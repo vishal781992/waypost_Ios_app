@@ -94,7 +94,11 @@ struct RootShell: View {
             // that page.
             if app.path(for: currentTab).isEmpty {
                 CompactTabBar(selection: selection, isMinimized: chrome.isMinimized)
-                    .padding(.bottom, 6)
+                    // Down to the safe area's own line and no further. Below it is the
+                    // strip iOS reserves for the home gesture, which takes the first
+                    // touch — the fault the park screen's rail had until it was lifted
+                    // back out of it.
+                    .padding(.bottom, 0)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }

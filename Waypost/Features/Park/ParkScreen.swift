@@ -5,6 +5,8 @@ import UIKit
 /// screen with a scrolling segment rail.
 struct ParkScreen: View {
     @Environment(AppState.self) private var app
+    /// The chips open a website, a phone number and Apple Maps; only the first two are URLs.
+    @Environment(\.openURL) private var openURL
     var park: CuratedPark
     var initialSegment: ParkSegment
     /// The day this park is being read for — a trip's arrival date. Nil means today.
@@ -15,6 +17,8 @@ struct ParkScreen: View {
     @State private var forward = true
     /// Where the in-flow rail is on the display, and the line it turns into a header at.
     @State private var railTop: CGFloat = .greatestFiniteMagnitude
+    /// Parts of the current section that do their own sideways scrolling.
+    @State private var swipeBlocks: [CGRect] = []
     /// 0 while the rail is part of the park page, 1 once it has become the page's header.
     /// Everything that changes between the two states reads this, so the swap happens over
     /// 56 points of scrolling rather than snapping at a line.
@@ -33,9 +37,9 @@ struct ParkScreen: View {
     private var railFade: CGFloat { 1 - min(1, pinned / 0.62) }
     private var barFade: CGFloat { min(max((pinned - 0.38) / 0.62, 0), 1) }
 
-    /// The page header: a row for the title, a row for the discs. One row cannot hold
-    /// both — a 24pt serif title and six 42pt discs come to more than a phone is wide.
-    static let barHeight: CGFloat = 46 + 42 + 14
+    /// The page header: one row, for the title and the way back. It was two — the second
+    /// held the discs, which are frozen to the foot of the display now.
+    static let barHeight: CGFloat = 46 + 8
 
     /// The status bar's height. Asked of the window rather than of a `GeometryReader`:
     /// this screen's scroll view ignores the top safe area, and the proxy inside it
@@ -49,37 +53,51 @@ struct ParkScreen: View {
     private var packState: PackState { app.packState(park.code) }
     private var isSaved: Bool { app.saved.contains(park.code) }
 
+    /// What the offline-pack control says, in the width one quarter of a row leaves it.
+    ///
+    /// `park.pack` is a size for the eight bundled parks and the words "Not downloaded"
+    /// for everywhere else, which is a sentence this pill has no room for — and one that
+    /// only repeats what an un-pressed download control already says.
+    private var packLabel: String {
+        switch packState {
+        case .ready: return "On device"
+        case .busy: return "\(Int((app.packProgress[park.code] ?? 0) * 100))%"
+        case .none: return park.pack.first?.isNumber == true ? "Offline · \(park.pack)" : "Offline pack"
+        }
+    }
+
     /// Whether this park is already on the visited rail — stamped on the ground, written
     /// into a trip that has been, or added here by hand.
     private var hasVisited: Bool { app.visitRail.contains { $0.id == park.code } }
 
-    /// "I have been here." The mark's orange when it is still an action; a settled state
-    /// once it is a fact, because a filled control that does nothing is a trap.
-    @ViewBuilder
+    /// Whether the reader is being asked to confirm taking this park off the rail.
+    @State private var confirmingUnvisit = false
+
+    /// "I have been here", as a disc in the mark's orange.
+    ///
+    /// This was a word in a pill that turned into a settled, untappable state once the
+    /// park was on the rail — which meant a mistaken tap could only be undone from the
+    /// Profile screen, if at all. It is a toggle now: filled seal for a fact, hollow seal
+    /// for the offer, and taking it back asks first, because it is the one control here
+    /// that erases something the reader told the app.
     private var visitButton: some View {
-        if hasVisited {
-            HStack(spacing: 5) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 11, weight: .semibold))
-                Text("Visited").font(WP.headingUI(14))
-            }
-            .frame(maxWidth: .infinity, minHeight: 46)
-            .foregroundStyle(WP.text.opacity(0.55))
-            .background {
-                Capsule().stroke(WP.text.opacity(0.18), lineWidth: 1)
-            }
-            .accessibilityLabel("\(park.name) is on your visited list")
-        } else {
-            Button {
-                app.addVisit(park.code)
-            } label: {
-                Text("Visited")
-                    .font(WP.headingUI(14))
-                    .frame(maxWidth: .infinity, minHeight: 46)
-                    .markControl()
-            }
-            .buttonStyle(PressStyle(scale: 0.98))
-            .accessibilityLabel("Mark \(park.name) as visited")
+        Button {
+            if hasVisited { confirmingUnvisit = true } else { app.addVisit(park.code) }
+        } label: {
+            Image(systemName: hasVisited ? "checkmark.seal.fill" : "checkmark.seal")
+                .font(.system(size: 19, weight: .medium))
+                .frame(width: 46, height: 46)
+                .markControl()
+        }
+        .buttonStyle(PressStyle(scale: 0.94))
+        .accessibilityLabel(hasVisited
+                            ? "Visited. Remove \(park.name) from your visited list"
+                            : "Mark \(park.name) as visited")
+        .confirmationDialog("Remove from visited?", isPresented: $confirmingUnvisit, titleVisibility: .visible) {
+            Button("Remove", role: .destructive) { app.removeVisit(park.code) }
+            Button("Keep it", role: .cancel) { }
+        } message: {
+            Text("\(park.name) comes off your visited rail. Tap visited again to put it back.")
         }
     }
 
@@ -163,56 +181,131 @@ struct ParkScreen: View {
     /// the number, which answers "what are the hours" better than any guess would, note
     /// the park's own clock when it differs from the phone's, and hand the park to Maps
     /// for everything this app is not allowed to draw.
+    ///
+    /// Three chips on one line, where this was four full-width boxes stacked — 230 points
+    /// of the page for three links and a clock, which is more than the photograph gets
+    /// after the fold. Two of those boxes were not even controls: the park's clock and its
+    /// gateway town are facts, and they read better as the caption they now are.
+    /// Equal shares of the row rather than equal gaps.
+    ///
+    /// Spread by spacers, three chips of three different widths left two gaps of two
+    /// different sizes — the arithmetic was uniform and the page was not. Every chip is
+    /// an equal share of the row now, so the gaps are equal because the chips are, and
+    /// the width that was idle went to the park service's own road in.
     @ViewBuilder
-    private var parkContactRow: some View {
-        if let details = ParkWebsite.shared.details(for: park) {
-            VStack(alignment: .leading, spacing: 8) {
-                if let phone = details.phone,
-                   let dial = URL(string: "tel://" + phone.filter { $0.isNumber || $0 == "+" }) {
-                    Link(destination: dial) {
-                        contactRow(glyph: "phone", text: phone, trailing: "arrow.up.right")
-                    }
-                    .accessibilityLabel("Call the park on \(phone)")
+    private var contactChips: some View {
+        let items = contactChipItems
+        if !items.isEmpty {
+            HStack(spacing: 8) {
+                ForEach(items) { item in
+                    Button(action: item.open) { chip(glyph: item.glyph, text: item.label) }
+                        .buttonStyle(PressStyle(scale: 0.97))
+                        .accessibilityLabel(item.spoken)
                 }
-
-                if let zone = details.timeZone, zone.identifier != TimeZone.current.identifier {
-                    // A park two zones away opens and closes on its own clock, and the
-                    // sunrise and sunset this screen shows are its, not the phone's.
-                    contactRow(glyph: "clock",
-                               text: "Park time \(Self.clock(in: zone)) · \(zone.abbreviation() ?? zone.identifier)",
-                               trailing: nil)
-                }
-
-                Button {
-                    details.mapItem.openInMaps()
-                } label: {
-                    contactRow(glyph: "map", text: "See it in Apple Maps", trailing: "arrow.up.right")
-                }
-                .buttonStyle(PressStyle(scale: 0.99))
             }
-            .padding(.top, 8)
+            .padding(.top, 12)
         }
     }
 
-    private func contactRow(glyph: String, text: String, trailing: String?) -> some View {
-        HStack(spacing: 9) {
+    /// Somewhere this screen can hand the park off to.
+    private struct ContactChip: Identifiable {
+        let id: String
+        let glyph: String
+        let label: String
+        /// What VoiceOver says, which is longer than the word on the chip — "Call" alone
+        /// does not say who is being called or on what number.
+        let spoken: String
+        let open: () -> Void
+    }
+
+    private var contactChipItems: [ContactChip] {
+        let details = ParkWebsite.shared.details(for: park)
+        var items: [ContactChip] = []
+
+        if let site {
+            // A park with no NPS fee has nothing above this but "Not published", so the
+            // chip names what the site is for rather than what it is.
+            items.append(ContactChip(id: "site",
+                                     glyph: "safari",
+                                     label: liveFee == nil ? "Fees" : "Park site",
+                                     spoken: "Open the park's own website") { openURL(site) })
+        }
+
+        if let phone = details?.phone,
+           let dial = URL(string: "tel://" + phone.filter { $0.isNumber || $0 == "+" }) {
+            items.append(ContactChip(id: "call",
+                                     glyph: "phone",
+                                     label: "Call",
+                                     spoken: "Call the park on \(phone)") { openURL(dial) })
+        }
+
+        if let details {
+            items.append(ContactChip(id: "maps",
+                                     glyph: "map",
+                                     label: "Maps",
+                                     spoken: "See \(park.name) in Apple Maps") { details.mapItem.openInMaps() })
+        }
+
+        // The park service's own written approach, which the app has always had and never
+        // shown. Absent until the facts arrive, and for the few parks NPS writes none for.
+        if let directions = facts?.directions, !directions.isEmpty {
+            // "Directions" is the accurate word and two characters too many for a quarter
+            // of the row — it truncated to "Directi…" on a 402pt phone.
+            items.append(ContactChip(id: "directions",
+                                     glyph: "signpost.right",
+                                     label: "Drive in",
+                                     spoken: "How to drive in to \(park.name)") {
+                app.sheet = .directions(park: park.name, text: directions)
+            })
+        }
+
+        return items
+    }
+
+    /// The park's own website, if the finder has one for it.
+    private var site: URL? {
+        if case .found(let url) = ParkWebsite.shared.state(for: park) { return url }
+        return nil
+    }
+
+    /// The park's own clock, in the italic the page uses for asides.
+    ///
+    /// Drawn only when the park keeps a different one from the phone — the hours above
+    /// and the sunrise in the weather section are the park's, not yours, and that is
+    /// worth a line only when the two disagree.
+    ///
+    /// The gateway town stood here too and no longer does: which town you pass through
+    /// is a fact about a drive, and the drive is what the trip screens are for.
+    @ViewBuilder
+    private var contactCaption: some View {
+        if let zone = ParkWebsite.shared.details(for: park)?.timeZone,
+           zone.identifier != TimeZone.current.identifier {
+            Text("Park time \(Self.clock(in: zone)) · \(zone.abbreviation() ?? zone.identifier)")
+                .font(WP.bodyItalic(12.5))
+                .opacity(0.62)
+                .padding(.top, 9)
+        }
+    }
+
+    /// One link, as a word in a hairline capsule. Black rather than the park-service brown
+    /// the boxed rows used: at chip size the brown on the page's off-white is thin, and
+    /// these sit a line below four filled dark pills that would swamp it.
+    private func chip(glyph: String, text: String) -> some View {
+        HStack(spacing: 5) {
             Image(systemName: glyph)
-                .font(.system(size: 13, weight: .semibold))
-                .frame(width: 18)
-            Text(text).font(WP.body(12.5)).multilineTextAlignment(.leading)
-            Spacer(minLength: 0)
-            if let trailing {
-                Image(systemName: trailing).font(.system(size: 11, weight: .semibold))
-            }
+                .font(.system(size: 12.5, weight: .semibold))
+            Text(text)
+                .font(WP.body(12.5))
+                .lineLimit(1)
+                // A quarter of a 320pt phone is 64 points, and "Park site" wants 70 of
+                // them. Shrinking is the graceful failure; truncating to "Park si…" is not.
+                .minimumScaleFactor(0.78)
         }
-        .foregroundStyle(WP.accent700)
-        .padding(.horizontal, 14)
-        .frame(minHeight: 44)
-        .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(WP.accent.opacity(0.45), lineWidth: 1)
-        }
-        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .foregroundStyle(WP.text)
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, minHeight: 36)
+        .background { Capsule().stroke(WP.text.opacity(0.18), lineWidth: 1) }
+        .contentShape(Capsule())
     }
 
     private static func clock(in zone: TimeZone) -> String {
@@ -221,40 +314,6 @@ struct ParkScreen: View {
         formatter.timeStyle = .short
         formatter.dateStyle = .none
         return formatter.string(from: Date())
-    }
-
-    /// Where the park itself publishes, for the parks no register covers.
-    ///
-    /// A state park has no NPS record, so fee and hours read "Not published" and the screen
-    /// had nowhere to send anybody — two words and a dead end. The park's own page is the
-    /// answer to "then where do I look", and Apple Maps knows the address.
-    @ViewBuilder
-    private var parkWebsiteRow: some View {
-        if case .found(let url) = ParkWebsite.shared.state(for: park) {
-            Link(destination: url) {
-                HStack(spacing: 9) {
-                    Image(systemName: "safari")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(liveFee == nil
-                         ? "Fees, hours and closures — on the park's own site"
-                         : "The park's own site")
-                        .font(WP.body(12.5))
-                    Spacer(minLength: 0)
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundStyle(WP.accent700)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 44)
-                .background {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(WP.accent.opacity(0.45), lineWidth: 1)
-                }
-                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .padding(.top, 12)
-            .accessibilityLabel("Open the park's own website")
-        }
     }
 
     private var factsUnavailable: some View {
@@ -281,23 +340,14 @@ struct ParkScreen: View {
                         masthead
                         actions
 
-                        SegmentDiscRail(options: railOptions, selection: segmentBinding)
+                        // The rail itself is welded to the foot of the display now; what
+                        // stands here is the line it used to occupy — where a picked
+                        // section scrolls back to, and the line whose passing off the top
+                        // turns the page into a page of its own.
+                        Color.clear
+                            .frame(height: 1)
                             .id(Self.railAnchor)
-                            .padding(.horizontal, WP.gutter)
-                            .padding(.top, 14)
-                            .padding(.bottom, 10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background {
-                                Rectangle().fill(WP.bg.opacity(0.94))
-                                    .overlay(alignment: .bottom) { Hairline() }
-                            }
-                            // Where the rail is on the display, which is what decides
-                            // whether the section is still part of the park page or has
-                            // become a page of its own.
                             .modifier(TracksTopEdge { railTop = $0 })
-                            // It does not scroll away so much as hand over: the pinned bar
-                            // above is fading in behind it, a beat later.
-                            .opacity(railFade)
 
                         section
                             .padding(.horizontal, WP.gutter)
@@ -312,6 +362,10 @@ struct ParkScreen: View {
                 }
                 .scrollIndicators(.hidden)
                 .captureScrollPosition()
+                // Frozen to the floor rather than carried by the page. As an inset rather
+                // than an overlay, so the scroll view holds its own last line clear of the
+                // rail instead of every section having to pad for it by hand.
+                .safeAreaInset(edge: .bottom, spacing: 0) { frozenRail }
                 // Picking a section makes it the page, wherever the rail was picked from.
                 //
                 // This used to fire only when the page was already pinned, so choosing
@@ -336,9 +390,10 @@ struct ParkScreen: View {
                     .opacity(barFade)
                     .allowsHitTesting(pinned > 0.5)
         }
+        .coordinateSpace(name: Self.pageSpace)
         .simultaneousGesture(pageTurn)
-        .overlay(alignment: .bottom) { pageDots }
         .onPreferenceChange(RailTopKey.self) { railTop = $0 }
+        .onPreferenceChange(PageTurnBlockKey.self) { swipeBlocks = $0 }
         .background(WP.bg)
         .toolbar(.hidden, for: .navigationBar)
         // The brief is what a park screen opens on. It was whichever section was read
@@ -352,11 +407,75 @@ struct ParkScreen: View {
         .onChange(of: segment) { _, new in app.parkSegment[park.code] = new }
     }
 
-    /// The rail, as something the scroll view can be told to go back to.
+    /// The six sections, welded to the foot of the display.
+    ///
+    /// It used to ride the page and hand itself over to a copy in the header on the way
+    /// past the top — which meant the one control the screen is navigated by was somewhere
+    /// off the top of it for most of a long section, and in two places during the swap.
+    /// Frozen, it is in one place, always, and that place is the end of the display a
+    /// thumb actually reaches.
+    /// A capsule of ink glass, floating, with the page running past it either side —
+    /// the same material every button on this screen is made of, and the same shape
+    /// language as the app's own tab bar. A hairline plate read as the last row of the
+    /// page; this reads as chrome laid over it, which is what it is.
+    private var frozenRail: some View {
+        VStack(spacing: 0) {
+            // The soft zone above the capsule. Empty of itself — what fills it is the
+            // blurred page, in the background below.
+            Color.clear
+                .frame(height: 34)
+                .allowsHitTesting(false)
+
+            SegmentDiscRail(options: railOptions, selection: segmentBinding, onInk: true)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .liquidGlass(.control, radius: 999)
+                .shadow(color: Color(hex: 0x181008, opacity: 0.22), radius: 12, y: 6)
+                .padding(.horizontal, WP.gutter)
+            // Down in the home indicator's clearance, but not all the way down it. At -10
+            // the bottom of every disc sat inside the strip iOS reserves for the home
+            // gesture, which takes the first touch and gives the app the second — so a
+            // deliberate tap on a disc missed about half the time.
+                .padding(.top, 4)
+                .padding(.bottom, -4)
+        }
+        // The page goes soft as it reaches the bar rather than being cut off at a line.
+        //
+        // A plain wash of page colour did hide the type, but it hid it abruptly: chips
+        // were sliced across their middles and what was left below read as a dead band.
+        // Frosted glass instead, masked so it is nothing at the top and full at the
+        // bottom — words lose their edges over thirty points, and the last of the colour
+        // takes what is left. Behind the capsule and down past the home indicator it is
+        // opaque, so nothing survives in the strip under the bar.
+        .background {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                LinearGradient(
+                    colors: [WP.bg.opacity(0), WP.bg.opacity(0.55), WP.bg],
+                    startPoint: .top, endPoint: .bottom
+                )
+            }
+            .mask {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black.opacity(0.55), location: 0.28),
+                        .init(color: .black, location: 0.62),
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+            }
+            .ignoresSafeArea(edges: .bottom)
+            .allowsHitTesting(false)
+        }
+    }
+
+    /// The line the rail used to stand on: what a picked section scrolls back to.
     private static let railAnchor = "park-sections"
 
     /// The rail's own height: a 44pt disc with 14 above it and 10 below.
-    private static let railHeight: CGFloat = 68
+    /// The frozen bar's own height: a 44pt disc with 12 above it and 4 below.
+    private static let railHeight: CGFloat = 60
 
     /// The air above a section.
     ///
@@ -425,10 +544,15 @@ struct ParkScreen: View {
     /// anywhere on the page turns it. Drags that begin at the left edge are left alone:
     /// that is the system's back-swipe, and stealing it would strand anybody who leaves a
     /// park the way they leave every other screen.
+    /// The space the page turn and the regions that opt out of it are both measured in.
+    static let pageSpace = "park-page"
+
     private var pageTurn: some Gesture {
-        DragGesture(minimumDistance: 12)
+        DragGesture(minimumDistance: 12, coordinateSpace: .named(Self.pageSpace))
             .onEnded { drag in
                 guard drag.startLocation.x > 32 else { return }
+                // A drag that began on something which scrolls sideways belongs to it.
+                guard !swipeBlocks.contains(where: { $0.contains(drag.startLocation) }) else { return }
                 let across = drag.translation.width
                 guard abs(across) > 48, abs(across) > abs(drag.translation.height) * 1.4 else { return }
                 let all = ParkSegment.allCases
@@ -439,8 +563,12 @@ struct ParkScreen: View {
             }
     }
 
-    /// The page header: what the old rail turns into once it reaches the top. The section
-    /// gives the page its name, the discs stay within reach on the right.
+    /// The page header: the section's name and the way back, once the page has been
+    /// scrolled far enough to be a page of its own.
+    ///
+    /// It carried a second copy of the rail. With the rail frozen at the foot of the
+    /// display that copy would be the same six discs twice on one screen, so the header
+    /// is now one row — a name and a chevron — and it is 42 points shorter for it.
     private var pinnedBar: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
@@ -464,10 +592,7 @@ struct ParkScreen: View {
             .foregroundStyle(WP.text)
             .padding(.horizontal, WP.gutter)
             .frame(height: 46)
-
-            SegmentDiscRail(options: railOptions, selection: segmentBinding, compact: true)
-                .padding(.horizontal, WP.gutter)
-                .padding(.bottom, 14)
+            .padding(.bottom, 8)
 
             Hairline()
         }
@@ -479,23 +604,9 @@ struct ParkScreen: View {
         }
     }
 
-    /// Which page of six this is — the one thing the discs alone do not say, because a
-    /// glyph does not tell you how many are left.
-    private var pageDots: some View {
-        HStack(spacing: 5) {
-            ForEach(ParkSegment.allCases, id: \.self) { page in
-                Capsule()
-                    .fill(page == segment ? WP.ink : WP.text.opacity(0.22))
-                    .frame(width: page == segment ? 15 : 5, height: 5)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .liquidGlass(.pill, radius: 999)
-        .padding(.bottom, 18)
-        .opacity(pinned)
-        .allowsHitTesting(false)
-    }
+    // The six dots that used to float above the fold said which page of six this was —
+    // worth having while the rail was off the top of the screen. The rail is on the
+    // screen at all times now, and it says the same thing with the sections named.
 
     /// The photograph, full-bleed, dissolving into the page rather than stopping at an
     /// edge — so the name below it reads as being written on the same sheet.
@@ -561,65 +672,54 @@ struct ParkScreen: View {
 
     private var actions: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 9) {
+            // Four errands, one line. They were two rows of two, which put a whole row of
+            // controls between the photograph and the first sentence about the park.
+            //
+            // Saving and having-been are the two a symbol says as well as a word does — a
+            // bookmark and a seal — so they become 46pt discs in the two brand colours and
+            // hand their width to the two that need a sentence. Both discs carry an
+            // accessibility label, because an icon-only control has nothing to read out.
+            HStack(spacing: 8) {
                 Button { app.toggleSaved(park.code) } label: {
-                    Text(isSaved ? "Saved" : "Save this park")
-                        .font(WP.headingUI(14))
-                        .frame(maxWidth: .infinity, minHeight: 46)
-                        .glassControl()
+                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                        .font(.system(size: 18, weight: .medium))
+                        .frame(width: 46, height: 46)
+                        .limeControl()
                 }
-                .buttonStyle(PressStyle(scale: 0.98))
+                .buttonStyle(PressStyle(scale: 0.94))
+                .accessibilityLabel(isSaved ? "Remove \(park.name) from saved" : "Save \(park.name)")
 
                 Button { app.startPack(park.code) } label: {
-                    Text(packState == .ready ? "Pack on device"
-                         : packState == .busy ? "Downloading \(Int((app.packProgress[park.code] ?? 0) * 100))%"
-                         : "Offline pack · \(park.pack)")
-                        .font(WP.headingUI(14))
+                    Text(packLabel)
+                        .font(WP.headingUI(13))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .padding(.horizontal, 6)
                         .frame(maxWidth: .infinity, minHeight: 46)
                         .glassControl()
                 }
                 .buttonStyle(PressStyle(scale: 0.98))
-            }
+                .accessibilityLabel(packState == .ready ? "Offline pack on device"
+                                    : "Download the offline pack for \(park.name)")
 
-            // Two things a reader wants from a park screen: to plan going, and to say they
-            // have already been. Planning ran the full width and being-there had nowhere to
-            // be said at all — the visited rail could only be filled from the Profile
-            // screen, or by standing in the park with the geofence running.
-            //
-            // 65/35 rather than half and half: planning is the larger errand and the one
-            // most readers came for, and "Visited" is a word where the other is four.
-            GeometryReader { geo in
-                let gap: CGFloat = 9
-                let usable = geo.size.width - gap
-                HStack(spacing: gap) {
-                    Button {
-                        app.startBuilder(around: park)
-                    } label: {
-                        Text("Plan a trip here")
-                            .font(WP.headingUI(14))
-                            .frame(maxWidth: .infinity, minHeight: 46)
-                            .glassControl()
-                    }
-                    .buttonStyle(PressStyle(scale: 0.98))
-                    .frame(width: usable * 0.65)
-
-                    visitButton
-                        .frame(width: usable * 0.35)
+                Button { app.startBuilder(around: park) } label: {
+                    Text("Plan a trip")
+                        .font(WP.headingUI(13))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .padding(.horizontal, 6)
+                        .frame(maxWidth: .infinity, minHeight: 46)
+                        .glassControl()
                 }
+                .buttonStyle(PressStyle(scale: 0.98))
+
+                visitButton
             }
-            .frame(height: 46)
-            .padding(.top, 9)
 
             factsRow.padding(.top, 13)
-            parkWebsiteRow
-            parkContactRow
-
-            // A live record often has no gateway town, and "Gateway town" followed by
-            // nothing reads as a bug rather than as an absence.
-            if !park.gw.isEmpty {
-                Text("Gateway town \(park.gw)")
-                    .font(WP.bodyItalic(12.5)).opacity(0.62).padding(.top, 3)
-            }
+            contactChips
+            // A park in your own time zone has nothing to say here, and says nothing.
+            contactCaption
         }
         .padding(.horizontal, WP.gutter)
         .padding(.top, 14)
@@ -849,10 +949,20 @@ struct WeatherSection: View {
     /// panel that only ever shows one.
     @State private var offset: Int = 0
 
-    /// Five days out, and no further. Open-Meteo carries about a fortnight and the
-    /// climatology carries the rest, but past a few days a forecast stops being a forecast
-    /// — and a week of arrows is a control nobody reaches the end of.
-    private static let horizon = 5
+    /// The rail's reach, in days either side of the day the screen was opened on.
+    ///
+    /// Sixty back and sixty on. Forward of about a fortnight the numbers stop being a
+    /// forecast and become the same calendar week averaged over ten years — which is the
+    /// honest answer to "what is October like here", and which the source line under the
+    /// tiles names for whichever day is being read. Backwards they are the archive: what
+    /// the weather actually did, which is what a reader asks when they are looking at
+    /// photographs of a trip they have already taken.
+    private static let reach = 60
+    private static let window = Array(-reach...reach)
+
+    /// The high for a day, by ISO date, as each disc gets an answer. Kept for the whole
+    /// visit: scrolling the rail back and forth must not ask twice.
+    @State private var highs: [String: Int] = [:]
 
     private var day: Date {
         Calendar.current.date(byAdding: .day, value: offset, to: base) ?? base
@@ -1074,58 +1184,102 @@ struct WeatherSection: View {
             : "Sunset · \(WeatherClock.span(remaining)) left"
     }
 
-    /// Which day is being read, and the two controls that change it.
+    /// Four months of days, as discs coloured by what the day is going to be like.
     ///
-    /// The date was only ever said in the source line under the tiles and in the label on
-    /// the temperature tile, both of them in passing — so a reader stepping through days
-    /// had to hunt for what they were looking at.
-    /// One control rather than three: the trough the segmented controls are built from,
-    /// with the day written across it and a disc lifted onto each end.
-    ///
-    /// It was two 38pt outlines with the date loose between them, a third of a screen
-    /// apart — three objects that had to be read as one thing, and the arrows looked like
-    /// chrome rather than the way to change the day.
-    private var dayBar: some View {
-        HStack(spacing: 6) {
-            stepper("chevron.left", by: -1, enabled: offset > 0)
-            VStack(spacing: 1) {
-                Text(dayTitle).font(WP.headingUI(17))
-                if let daySubtitle {
-                    Text(daySubtitle).font(WP.body(11)).opacity(0.55)
+    /// Two arrows and a date used to be the whole control, five days deep — which answers
+    /// "what is it doing tomorrow" and refuses the question the panel is actually opened
+    /// with, which is "which day should I go". A season laid out in a rail answers that in
+    /// one look: the run of green is when to come, and the reader scrolls to it rather
+    /// than tapping an arrow forty times to find out it was August all along.
+    private var dayStrip: some View {
+        ScrollViewReader { rail in
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 7) {
+                    ForEach(Self.window, id: \.self) { step in
+                        dayPill(step)
+                            .id(step)
+                    }
                 }
+                .padding(.horizontal, 2)
+                .padding(.vertical, 4)
             }
-            .frame(maxWidth: .infinity)
-            stepper("chevron.right", by: 1, enabled: offset < Self.horizon)
+            .scrollIndicators(.hidden)
+            // The day being read starts in the middle of the display rather than at its
+            // left edge: a rail that opens on the first of sixty days looks like a rail
+            // with nothing behind it.
+            .onAppear { rail.scrollTo(offset, anchor: .center) }
+            .onChange(of: offset) { _, new in
+                withAnimation(.snappy(duration: 0.28)) { rail.scrollTo(new, anchor: .center) }
+            }
         }
-        .padding(6)
-        .frame(height: 56)
-        .background(WP.neutral200, in: Capsule())
+        // Or a drag along the dates turns the page instead — which it did, two sections
+        // at a time, while the rail scrolled underneath.
+        .keepsHorizontalDrags()
         .padding(.bottom, 14)
     }
 
-    private func stepper(_ icon: String, by delta: Int, enabled: Bool) -> some View {
-        Button {
-            withAnimation(.snappy(duration: 0.2)) { offset += delta }
+    /// One day: the date in a disc the colour of its high, the month underneath.
+    private func dayPill(_ step: Int) -> some View {
+        let date = Calendar.current.date(byAdding: .day, value: step, to: base) ?? base
+        let iso = WPDate.iso(date)
+        let high = highs[iso]
+        let band = high.map { WeatherLight(high: $0) }
+        let selected = step == offset
+        let isToday = Calendar.current.isDateInToday(date)
+
+        return Button {
+            withAnimation(.snappy(duration: 0.2)) { offset = step }
         } label: {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.black)
-                .frame(width: 44, height: 44)
-                .background(Circle().fill(WP.mark))
-                .overlay(Circle().stroke(Color.black.opacity(0.12), lineWidth: 0.5))
-                .contentShape(Circle())
+            VStack(spacing: 4) {
+                Text(date.formatted(.dateTime.day()))
+                    .font(WP.headingUI(15))
+                    // On a filled disc the type is the fill's own dark end; on an
+                    // unanswered one it is the page's ink at half strength, which is how
+                    // the rest of the app draws a figure it has not got yet.
+                    .foregroundStyle(selected ? .white : (band == nil ? WP.text.opacity(0.5) : WP.text))
+                    .frame(width: 44, height: 44)
+                    .background {
+                        Circle().fill(selected ? (band?.color ?? WP.ink)
+                                               : (band?.color.opacity(0.26) ?? WP.neutral200))
+                    }
+                    .overlay {
+                        if selected { Circle().stroke(WP.text.opacity(0.85), lineWidth: 2).padding(-3) }
+                    }
+
+                Text(isToday ? "TODAY" : date.formatted(.dateTime.month(.abbreviated)).uppercased())
+                    .font(WP.body(9.5)).tracking(0.6)
+                    .foregroundStyle(isToday ? WP.text : WP.text.opacity(0.55))
+            }
+            .frame(width: 46)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(PressStyle(scale: 0.92))
-        .disabled(!enabled)
-        // Faded rather than recoloured: an arrow that has run out of days is the same
-        // control, not a different one.
-        .opacity(enabled ? 1 : 0.32)
-        .accessibilityLabel(delta < 0 ? "Previous day" : "Next day")
+        .buttonStyle(PressStyle(scale: 0.9))
+        .accessibilityLabel(date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+        .accessibilityValue(high.map { "High \($0) degrees" } ?? "No reading yet")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+        // Each disc asks for its own day the first time it is scrolled into being, and
+        // never again — `quickForecast` is the one-call version, because sixty discs
+        // wanting the blended three-source answer is sixty times the traffic for a colour.
+        //
+        // It only answers inside the forecast window, which is a fortnight. Outside it —
+        // a week in October, a day last month — the fallback is the same calendar window
+        // averaged over ten years. That is not a forecast and the panel below says so for
+        // whichever day is picked; as a colour on a disc it is the honest one, because the
+        // question a rail this long is scrolled with is what October is like here.
+        .task(id: iso) {
+            guard highs[iso] == nil else { return }
+            let weather = WeatherService(failures: FailureLog())
+            if let day = await weather.quickForecast(lat: park.lat, lon: park.lon, iso: iso) {
+                highs[iso] = day.hi
+            } else if let normal = await weather.normals(lat: park.lat, lon: park.lon, iso: iso) {
+                highs[iso] = normal.hi
+            }
+        }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            dayBar
+            dayStrip
 
             // Only where there are figures to read it off. Stepping to a day whose forecast
             // has not come back left "Kind — hike any hour" and a green dot standing over
@@ -1667,4 +1821,30 @@ private struct TracksTopEdge: ViewModifier {
 private struct RailTopKey: PreferenceKey {
     static var defaultValue: CGFloat = .greatestFiniteMagnitude
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// Regions of a section that scroll sideways themselves, and must not have their drags
+/// read as a page turn.
+///
+/// The page is turned by dragging across it, which was unambiguous while nothing inside a
+/// section scrolled horizontally. The weather rail does, and a drag along it both scrolled
+/// the dates and threw the reader two sections along.
+struct PageTurnBlockKey: PreferenceKey {
+    static var defaultValue: [CGRect] = []
+    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+extension View {
+    /// Marks this view as scrolling sideways on its own account. Drags that begin inside
+    /// it are the view's, not the page's.
+    func keepsHorizontalDrags() -> some View {
+        background {
+            GeometryReader { geo in
+                Color.clear.preference(key: PageTurnBlockKey.self,
+                                       value: [geo.frame(in: .named(ParkScreen.pageSpace))])
+            }
+        }
+    }
 }

@@ -228,8 +228,8 @@ enum WP {
     /// Breathing room at the end of a scroll on a screen with no bar over it — a pushed
     /// screen. Just the design's trailing margin.
     static let tabBarClearance: CGFloat = 28
-    /// The floating bar's own height: two 46pt items' worth of row plus its 5pt padding.
-    static let tabBarHeight: CGFloat = 56
+    /// The floating bar's own height: a 52pt item plus its 5pt padding either side.
+    static let tabBarHeight: CGFloat = 62
     /// What a root screen's scroll has to clear. The system bar used to inset content for
     /// us; ours floats in an overlay and cannot, so the last card is held clear by hand.
     static let rootScrollBottom: CGFloat = tabBarClearance + tabBarHeight + 10
@@ -359,12 +359,16 @@ enum AlertSeverity: Int, Comparable {
 
 /// The traffic-light rating the design applies to a day's high temperature.
 enum WeatherLight {
-    case kind, warm, punishing
+    case cold, kind, warm, punishing
 
+    /// Three bands could only say how hot a day was, so a 38° morning at a trailhead and
+    /// a perfect 70° afternoon were the same green. A fourth at the cold end says the
+    /// thing a mountain park most needs to: the road is open and you will still freeze.
     init(high: Int) {
         if high >= 95 { self = .punishing }
         else if high >= 84 { self = .warm }
-        else { self = .kind }
+        else if high >= 50 { self = .kind }
+        else { self = .cold }
     }
 
     var color: Color {
@@ -372,6 +376,7 @@ enum WeatherLight {
         case .punishing: return Color(oklch: 0.55, 0.19, 27)
         case .warm: return Color(oklch: 0.72, 0.15, 75)
         case .kind: return Color(oklch: 0.60, 0.13, 150)
+        case .cold: return Color(oklch: 0.55, 0.11, 240)
         }
     }
 
@@ -380,6 +385,7 @@ enum WeatherLight {
         case .punishing: return "Punishing — dawn hiking only"
         case .warm: return "Warm — start early"
         case .kind: return "Kind — hike any hour"
+        case .cold: return "Cold — layers, and short daylight"
         }
     }
 }

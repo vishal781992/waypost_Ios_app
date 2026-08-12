@@ -21,7 +21,34 @@ so a tester can say which build they were looking at.
 The longest run in the log, and most of it is the same argument applied in new places: the
 app may show what a source published, or say it could not ask, and nothing in between.
 
-### Builds .27 – .43
+### Builds .27 – .44
+
+**The section rail is welded to the foot of the display** (.44). It used to ride the page and
+hand itself over to a copy in the header on the way past the top, which meant the one control
+the park screen is navigated by was somewhere off the top of it for most of a long section —
+and in two places during the swap. Frozen, it is in one place always, and that place is the
+end of the display a thumb actually reaches: a floating capsule of ink glass with the page
+running past either side, the same material every button on the screen is made of. The header
+loses its second copy of the rail and is 42 points shorter for it. The tab bar's items go from
+62×46 to 68×52 for the same reason — the app's most-used control was the smallest target on
+the screen, a couple of points over the 44pt floor and reached at the far end of a thumb's
+stretch.
+
+**The weather rail reaches sixty days either way** (.44). Forward of about a fortnight the
+numbers stop being a forecast and become the same calendar week averaged over ten years, which
+is the honest answer to "what is October like here" and which the source line under the tiles
+names for whichever day is being read; backwards they are the archive of what the weather
+actually did. The temperature scale gains a fourth band at the cold end — three could only say
+how hot a day was, so a 38° morning at a trailhead and a perfect 70° afternoon were the same
+green.
+
+**Visited can be undone** (.44). It was a word in a pill that turned into a settled, untappable
+state once the park was on the rail, so a mistaken tap could only be undone from the Profile
+screen, if at all. It is a toggle now, and taking a park off the rail suppresses rather than
+deletes: the rail has three sources and only one can be deleted from — a passport stamp is a
+fact about where the phone stood and a past trip is a whole itinerary, and neither should be
+quietly destroyed by "I have not been here". Also drawn at last: the park service's own
+`directionsInfo`, fetched all along with nowhere to put it.
 
 **How busy a park really is, measured** (.39). Busyness was inferred from the month — May
 through September hard-coded as the busy season for every park in the catalogue, which is

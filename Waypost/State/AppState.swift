@@ -115,10 +115,14 @@ enum ActiveSheet: Identifiable {
     /// where you are, and the drives between the parks of a composed trip.
     case routedLeg(TripRouting.Leg, label: String)
     case stamp(name: String, city: String, dist: String)
+    /// How the park service says to drive in — its own `directionsInfo`, which the app
+    /// has always fetched and never had anywhere to put.
+    case directions(park: String, text: String)
 
     var id: String {
         switch self {
         case .alert(let park, let alert): return "alert:\(park):\(alert.title)"
+        case .directions(let park, _): return "directions:\(park)"
         case .permit(let drop): return "permit:\(drop.what)"
         case .leg(let index, _): return "leg:\(index)"
         case .routedLeg(let leg, _): return "routed:" + leg.id
@@ -237,6 +241,13 @@ final class AppState {
     /// this way carries no date, because stamping it with today would be inventing when
     /// they went.
     var manualVisits: [String] = []
+    /// Parks taken back off the visited rail by hand.
+    ///
+    /// A suppression list rather than a deletion, because the rail has three sources and
+    /// only one of them can be deleted from: a passport stamp is a fact about where the
+    /// phone stood, and a past trip is a whole itinerary. Taking a park off the rail must
+    /// not quietly destroy either, and must work the same whichever source put it there.
+    var hiddenVisits: Set<String> = []
     /// The seed trip ships with the app rather than living in `myTrips`, so removing it
     /// is remembered as a flag.
     var seedTripHidden = false
@@ -812,7 +823,7 @@ final class AppState {
         var out: [Visit] = []
 
         func add(_ code: String, _ date: Date?) {
-            guard !seen.contains(code), let park = park(code) else { return }
+            guard !seen.contains(code), !hiddenVisits.contains(code), let park = park(code) else { return }
             seen.insert(code)
             out.append(Visit(park: park, date: date))
         }
@@ -829,12 +840,31 @@ final class AppState {
 
     /// Adds a park to the rail by hand. Already-visited parks are not added twice.
     func addVisit(_ code: String) {
-        guard !visitRail.contains(where: { $0.id == code }) else { return }
-        manualVisits.append(code)
+        // Lifting the suppression comes first: a park taken off the rail and put back is
+        // the common case of a mistaken tap, and it has a stamp or a trip behind it that
+        // `visitRail` will supply again on its own.
+        let wasHidden = hiddenVisits.remove(code) != nil
+        let onRail = visitRail.contains { $0.id == code }
+        guard !onRail || wasHidden else { return }
+        if !onRail { manualVisits.append(code) }
         persist()
         if let park = park(code) {
             ParkPhotos.shared.load(park)
             show("\(park.name) added")
+        }
+    }
+
+    /// Takes a park back off the visited rail.
+    ///
+    /// The hand-added entry goes for good; a stamp or a past trip is suppressed rather
+    /// than deleted, so the passport count and the itinerary survive being told "I have
+    /// not been here". Tapping visited again undoes all of it.
+    func removeVisit(_ code: String) {
+        manualVisits.removeAll { $0 == code }
+        hiddenVisits.insert(code)
+        persist()
+        if let park = park(code) {
+            show("\(park.name) removed from visited")
         }
     }
 
@@ -858,6 +888,8 @@ final class AppState {
         var seedHidden: Bool?
         /// Optional, so a snapshot written before the visited rail existed still decodes.
         var visits: [String]?
+        /// Parks taken off the rail by hand. Optional for the same reason.
+        var unvisits: [String]?
     }
 
     private static let key = "waypost-app"
@@ -880,7 +912,8 @@ final class AppState {
             tab: tab.rawValue,
             passport: savedShowsPassport,
             seedHidden: seedTripHidden,
-            visits: manualVisits
+            visits: manualVisits,
+            unvisits: Array(hiddenVisits)
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             UserDefaults.standard.set(data, forKey: Self.key)
@@ -892,6 +925,7 @@ final class AppState {
               let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else { return }
         day = snapshot.day
         manualVisits = snapshot.visits ?? []
+        hiddenVisits = Set(snapshot.unvisits ?? [])
         doneItems = Set(snapshot.done)
         saved = snapshot.saved
         stamps = Set(snapshot.stamps)
