@@ -157,9 +157,12 @@ final class SearchSuggestions {
         var request = URLRequest(url: url)
         request.setValue(ParkDirectory.userAgent, forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 12
+        // Sealed before it crosses into the gate's closure: a `var` captured by concurrent
+        // code is a race the compiler is right to object to.
+        let sealed = request
 
         do {
-            let rows = try await NominatimGate.shared.run { try await HTTP.array(request) }
+            let rows = try await NominatimGate.shared.run { try await HTTP.array(sealed) }
             return rows.compactMap { row -> Suggestion? in
                 let type = row["type"] as? String ?? ""
                 let category = (row["category"] as? String) ?? (row["class"] as? String) ?? ""

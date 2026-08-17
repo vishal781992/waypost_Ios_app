@@ -172,7 +172,7 @@ final class LegStops {
                 for _ in 0..<Self.maxConcurrentSearches {
                     guard let next = queue.next() else { break }
                     group.addTask { @MainActor in
-                        await Self.nearest(next.kind, to: next.sample, radius: radius)
+                        await LegStops.nearest(next.kind, to: next.sample, radius: radius)
                     }
                 }
                 // One more goes in as each one lands, so the window stays full until the
@@ -185,13 +185,17 @@ final class LegStops {
                     }
                     if let next = queue.next() {
                         group.addTask { @MainActor in
-                            await Self.nearest(next.kind, to: next.sample, radius: radius)
+                            await LegStops.nearest(next.kind, to: next.sample, radius: radius)
                         }
                     }
                 }
             }
 
-            stops.sort { $0.mile == $1.mile ? kindOrder(kinds, $0) < kindOrder(kinds, $1) : $0.mile < $1.mile }
+            stops.sort {
+                $0.mile == $1.mile
+                    ? LegStops.kindOrder(kinds, $0) < LegStops.kindOrder(kinds, $1)
+                    : $0.mile < $1.mile
+            }
             // Neighbouring samples overlap where the spacing is tight, and the same filling
             // station answers both. Keep the first time it appears — which is the earliest
             // mile it is useful at — and drop the repeat.
@@ -219,7 +223,7 @@ final class LegStops {
     }
 
     /// Keeps each mile's stops in the order the kinds were asked for.
-    private func kindOrder(_ kinds: [PlacesService.Kind], _ stop: Stop) -> Int {
+    private static func kindOrder(_ kinds: [PlacesService.Kind], _ stop: Stop) -> Int {
         kinds.firstIndex(of: stop.kind) ?? kinds.count
     }
 

@@ -84,10 +84,18 @@ struct DetailSheet: View {
                 // on one line say as much while the list is being read; the roads they are
                 // driven on stay in the body, where they are reference rather than a thing
                 // consulted mid-decision.
-                Text("\(leg.miles) mi · \(leg.drive) · \(leg.road.split(separator: " → ").count) roads")
-                    .font(WP.body(12.5)).foregroundStyle(WP.text.opacity(0.72)).tnum()
+                // On a flown leg the mileage is the road not taken, so the line leads with
+                // the flight and the button says plainly that it opens the alternative.
+                if let fly = leg.fly {
+                    Text("\(fly.via) · \(fly.time)")
+                        .font(WP.body(12.5)).foregroundStyle(WP.text.opacity(0.72)).tnum()
+                } else {
+                    Text("\(leg.miles) mi · \(leg.drive) · \(leg.road.split(separator: " → ").count) roads")
+                        .font(WP.body(12.5)).foregroundStyle(WP.text.opacity(0.72)).tnum()
+                }
 
-                GlowButton(title: openTitle(leg), minHeight: 48) { openRoute(leg) }
+                GlowButton(title: leg.fly == nil ? openTitle(leg) : "Drive it instead in Maps",
+                           minHeight: 48) { openRoute(leg) }
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, WP.gutter)
@@ -320,6 +328,10 @@ struct DetailSheet: View {
             }
         }
         .task(id: leg.id) {
+            // Neither is asked for on a leg that is flown: a filling station and a monument
+            // an hour up a valley are answers to a question nobody on this leg is asking,
+            // and each one costs a routing request to measure.
+            guard leg.fly == nil else { return }
             // The stops are useful whenever the trip is being looked at, so they always
             // load. Traffic is a "leaving now" estimate, which only means anything within
             // the departure window — so it is fetched only when the drive is live.
@@ -339,21 +351,47 @@ struct DetailSheet: View {
             Text("\(leg.from) → \(leg.to)").font(WP.heading(23)).padding(.top, 9)
                 .multilineTextAlignment(.leading)
 
-            // Places first, then the roadside. A long leg lists thirty petrol stations and
-            // charging points, and the park service's monuments were under all of them —
-            // the one part of the list somebody might change their day for was the part
-            // they had to scroll furthest to find.
-            worthStopping(leg)
-            legStops(leg)
-
-            // Distance, wheel time and the button now live in the pinned footer; the roads
-            // stay here, under the stops they are driven between.
-            Text(leg.road).font(WP.body(13)).lineSpacing(3).opacity(0.8)
+            if let fly = leg.fly {
+                // The flight is the leg. Nothing below it applies: there is no roadside on
+                // a flown leg, and offering monuments to detour to and filling stations to
+                // stop at is describing a drive nobody is making.
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: 9) {
+                        Text(fly.via).font(WP.mono(14)).tracking(2.2).foregroundStyle(WP.accent800)
+                        Text(fly.time).font(WP.rowTitle(16))
+                    }
+                    Text(fly.note).font(WP.bodyItalic(12.5)).opacity(0.7).lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 12))
                 .padding(.top, 14)
-                .overlay(alignment: .top) { Hairline() }
 
-            SourceLine("Distance and wheel time from OSRM over the roads listed. Fuel, charging, food and somewhere to sleep along the way from Apple Maps — add any of them and they are handed to Maps as stops on the drive. Traffic is added on the day of the drive, when a leaving-now time means something.")
-                .padding(.top, 16)
+                Text("Driven instead it is \(leg.miles) mi and \(leg.drive), by \(leg.road).")
+                    .font(WP.body(13)).lineSpacing(3).opacity(0.8)
+                    .padding(.top, 14)
+                    .overlay(alignment: .top) { Hairline() }
+
+                SourceLine("Airports from the OurAirports table of large US hubs; distances and the drive to each one are measured, the hours in the air are modelled. No airline schedule is published to this app, so this names the airports the leg would be flown between rather than a flight — check fares and times with an airline before planning around it.")
+                    .padding(.top, 16)
+            } else {
+                // Places first, then the roadside. A long leg lists thirty petrol stations
+                // and charging points, and the park service's monuments were under all of
+                // them — the one part of the list somebody might change their day for was
+                // the part they had to scroll furthest to find.
+                worthStopping(leg)
+                legStops(leg)
+
+                // Distance, wheel time and the button now live in the pinned footer; the
+                // roads stay here, under the stops they are driven between.
+                Text(leg.road).font(WP.body(13)).lineSpacing(3).opacity(0.8)
+                    .padding(.top, 14)
+                    .overlay(alignment: .top) { Hairline() }
+
+                SourceLine("Distance and wheel time from OSRM over the roads listed. Fuel, charging, food and somewhere to sleep along the way from Apple Maps — add any of them and they are handed to Maps as stops on the drive. Traffic is added on the day of the drive, when a leaving-now time means something.")
+                    .padding(.top, 16)
+            }
         }
     }
 

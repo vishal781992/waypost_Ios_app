@@ -761,6 +761,7 @@ final class AppState {
         builder.editingID = trip.id
         builder.picks = trip.codes
         builder.days = trip.days ?? [:]
+        builder.flyWhenFaster = trip.flyWhenFaster ?? false
         if let start = trip.startDate { builder.startDate = start }
         builder.origin = trip.origin
         // The searched city, where the trip was planned from one. Without this an edited
@@ -976,6 +977,11 @@ struct SavedTrip: Codable, Hashable, Identifiable {
     /// three at Bryce and remembered as neither. Optional, so a trip saved before this
     /// existed still decodes and simply reopens at the builder's default.
     var days: [String: Int]? = nil
+    /// Whether this trip asked for flights on the legs where flying actually wins. The
+    /// builder collected this from the first day and then dropped it on compose, so the
+    /// switch changed nothing about the trip it was set on. Optional, so a trip saved
+    /// before it meant anything decodes as the drive it was planned as.
+    var flyWhenFaster: Bool? = nil
 
     /// Where this trip actually starts. Prefers the searched city; falls back to the code.
     func resolvedOrigin(_ library: CuratedLibrary) -> TripOrigin? {
@@ -1237,7 +1243,11 @@ final class TripBuilder {
         return SavedTrip(
             // The origin belongs in the identity: without it, changing where a trip starts
             // produced the same id, and the routing cache handed back the old city's legs.
-            id: "trip-\(picks.joined(separator: "-"))-\(start?.name ?? origin)-\(startLabel.hashValue)",
+            // The routing cache is keyed on this id, and whether the trip flies changes
+            // every leg it hands back — so the preference belongs in the identity for the
+            // same reason the origin does.
+            id: "trip-\(picks.joined(separator: "-"))-\(start?.name ?? origin)-\(startLabel.hashValue)"
+                + (flyWhenFaster ? "-air" : ""),
             title: Self.title(parks: parks, startLabel: startLabel),
             dates: startLabel,
             route: ([originName] + parks.map(\.name)).joined(separator: " · "),
@@ -1248,7 +1258,8 @@ final class TripBuilder {
             originName: start?.name,
             originLat: start?.lat,
             originLon: start?.lon,
-            days: days
+            days: days,
+            flyWhenFaster: flyWhenFaster
         )
     }
 }

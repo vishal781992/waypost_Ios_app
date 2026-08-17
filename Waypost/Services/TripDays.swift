@@ -49,8 +49,10 @@ final class TripDays {
     }
 
     enum Kind: Hashable {
-        /// A driving day, and which leg of the trip it is.
-        case travel(from: String, to: String, miles: Int, drive: String)
+        /// A travelling day, and which leg of the trip it is. `fly` is set only where the
+        /// trip asked for flights and flying this leg actually beat driving it — the day
+        /// is then spent in airports rather than on the road, which is a different day.
+        case travel(from: String, to: String, miles: Int, drive: String, fly: FlyOption?)
         /// A day in a park: which one, and which of its days this is.
         case park(code: String, name: String, number: Int, of: Int)
     }
@@ -139,8 +141,11 @@ final class TripDays {
                 days.append(Day(index: index,
                                 date: cursor,
                                 kind: .travel(from: leg.from, to: leg.to,
-                                              miles: leg.miles, drive: leg.drive),
-                                stops: await stops(on: leg)))
+                                              miles: leg.miles, drive: leg.drive, fly: leg.fly),
+                                // Nothing is on the way when the way is an aeroplane, and
+                                // measuring four detours nobody can take is four routing
+                                // requests spent on a day that is not driven.
+                                stops: leg.fly == nil ? await stops(on: leg) : []))
                 advance()
             }
 
@@ -165,8 +170,8 @@ final class TripDays {
             days.append(Day(index: index,
                             date: cursor,
                             kind: .travel(from: home.from, to: home.to,
-                                          miles: home.miles, drive: home.drive),
-                            stops: await stops(on: home)))
+                                          miles: home.miles, drive: home.drive, fly: home.fly),
+                            stops: home.fly == nil ? await stops(on: home) : []))
         }
         return days
     }

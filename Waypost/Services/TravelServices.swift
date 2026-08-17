@@ -9,6 +9,10 @@ struct RoutingService {
     struct Route {
         var miles: Int
         var drive: String
+        /// The same drive as a number. `drive` is rounded to five minutes and formatted
+        /// for a label; anything that has to *compare* the drive — against a flight, say —
+        /// needs it unparsed.
+        var minutes: Int
         var corridor: String?
         /// Simplified geometry, for the map.
         var coordinates: [(lat: Double, lon: Double)]
@@ -56,6 +60,7 @@ struct RoutingService {
             }
 
             return Route(miles: miles, drive: m > 0 ? "\(h) h \(m) m" : "\(h) h",
+                         minutes: Int((duration / 60).rounded()),
                          corridor: corridor, coordinates: coords)
         } catch {
             failures.note("routing (OSRM)", error)

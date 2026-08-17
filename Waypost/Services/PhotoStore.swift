@@ -70,7 +70,7 @@ actor PhotoStore {
         let sized = Self.downsized(full)
         guard let jpeg = sized.jpegData(compressionQuality: 0.82) else { return sized }
         try? jpeg.write(to: file(for: url.absoluteString), options: .atomic)
-        await evictIfNeeded()
+        evictIfNeeded()
         return sized
     }
 

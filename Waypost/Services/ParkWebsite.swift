@@ -82,7 +82,10 @@ final class ParkWebsite {
 
             guard let response = try? await MKLocalSearch(request: request).start(),
                   let item = response.mapItems.first else {
-                if bundled == nil { states[park.code] = .none }
+                // `State.none` spelled out: bare `.none` in a dictionary subscript is
+                // `Optional.none`, which removes the key and drops the park back to `.idle`
+                // — which is to say, searches again on the next appearance, forever.
+                if bundled == nil { states[park.code] = State.none }
                 return
             }
 
@@ -95,7 +98,8 @@ final class ParkWebsite {
             )
 
             if bundled == nil {
-                states[park.code] = response.mapItems.compactMap(\.url).first.map(State.found) ?? .none
+                states[park.code] =
+                    response.mapItems.compactMap(\.url).first.map(State.found) ?? State.none
             }
         }
     }

@@ -167,7 +167,8 @@ struct TripDetailScreen: View {
             // Getting there from where you actually are — the leg no itinerary ever
             // includes, and the first one anybody actually drives.
             if let approach = app.routing.approach(for: trip) {
-                legRow(approach.curated, date: "", index: 0, label: "Getting there") {
+                legRow(approach.curated, date: "", index: 0, label: "Getting there",
+                       flyRefusal: approach.flyRefusal) {
                     app.sheet = .routedLeg(approach, label: "Getting there")
                 }
             } else if case .routing = app.routing.approachPhase(for: trip) {
@@ -195,8 +196,8 @@ struct TripDetailScreen: View {
                 ForEach(Array(parks.enumerated()), id: \.element.code) { index, park in
                     if index < routed.count {
                         let leg = routed[index]
-                        legRow(leg.curated, date: "", index: index) {
-                            app.sheet = .routedLeg(leg, label: "Driving day")
+                        legRow(leg.curated, date: "", index: index, flyRefusal: leg.flyRefusal) {
+                            app.sheet = .routedLeg(leg, label: leg.fly == nil ? "Driving day" : "Flying day")
                         }
                     }
                     parkRow(park, date: trip.dates, days: 2, numeral: ["I", "II", "III", "IV", "V"][min(index, 4)])
@@ -204,8 +205,10 @@ struct TripDetailScreen: View {
                 // The drive home, when there is one.
                 if routed.count > parks.count {
                     let home = routed[parks.count]
-                    legRow(home.curated, date: "", index: parks.count, label: "The drive home") {
-                        app.sheet = .routedLeg(home, label: "The drive home")
+                    let homeLabel = home.fly == nil ? "The drive home" : "The flight home"
+                    legRow(home.curated, date: "", index: parks.count, label: homeLabel,
+                           flyRefusal: home.flyRefusal) {
+                        app.sheet = .routedLeg(home, label: homeLabel)
                     }
                 }
 
@@ -220,8 +223,12 @@ struct TripDetailScreen: View {
         return ["I", "II", "III", "IV", "V"][min(index, 4)]
     }
 
+    /// - Parameter flyRefusal: why this leg is driven, on a trip that asked to fly where
+    ///   flying is faster. Shown so the answer is visible: a switch that silently changes
+    ///   nothing on the legs it declined reads as a switch that does not work.
     private func legRow(_ leg: CuratedLeg, date: String, index: Int,
                         label: String? = nil,
+                        flyRefusal: String? = nil,
                         onTap: (() -> Void)? = nil) -> some View {
         Button {
             // A seed leg opens the sheet the library built; a routed one opens the sheet
@@ -251,6 +258,11 @@ struct TripDetailScreen: View {
                     if let fly = leg.fly {
                         Text("By air: \(fly.via) · \(fly.time)")
                             .font(WP.bodyItalic(12)).foregroundStyle(WP.accent700)
+                    } else if let flyRefusal {
+                        Text(flyRefusal)
+                            .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -413,15 +425,27 @@ struct TripDetailScreen: View {
                             .frame(width: 62, alignment: .leading)
                         VStack(alignment: .leading, spacing: 5) {
                             switch day.kind {
-                            case .travel(let from, let to, let miles, let drive):
-                                Text("Driving day".uppercased())
+                            case .travel(let from, let to, let miles, let drive, let fly):
+                                Text((fly == nil ? "Driving day" : "Flying day").uppercased())
                                     .font(WP.body(10)).tracking(1.4).opacity(0.55)
                                 Text("\(from) → \(to)").font(WP.rowTitle(17))
                                     .multilineTextAlignment(.leading)
-                                Text("\(miles) mi · \(drive)")
-                                    .font(WP.body(12)).opacity(0.62).tnum()
+                                if let fly {
+                                    Text("\(fly.via) · \(fly.time)")
+                                        .font(WP.body(12)).foregroundStyle(WP.accent700).tnum()
+                                    Text("\(miles) mi · \(drive) if driven instead")
+                                        .font(WP.bodyItalic(11.5)).opacity(0.55).tnum()
+                                } else {
+                                    Text("\(miles) mi · \(drive)")
+                                        .font(WP.body(12)).opacity(0.62).tnum()
+                                }
 
-                                if day.stops.isEmpty {
+                                if fly != nil {
+                                    // A flown leg has no roadside to stop at, so the day
+                                    // says nothing about detours rather than reporting
+                                    // that it found none.
+                                    EmptyView()
+                                } else if day.stops.isEmpty {
                                     Text("Nothing of the park service's within a two-hour detour of this drive.")
                                         .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
                                         .fixedSize(horizontal: false, vertical: true)

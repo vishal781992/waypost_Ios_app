@@ -381,9 +381,13 @@ final class ParkDirectory {
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 25
 
+        // Sealed before it crosses into the gate's closure: a `var` captured by concurrent
+        // code is a race the compiler is right to object to.
+        let sealed = request
+
         do {
             answered.insert(.openStreetMap)
-            let rows = try await NominatimGate.shared.run { try await HTTP.array(request) }
+            let rows = try await NominatimGate.shared.run { try await HTTP.array(sealed) }
             return rows.compactMap(OSMPlace.init(nominatim:))
         } catch {
             failures.note("place lookup (Nominatim)", error)
@@ -479,7 +483,10 @@ final class ParkDirectory {
     }
 
     /// Both OSM services ask callers to identify themselves, and block the ones that don't.
-    static let userAgent = "ParkHop/\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1") (parkhop.us)"
+    ///
+    /// `nonisolated` because it is also what `PhotoStore` — an actor of its own — sends, and
+    /// an immutable string needs no main thread to be read from.
+    nonisolated static let userAgent = "ParkHop/\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1") (parkhop.us)"
 }
 
 // MARK: - One place, as OpenStreetMap has it

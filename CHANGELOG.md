@@ -16,6 +16,40 @@ followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of t
 so a tester can say which build they were looking at.
 
 
+## 2.28.0 — Fly when faster, meant literally
+
+"Fly when faster" was a switch with nothing behind it. The builder stored the answer, the
+review screen read it back, and every trip was routed by road regardless — the preference
+reached no code that could act on it. `FlightCompare` is the missing half.
+
+**It compares doors, not airports.** A 900-mile drive is fourteen hours of wheel time; the
+flight that replaces it is an hour to the airport, most of two before the door closes, two in
+the air, and the better part of another at the hire-car desk on the far side. Comparing gate to
+gate against a whole day's drive is how an app talks somebody into a flight that saves them
+nothing. The drive side of the comparison is the router's measured number, never modelled from
+distance, because the answer is only as honest as that figure.
+
+**Large hubs only.** Regional fields are excluded outright rather than ranked below the hubs.
+Mammoth Yosemite and Cedar City are nearer to their parks than any hub is, and an earlier pass
+named them for exactly that reason — but two flights a day at four times the fare is not the
+flight anybody weighs against a drive. Nearly everyone flies to Las Vegas and drives to Zion,
+to Salt Lake City and drives to Arches, and the extra hours in the hire car are counted rather
+than avoided by naming an airport nobody uses. The hundred hubs are scanned directly, not
+filtered out of a ranked list of every field: in a crowded corner of the country forty airports
+can all be small ones, and the hub 300 miles out — the one actually flown to — never appears.
+
+**It says no out loud.** A leg the switch declines to fly comes back with the reason, so the
+screen says why rather than showing nothing and reading as broken, which is what the switch did
+for its whole life until now. A travelling day that is flown is marked as one: the day is spent
+in airports rather than on the road, which is a different day.
+
+**Every number is an estimate and the copy says so.** No airline publishes schedules to an app
+without a contract, so this cannot claim a flight exists on a given day. It says which airports
+the leg would be flown between and what that would cost in hours, with an hour of slack on
+every flight — no flight leaves at the minute somebody wants one and not every pair of hubs has
+a nonstop, so the slack keeps the estimate on the conservative side of its own comparison.
+
+
 ## 2.27.0 — What the sources actually say
 
 The longest run in the log, and most of it is the same argument applied in new places: the
