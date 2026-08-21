@@ -16,6 +16,25 @@ struct NearbyCandidate: Identifiable, Hashable {
     /// Hours behind the wheel, estimated at highway speed.
     var driveHours: Double
 
+    /// The forecast at the park for today, once one has answered.
+    ///
+    /// The prompt has always had a line for this and it has never once been filled: the
+    /// candidates are built straight off the bundled tables, where `CuratedPark.wx` is
+    /// `.unpublished`, so the branch that adds the forecast was unreachable. The model has
+    /// been writing about the weather of parks it was told nothing about.
+    var today: WeatherDay?
+    /// Tomorrow's, fetched only when today is too far gone to set out — see
+    /// `NearbyBriefing.Clock`.
+    var tomorrow: WeatherDay?
+    /// This month's visitor count against the park's own busiest month, 0...1. Bundled, so
+    /// it costs nothing and works with no signal.
+    var busyShare: Double?
+    /// The month this park is busiest in, in words.
+    var busiestMonth: String?
+    /// Whether the traveller has already stood in this park — stamped it, saved it, or
+    /// written it into a trip.
+    var isVisited = false
+
     var id: String { park.code }
 
     var driveLabel: String {
@@ -51,10 +70,66 @@ struct NearbyCandidate: Identifiable, Hashable {
             "  distance: \(roadMiles) road miles, about \(driveLabel) of driving",
             "  what it is: \(park.tag)",
         ]
-        if park.wx.isPublished {
-            lines.append("  forecast: high \(park.wx.hi)F, low \(park.wx.lo)F, UV \(park.wx.uv)")
+        // Weather and crowds reach the model as words, never as figures.
+        //
+        // It is forbidden to write a number and the guard drops any sentence carrying a
+        // digit, so handing it "high 84F" gives it something it cannot use and might leak.
+        // A band it can actually write with — "hot", "at its busiest" — is both safer and
+        // the thing a person wanted said out loud.
+        if let today { lines.append(Self.weatherLine("today", today)) }
+        if let tomorrow { lines.append(Self.weatherLine("tomorrow", tomorrow)) }
+        if let crowds = crowdLabel {
+            lines.append("  crowds: \(crowds)")
+        }
+        if isVisited {
+            lines.append("  the traveller has already been to this one")
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// How busy this month is for this park, in words rather than a share.
+    var crowdLabel: String? {
+        guard let busyShare else { return nil }
+        let peak = busiestMonth.map { " — its busiest is \($0)" } ?? ""
+        switch busyShare {
+        case 0.85...:    return "this is about the busiest month of its year"
+        case 0.60..<0.85: return "busy, though short of its peak\(peak)"
+        case 0.35..<0.60: return "middling for this park\(peak)"
+        default:          return "one of its quieter months\(peak)"
+        }
+    }
+
+    /// One weather line, in words. Nil when the forecast did not answer — which is not
+    /// the same as "mild", and gets nothing said about it.
+    static func weatherLine(_ when: String, _ day: WeatherDay) -> String {
+        let band = warmth(day)
+        if let sky = sky(day) {
+            return "  " + when + " at the park: " + band + ", " + sky
+        }
+        return "  " + when + " at the park: " + band
+    }
+
+    /// A temperature in words. There is no band for "unknown" — a park with no forecast
+    /// has no `WeatherDay` at all, and gets no line rather than a hedged one.
+    static func warmth(_ day: WeatherDay) -> String {
+        switch day.hi {
+        case 95...:      return "very hot"
+        case 82..<95:    return "hot"
+        case 68..<82:    return "warm"
+        case 52..<68:    return "mild"
+        case 36..<52:    return "cold"
+        default:         return "freezing"
+        }
+    }
+
+    /// What the sky is doing, when a source said. Digits are stripped: `shortForecast`
+    /// carries things like "20 percent chance", and a number reaching the model is a
+    /// number that can reach the screen.
+    static func sky(_ day: WeatherDay) -> String? {
+        guard let text = day.shortForecast?.lowercased(),
+              text.rangeOfCharacter(from: .decimalDigits) == nil,
+              !text.isEmpty else { return nil }
+        return text
     }
 }
 
@@ -127,9 +202,34 @@ final class NearbyBriefing {
         case failed(String)
     }
 
+    /// What the clock says about setting out, worked out once per run.
+    ///
+    /// The prompt used to open with the words "It is August." — written down, in the
+    /// source, all year round. A brief about what to do *today* was being composed by a
+    /// model that had been told the wrong month for eleven months of every year, and had
+    /// no idea whether it was breakfast or dusk.
+    struct Clock {
+        var now: Date
+        /// "Tuesday morning", "Saturday afternoon" — what the traveller would say.
+        var phrase: String
+        var month: String
+        /// True when setting out now would land at the gate with the day gone.
+        var tooLateToday: Bool
+        /// The hour arriving at the lead park would put on the clock, if they left now.
+        var arrivalHour: Int
+    }
+
     private(set) var state: State = .idle
     private(set) var candidates: [NearbyCandidate] = []
     private(set) var placeName: String?
+    private(set) var clock: Clock?
+    /// The park the brief should lead with, and why it is not simply the nearest.
+    ///
+    /// Nil when the nearest is the answer, which is the usual case. Set when the nearest
+    /// has already been visited — the brief then leads with the next one and says so,
+    /// because silently reordering a list the traveller can count is worse than not
+    /// reordering it.
+    private(set) var leadSwapReason: String?
 
     private let location = LocationService.shared
     private let library = CuratedLibrary.shared
@@ -160,9 +260,13 @@ final class NearbyBriefing {
 
     // MARK: Running it
 
-    func run() async {
+    /// - Parameter visited: the parks the traveller has already been to, by code. Used to
+    ///   move a park they have stood in off the top of the brief — and to say so.
+    func run(visited: Set<String> = []) async {
         state = .locating
         candidates = []
+        clock = nil
+        leadSwapReason = nil
 
         guard let fix = await location.currentFix() else {
             state = .failed("Location is off, so there is nothing to measure from. Turn it on in Settings and try again.")
@@ -170,19 +274,106 @@ final class NearbyBriefing {
         }
         placeName = fix.city.map { city in fix.region.map { "\(city), \($0)" } ?? city }
 
-        candidates = rank(from: fix.lat, lon: fix.lon)
-        guard !candidates.isEmpty else {
+        var ranked = rank(from: fix.lat, lon: fix.lon)
+        guard !ranked.isEmpty else {
             state = .failed("No national or state park is within 120 miles of here. Search Explore for somewhere further afield.")
             return
         }
+
+        for index in ranked.indices {
+            ranked[index].isVisited = visited.contains(ranked[index].park.code)
+            if let profile = Visitation.profile(for: ranked[index].park) {
+                let month = Calendar.current.component(.month, from: Date()) - 1
+                ranked[index].busyShare = profile.share(month)
+                ranked[index].busiestMonth = Visitation.monthName(profile.peakIndex)
+            }
+        }
+
+        // Which one to lead with. The order stays measured — the list is nearest first and
+        // the reader can count the miles — but a park somebody has already stood in is a
+        // poor answer to "where should I go today", so the brief leads with the next one
+        // along and names the swap. Silently reordering a ranked list is the one thing
+        // worse than not reordering it.
+        if let first = ranked.first, first.isVisited,
+           let next = ranked.first(where: { !$0.isVisited }) {
+            leadSwapReason = "You have already been to \(first.park.name), so this leads with \(next.park.name) instead."
+        }
+
+        let lead = ranked.first(where: { !$0.isVisited }) ?? ranked[0]
+        let reading = readClock(leadDriveHours: lead.driveHours)
+        clock = reading
+
+        state = .thinking
+        candidates = await withWeather(ranked, wantsTomorrow: reading.tooLateToday)
 
         if let reason = modelAvailability {
             state = .unavailable(reason)
             return
         }
-
-        state = .thinking
         await generate()
+    }
+
+    /// Today's forecast for each park, and tomorrow's when today is already spent.
+    ///
+    /// Concurrently, and never fatally: a park whose forecast does not answer keeps its
+    /// distance and its crowds and simply has nothing said about its weather, which is the
+    /// same rule the rest of the app follows. Tomorrow is fetched only when it is going to
+    /// be used — in the morning that halves the requests for a line nobody would read.
+    private func withWeather(_ ranked: [NearbyCandidate], wantsTomorrow: Bool) async -> [NearbyCandidate] {
+        let failures = FailureLog()
+        let weather = WeatherService(failures: failures)
+        let today = WPDate.iso(Date())
+        let tomorrow = WPDate.iso(Date().addingTimeInterval(86_400))
+
+        return await withTaskGroup(of: (Int, WeatherDay?, WeatherDay?).self) { group in
+            for (index, candidate) in ranked.enumerated() {
+                group.addTask { @MainActor in
+                    let now = await weather.forecast(lat: candidate.park.lat,
+                                                     lon: candidate.park.lon, iso: today)
+                    var next: WeatherDay?
+                    if wantsTomorrow {
+                        next = await weather.forecast(lat: candidate.park.lat,
+                                                      lon: candidate.park.lon, iso: tomorrow)
+                    }
+                    return (index, now, next)
+                }
+            }
+            var out = ranked
+            for await (index, now, next) in group {
+                out[index].today = now
+                out[index].tomorrow = next
+            }
+            return out
+        }
+    }
+
+    /// Past this hour at the gate, the day is spent — the visitor centre is closing and
+    /// what is left is the drive home in the dark. Setting out is tomorrow's job.
+    private static let dayIsSpentAfter = 16
+
+    /// Reads the clock against the drive the traveller would actually make.
+    private func readClock(leadDriveHours: Double) -> Clock {
+        let now = Date()
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: now)
+        let arrival = hour + Int(leadDriveHours.rounded())
+
+        let part: String
+        switch hour {
+        case ..<12: part = "morning"
+        case 12..<17: part = "afternoon"
+        default: part = "evening"
+        }
+
+        return Clock(
+            now: now,
+            phrase: "\(now.formatted(.dateTime.weekday(.wide))) \(part)",
+            month: now.formatted(.dateTime.month(.wide)),
+            // Evening is always too late, whatever the drive: nobody sets out for a park
+            // after dark. Otherwise it depends on when they would actually arrive.
+            tooLateToday: hour >= 17 || arrival >= Self.dayIsSpentAfter,
+            arrivalHour: arrival
+        )
     }
 
     /// How far a park can be and still count as "near you". A day's drive is more than
@@ -263,6 +454,14 @@ final class NearbyBriefing {
               "must-see". Write the way a ranger answers a question at the desk.
             - Say plainly when a park needs a reservation or carries a warning. That is \
               the useful part.
+            - If you are told the day is already too far gone to set out, say so and say \
+              the word "tomorrow". Do not pretend the afternoon is a morning.
+            - If you are told the traveller has already been somewhere, and the brief \
+              leads with a different park because of it, say that out loud. Never quietly \
+              drop a park they can see on the list.
+            - Weather and crowds are given to you as words, not figures. Use the words. \
+              Where a park has no forecast, say nothing about its weather rather than \
+              guessing at it.
             """
         }
     }
@@ -272,15 +471,41 @@ final class NearbyBriefing {
         let place = placeName.map { "The traveller is near \($0)." } ?? "The traveller's town is not known."
         let facts = candidates.map(\.promptFacts).joined(separator: "\n\n")
         let nearest = candidates.first?.park.name ?? ""
+        let lead = candidates.first(where: { !$0.isVisited }) ?? candidates.first
+
+        var when = "It is not known what time it is."
+        if let clock {
+            when = "It is \(clock.phrase), in \(clock.month)."
+            if clock.tooLateToday {
+                when += " Setting out now would reach the gate with the day already gone, "
+                    + "so this brief is about GOING TOMORROW. Say so, and use tomorrow's "
+                    + "weather rather than today's."
+            } else {
+                when += " There is enough of the day left to set out now."
+            }
+        }
+
+        var swap = ""
+        if let leadSwapReason, let lead {
+            swap = "\n\n\(leadSwapReason) Lead the headline with \(lead.park.name) and say "
+                + "plainly that the nearer one is somewhere they have already been. Still "
+                + "write a note for every park on the list, including that one."
+        }
+
         return """
-        \(place) It is August. These are the parks within reach, ALREADY RANKED nearest \
-        first, with everything Waypost knows about them:
+        \(place) \(when)
+
+        These are the parks within reach, ALREADY RANKED nearest first, with everything \
+        Waypost knows about them:
 
         \(facts)
 
-        \(nearest) is the closest. Write the headline about whichever park is the better \
-        use of today, and one note per park in the order given. Remember: no numbers, and \
-        no claims about which is nearer or hotter — those are printed for you.
+        \(nearest) is the closest.\(swap)
+
+        Write the headline about whichever park is the better use of \
+        \(clock?.tooLateToday == true ? "tomorrow" : "today"), and one note per park in \
+        the order given. Remember: no numbers, and no claims about which is nearer or \
+        hotter — those are printed for you.
         """
     }
 
@@ -343,7 +568,14 @@ final class NearbyBriefing {
     /// the check. It says only what the arithmetic supports.
     private var fallbackHeadline: String {
         guard let nearest = candidates.first else { return "Nothing within reach today." }
-        return "\(nearest.park.name) is the shortest drive from here."
+        let lead = candidates.first(where: { !$0.isVisited }) ?? nearest
+        if leadSwapReason != nil {
+            return "\(nearest.park.name) you have already seen — \(lead.park.name) is the next shortest drive."
+        }
+        if clock?.tooLateToday == true {
+            return "\(lead.park.name) is the shortest drive from here, and today is too far gone to start it."
+        }
+        return "\(lead.park.name) is the shortest drive from here."
     }
     #endif
 }

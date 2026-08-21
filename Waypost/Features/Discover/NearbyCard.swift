@@ -24,6 +24,10 @@ struct NearbyCard: View {
             case .ready(let brief):
                 headline(brief)
                     .transition(Motion.panelTransition)
+                // Said by the app, not the model. These are the two decisions the brief
+                // actually turned on, and a reader is owed them even on the runs where
+                // the model refuses or writes something the guard drops.
+                decisions
                 shortlist(brief)
                 footnote("Written on this iPhone by Apple Intelligence, from the figures beside each park. It is not allowed to state a figure of its own — every number here is measured by ParkHop — and nothing leaves the phone.")
             case .unavailable(let reason):
@@ -59,7 +63,7 @@ struct NearbyCard: View {
             Spacer(minLength: 0)
             if case .ready = briefing.state {
                 Button {
-                    Task { await briefing.run() }
+                    Task { await briefing.run(visited: app.visitedCodes) }
                 } label: {
                     Text("Again").font(WP.headingUI(12.5)).foregroundStyle(WP.accent700)
                 }
@@ -74,7 +78,7 @@ struct NearbyCard: View {
             Text("What could I reach today?")
                 .font(WP.heading(21))
             Text(briefing.modelAvailability == nil
-                 ? "ParkHop measures the parks around you and writes you a short brief on the phone — no network, no account."
+                 ? "ParkHop measures the parks around you, reads the forecast and how busy they are this month, and writes the brief on the phone itself — the model never leaves the device."
                  : "ParkHop measures the parks around you and ranks them by real distance.")
                 .font(WP.body(12.5)).lineSpacing(2).opacity(0.72)
                 .fixedSize(horizontal: false, vertical: true)
@@ -84,11 +88,36 @@ struct NearbyCard: View {
             // answer rather than the app looking it up.
             GlowButton(title: briefing.modelAvailability == nil ? "✦  Brief me" : "Rank them",
                        minHeight: 44) {
-                Task { await briefing.run() }
+                Task { await briefing.run(visited: app.visitedCodes) }
             }
             .accessibilityLabel(briefing.modelAvailability == nil
                                 ? "Brief me, written on this iPhone"
                                 : "Rank the parks near me")
+        }
+    }
+
+    /// Why this brief is about the day it is about, and why it leads where it does.
+    @ViewBuilder
+    private var decisions: some View {
+        let lines = [
+            briefing.clock?.tooLateToday == true
+                ? "Too late to set out today — this is about tomorrow, with tomorrow's forecast."
+                : nil,
+            briefing.leadSwapReason
+        ].compactMap { $0 }
+
+        if !lines.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(lines, id: \.self) { line in
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        Text("·").font(WP.body(13)).foregroundStyle(WP.mark)
+                        Text(line)
+                            .font(WP.body(12.5)).lineSpacing(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(.top, 9)
         }
     }
 

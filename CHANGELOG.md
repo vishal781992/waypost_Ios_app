@@ -15,6 +15,50 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.35.0 — A brief that knows what day it is
+
+The near-you brief was writing about parks it had been told four things about: a name, a
+region, a distance and a tag. Everything else it said was shape without substance.
+
+**It was told the wrong month, all year.** The prompt opened with the literal words *"It is
+August."* — written into the source. Eleven months out of twelve, a brief about what to do
+today was composed by a model that believed it was late summer.
+
+**And it never once saw a forecast.** `promptFacts` has always had a line for the weather,
+guarded by `park.wx.isPublished`. The candidates are built straight off the bundled tables,
+where `wx` is `.unpublished` and nothing fills it in — so the branch was unreachable and the
+model has been writing about the weather of parks it knew nothing about. The same dead
+branch printed the temperatures on the cards.
+
+Both are fixed, and four things the app already knew now reach the model.
+
+**The clock.** The real weekday, the real month, and whether there is enough day left. If
+setting out now would reach the gate after four, the brief is about *tomorrow* — it says so
+in as many words, and it is given tomorrow's forecast instead of today's. Tomorrow is only
+fetched when it is going to be used, so a morning brief costs half what an evening one does.
+
+**The weather, in words.** Today at each park, and tomorrow when tomorrow is the subject.
+Passed as bands — *hot*, *mild*, *freezing* — never as figures: the model is forbidden to
+write a number and the guard drops any sentence carrying a digit, so handing it "high 84F"
+gives it something it cannot use and might leak. A park whose forecast does not answer has
+nothing said about its weather rather than something hedged.
+
+**How busy the park is this month.** Straight out of the bundled visitation table, against
+the park's own busiest month, as a phrase rather than a share. Costs nothing and works with
+no signal.
+
+**Where you have already been.** A park you have stamped, saved or driven to is a poor
+answer to "where should I go today", so the brief leads with the next one along — and
+**says that it is doing so**. The ranked list keeps its measured order, because quietly
+reordering a list somebody can count is worse than not reordering it.
+
+Both decisions are also written by the app, under the headline, so they survive a run where
+the model refuses or writes something the guard drops.
+
+The card's copy changes with it. It promised *"no network, no account"*, and a forecast is a
+network call — it now says the brief is written on the phone and the model never leaves the
+device, which is the part that was actually true.
+
 ## 2.34.0 — The drive from the airport is a leg
 
 Landing is not arriving. Salt Lake City to Yellowstone is 327 miles and the better part of
