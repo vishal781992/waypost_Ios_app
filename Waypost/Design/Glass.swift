@@ -198,9 +198,34 @@ extension View {
     ///
     /// `simultaneousGesture` rather than `onTapGesture`, so a tap that lands on the text
     /// still reaches the field itself and puts the caret where it was aimed.
+    ///
+    /// That gesture is not enough on its own, and this is the second time the same fault
+    /// has been fixed here. A gesture on the field's *container* only ever fires if the
+    /// container is hit-testable, and a container is hit-testable because something drew a
+    /// background into it. `glassEffect` draws no such thing — which is the whole of the
+    /// note on `ControlHitArea`, where every button in the app went dead outside its own
+    /// label on iOS 26. The search pill has the same hole, and `contentShape` did not close
+    /// it: on the path where the surface is the system material there is no region for the
+    /// shape to describe, so the tap lands on nothing and the gesture never runs.
+    ///
+    /// So the tap target stops being a property of the container and becomes a view. A
+    /// `Color.clear` fills the pill and carries the gesture itself — always hit-testable,
+    /// no matter what drew the surface, and competing with nothing.
+    ///
+    /// It goes in the `background`, deliberately, not an overlay. These fields are not all
+    /// bare: the trip builder's origin field carries a clear button and the profile's
+    /// carries *Done*, and an overlay would sit above them and eat the taps meant for them.
+    /// Behind the content, the field and its buttons keep every tap that is theirs, and
+    /// this catches only what would otherwise have hit nothing.
     func searchFieldSurface(radius: CGFloat = 999, focus: FocusState<Bool>.Binding) -> some View {
-        contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .simultaneousGesture(TapGesture().onEnded { focus.wrappedValue = true })
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return background {
+            Color.clear
+                .contentShape(shape)
+                .onTapGesture { focus.wrappedValue = true }
+        }
+        .contentShape(shape)
+        .simultaneousGesture(TapGesture().onEnded { focus.wrappedValue = true })
     }
 }
 
