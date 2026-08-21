@@ -51,7 +51,7 @@ struct WeatherService {
         c.queryItems = [
             .init(name: "latitude", value: String(lat)),
             .init(name: "longitude", value: String(lon)),
-            .init(name: "daily", value: "temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,uv_index_max,sunrise,sunset"),
+            .init(name: "daily", value: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,uv_index_max,sunrise,sunset"),
             .init(name: "hourly", value: "relative_humidity_2m"),
             .init(name: "temperature_unit", value: "fahrenheit"),
             .init(name: "wind_speed_unit", value: "mph"),
@@ -83,12 +83,23 @@ struct WeatherService {
                 uv: first("uv_index_max").map { Int($0.rounded()) },
                 humidity: rh.map { "\(Int($0.rounded()))%" },
                 sunrise: Self.time12(sunrise),
-                sunset: Self.time12(sunset)
+                sunset: Self.time12(sunset),
+                condition: first("weather_code").flatMap { WeatherCondition(wmo: Int($0)) }
             )
         } catch {
             failures.note("forecast (Open-Meteo)", error)
             return nil
         }
+    }
+
+    /// The sky a decade of this calendar window suggests. Wet often enough and cold
+    /// enough is snow; wet often enough and warm is rain; a window that is wet now and
+    /// then is unsettled rather than clear; anything drier reads as fair.
+    private static func normalCondition(wetFraction: Double, hi: Double, lo: Double) -> WeatherCondition? {
+        if wetFraction >= 0.35 { return (hi <= 36 || lo <= 28) ? .snow : .rain }
+        if wetFraction >= 0.18 { return .drizzle }
+        if wetFraction >= 0.08 { return .mainlyClear }
+        return .clear
     }
 
     // MARK: NWS overlay
@@ -259,7 +270,12 @@ struct WeatherService {
             sunset: Self.time12(sunsetRow?[safe: mid]),
             note: note,
             isNormals: true,
-            years: payloads.count
+            years: payloads.count,
+            // ERA5 publishes no weather code, so the typical sky is inferred from how
+            // often the window runs wet and how cold it is when it does. Coarser than a
+            // forecast's, and it must be: this is a decade of Augusts averaged, not a
+            // claim about one Tuesday. The row draws it differently for that reason.
+            condition: Self.normalCondition(wetFraction: wetFraction, hi: hi, lo: lo)
         )
     }
 

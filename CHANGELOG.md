@@ -16,6 +16,113 @@ followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of t
 so a tester can say which build they were looking at.
 
 
+## 2.29.0 — A photograph to open on, and a list the traveller writes
+
+Two screens stop being catalogues the app assembled and start being things the reader
+looks at and builds. Home is a photograph of a national park rather than a bordered card
+on paper; a trip's third tab is the list somebody made rather than the campgrounds the
+park service happens to run.
+
+**Home is one photograph, edge to edge.** Every national park in the country, shuffled —
+sixty-three, not a hand-picked five — holding for eight seconds while the picture drifts,
+then cross-fading into the next. Five seconds felt like the screen was working at you; at
+eight a photograph is something you look at. The park showing is named at the bottom in
+display type and tapping the name opens it. Everything the old screen carried below the
+hero — the driving day, the stamps within reach — is on the paper sheet the photograph
+slides under when you read on.
+
+Sixty-three layers cross-fading would be sixty-three views SwiftUI keeps laid out, and
+sixty-three display-size photographs decoded is over a gigabyte of pixels. Three are
+mounted — showing, previous, next — which is exactly what a cross-fade plus a prefetch
+needs, and the decoded images are evicted back down to that window and re-read from disk
+on the way back. `PhotoStore` now keeps two sizes rather than one: a 126×74 rail tile and
+a full-bleed photograph are not the same request, and storing one size for both meant
+either a soft home screen or eight oversized decodes in a horizontal rail. The size is
+part of the cache key, so the two never overwrite each other, and the display size is a
+little over the longest edge any current iPhone reports so nothing is upscaled.
+
+The indicator is a window of seven dots centred on the one showing, with the outermost
+pair shrunk while there is more playlist past them. Sixty-three dots is not an indicator,
+it is a hairline of noise under the wordmark.
+
+**The status bar follows the picture.** Home puts the window into the dark scheme so the
+clock and the battery survive a cave mouth behind them, and only at the root of Today — a
+park pushed out of it is a paper screen again. It is set at the shell rather than inside
+the `TabView`, because a preference set on a tab page held at launch and was lost the
+first time a reader came back from another tab.
+
+**Stays is now My list.** The old third tab was a read-only catalogue of the park
+service's campgrounds — a strictly worse view of a screen one tap away on the park itself.
+What replaced it is built by pressing *add* on rows that were already there: a charger
+before the climb, the last shop before the gate, the lodge actually booked, the permit
+page, a note about the shuttle selling out by seven. Links unfurl through Apple's own
+`LPMetadataProvider`, fetched once and kept on disk, so a Recreation.gov reservation reads
+as the page rather than as an address, and reads offline for good.
+
+The add control is drawn only where there is a trip behind the screen. The same charging
+row appears on a park opened from home and on one opened from a trip; only the second
+offers, because only the second has a list for a place to go on. A park opened from a trip
+was opened *for* the day the trip reaches it, so what is added there files itself under
+that day instead of landing in the undated pile and having to be moved by hand — which was
+most of the work the list was meant to save. Undated is a real answer, not a gap: a
+packing document for the whole week is not a Tuesday thing.
+
+A place on the list is a waypoint by default, because somebody who added a charger meant
+to stop at it; switching one off leaves it on the list and out of the route, which is the
+difference between "I am not going" and "I do not need directions to it". *Drive it* and
+*share* sit welded to the foot of the list rather than stacked full-width down the page,
+and a drive with every stop switched off asks before opening an empty one. A trip that was
+last read on the old third tab still decodes and simply opens on the new one.
+
+**The trip shelf draws its maps once.** Every card carried a live `Map` that re-streamed
+its basemap tiles on every appearance — scrolling the shelf, coming back to the tab,
+relaunching — and came up blank on a road with no signal, which is exactly where somebody
+is most likely to be looking at them. A route map is a picture of a drive that will not
+change until the drive does, so it is rendered through `MKMapSnapshotter`, composited with
+its own route line, and written to disk under the trip's id beside a fingerprint of the
+stops and the plate size. Edit the trip and the fingerprint disagrees, the old picture is
+deleted, and a new one takes its place. The road is deliberately not in the fingerprint:
+it is fetched again on every launch and lands a moment after the card, so including it had
+every trip re-rendering its map from the network twice per launch. Delete a trip and its
+picture goes with it — that is the one file no fingerprint can ever invalidate.
+
+**Weather on the route, as a sky rather than a number.** Legs and park days now carry a
+symbol for what the sky is doing: nine states, not the forty-odd codes the WMO publishes,
+because a reader glancing at a trip wants sun, cloud, water or ice and nine glyphs that
+can be told apart at 19pt beat forty that cannot. A leg is weathered where it arrives; a
+park is weathered once per day actually spent in it, because a two-day park averaged into
+one glyph is a reading true of neither day. Nothing is drawn where a source said nothing —
+a missing condition is "nobody told us", never "clear". Most trips are planned past
+Open-Meteo's sixteen-day horizon and get ten years of the same calendar window instead,
+drawn differently, because a typical August must not look like a forecast for Tuesday.
+
+**Chargers, fuel and shops fold into one line.** Three categories at five rows apiece was
+most of a park screen for something a reader mostly wants to know *exists*, sitting between
+the alerts and the campgrounds, which are what the page is for. Shut, the section is one
+line that still answers the question — how many, and how far the nearest is. The first
+category with anything in it opens on arrival so the mechanism is demonstrated rather than
+hinted at, and it waits for each category in turn rather than opening on whichever search
+answered first. The chips carry a glyph rather than a word, and the word is the
+accessibility label and the heading over the open list.
+
+**A park's alerts are a list again.** The park service writes them at whatever length it
+likes and a park in fire season posts five, so printed in full they were most of the
+Overview — the reader scrolled past a paragraph about propane stoves to reach the entry
+gates. The tag and the title triage the list; the body waits until it is asked for. The
+severity colour never collapses.
+
+**A day of a trip folds to a line.** The plan printed every day in full — the drive, the
+detours, the park service's paragraph about each thing to do — so four days filled a screen
+and a fortnight was fourteen of them. The *shape* of a trip, where the driving is and which
+parks get two days, could not be seen at all. Folded, a fortnight fits on one screen.
+
+Campgrounds now carry the point the park service publishes for them, so one can be a
+waypoint in a drive rather than sending the reader to the park's centre, miles from the
+site. `DESIGN.md` writes down the measurements the app already uses — colour, type, radii,
+motion — so a new screen matches the ones beside it instead of inventing its own corner
+radius.
+
+
 ## 2.28.0 — Fly when faster, meant literally
 
 "Fly when faster" was a switch with nothing behind it. The builder stored the answer, the

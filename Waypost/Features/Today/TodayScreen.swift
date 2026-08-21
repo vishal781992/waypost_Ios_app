@@ -1,208 +1,8 @@
 import SwiftUI
 
-/// Today — round 2 of the design. The three "takes" are gone; there is one screen, and
-/// it answers one question: where are you, and what is within reach of it.
-///
-/// The date, the day stepper, the permit card, the next-leg block, the pack card and the
-/// journal all came off. What is left is the park you are in at full height, the parks
-/// near it, and the stamps you could collect on the way.
-struct TodayScreen: View {
-    @Environment(AppState.self) private var app
-    @Environment(\.zoomNamespace) private var zoom
-
-
-    var body: some View {
-        VStack(spacing: 0) {
-            header
-
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 22) {
-                    if let park = app.featuredPark {
-                        WhereYouAreCard(park: park)
-                        NearbyRail(park: park)
-                    } else {
-                        ChoosingCard()
-                    }
-                    if let leg = app.todayLeg {
-                        DrivingDayCard(leg: leg)
-                    }
-                    StampsNearby()
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, WP.gutter)
-                .padding(.top, 16)
-                .padding(.bottom, WP.rootScrollBottom)
-            }
-            .tracksTabBarMinimize()
-            .scrollIndicators(.hidden)
-            .captureScrollPosition()
-            // The masthead has no plate, so the page simply stopped at the scroll view's
-            // top edge — a photograph scrolling up met that line and was cut across it.
-            // The same treatment the section bar has at the foot of a park: frosted glass
-            // and a wash of page colour, masked to nothing over twenty-eight points, so
-            // what is arriving softens into the name above it rather than being sheared.
-            .overlay(alignment: .top) {
-                ZStack {
-                    Rectangle().fill(.ultraThinMaterial)
-                    LinearGradient(
-                        colors: [WP.bg, WP.bg.opacity(0.45), WP.bg.opacity(0)],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                }
-                .mask {
-                    LinearGradient(
-                        stops: [
-                            .init(color: .black, location: 0),
-                            .init(color: .black.opacity(0.5), location: 0.45),
-                            .init(color: .clear, location: 1),
-                        ],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                }
-                .frame(height: 28)
-                .allowsHitTesting(false)
-            }
-        }
-        .task {
-            app.refreshRecommendation()
-            // Every national park's photograph, once, on wi-fi — so the app keeps its
-            // pictures on a road with no signal.
-            ParkPhotos.shared.prefetchNationalParks()
-        }
-    }
-
-    /// The masthead: the app's name at display size, and one glass control that starts a
-    /// trip. No plate behind it — the design lets the page colour run to the top.
-    private var header: some View {
-        HStack(spacing: 10) {
-            Text("ParkHop")
-                .font(WP.displayBold(44))
-                .tracking(-0.4)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-
-            Spacer(minLength: 0)
-
-            // A disc rather than the word: it takes a third of the width the pill did,
-            // and it is the same 48pt round control in the same corner that Explore's
-            // close button is — the screen opens out of the shape it shuts back into.
-            GlassDisc(icon: "magnifyingglass", size: 48) { app.push(.explore) }
-                .accessibilityLabel("Explore")
-                .accessibilityHint("Every national and state park, to search or browse")
-                .zoomSource("explore", in: zoom, clip: .pill(height: 48))
-        }
-        .frame(minHeight: 52)
-        .padding(.horizontal, WP.gutter)
-        .padding(.top, WP.headerTop)
-        .padding(.bottom, 11)
-    }
-}
-
-// MARK: - Where you are
-
-/// The park you are in, at 456pt — nearly half the screen. The design gives it the room
-/// because it is the answer to the only question this screen asks.
-struct WhereYouAreCard: View {
-    @Environment(AppState.self) private var app
-    @Environment(\.zoomNamespace) private var zoom
-    var park: CuratedPark
-
-    var body: some View {
-        Button {
-            app.openPark(park.code)
-        } label: {
-            ZStack(alignment: .bottomLeading) {
-                ParkImage(park: park)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    // "Where you are" was true when this was day five of a fixed trip.
-                    // It is a recommendation now, so it says so.
-                    Text((app.recommender.pick == nil ? "Where you are" : "Worth the drive today").uppercased())
-                        .font(.system(size: 9.5))
-                        .tracking(1.7)
-                        .foregroundStyle(.white.opacity(0.88))
-                    Text(park.name)
-                        .font(WP.display(34))
-                        .foregroundStyle(.white)
-                        .shadow(color: Color(hex: 0x181008, opacity: 0.28), radius: 10, y: 1)
-                    // Why this park, in the line the trip's day count used to hold:
-                    // today's temperature there, how far it is from you, and whether you
-                    // have already been.
-                    Text(app.featuredReason)
-                        .font(WP.bodyItalic(12))
-                        .foregroundStyle(.white.opacity(0.9))
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .liquidGlass(.onPhoto, radius: 18)
-                .padding(10)
-
-                // Why this park and not another: it is the one today's trip puts you in.
-                Text("Recommended".uppercased())
-                    .font(.system(size: 9, weight: .semibold))
-                    .tracking(1.35)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 5.5)
-                    .background(.white.opacity(0.18), in: Capsule())
-                    .overlay(Capsule().stroke(.white.opacity(0.45), lineWidth: 0.5))
-                    .shadow(color: Color(hex: 0x181008, opacity: 0.2), radius: 6, y: 4)
-                    .padding(.leading, 15)
-                    .padding(.top, 13)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-            .frame(height: 456)
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(.white.opacity(0.42), lineWidth: 0.5))
-            .shadow(color: Color(hex: 0x1E1208, opacity: 0.2), radius: 17, y: 14)
-            .zoomSource("park:" + park.code, in: zoom, clip: .card(28))
-        }
-        .buttonStyle(PressStyle(scale: 0.995))
-    }
-}
-
-/// The hero while the recommendation is being worked out.
-///
-/// The same shape and the same height as the card it becomes, so nothing moves when the
-/// answer arrives. It says what it is doing rather than showing a park chosen for it.
-struct ChoosingCard: View {
-    @State private var breathing = false
-
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            BlobField(colors: [WP.neutral300, WP.neutral200, WP.neutral100])
-                .opacity(breathing ? 0.75 : 1)
-                .animation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true),
-                           value: breathing)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Worth the drive today".uppercased())
-                    .font(.system(size: 9.5))
-                    .tracking(1.7)
-                    .opacity(0.55)
-                Text("Finding one")
-                    .font(WP.display(34))
-                    .opacity(0.75)
-                Text("Reading where you are and what the weather is doing there")
-                    .font(WP.bodyItalic(12))
-                    .opacity(0.6)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .liquidGlass(.pill, radius: 18)
-            .padding(10)
-        }
-        .frame(height: 456)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .stroke(.white.opacity(0.42), lineWidth: 0.5))
-        .onAppear { breathing = true }
-    }
-}
+// The home screen itself is `HomeCarouselView`. What is left in this file is everything
+// that screen still shows: the rail of parks near you, the stamps within reach, and a
+// driving day when there is one.
 
 // MARK: - Near here
 
@@ -211,33 +11,39 @@ struct ChoosingCard: View {
 /// "nearby" is a number and not a claim.
 struct NearbyRail: View {
     @Environment(AppState.self) private var app
-    var park: CuratedPark
+    /// The park the rail is measured around — the one currently showing in the carousel.
+    /// Nil before the rotation has drawn its first park.
+    var park: CuratedPark?
 
-    /// Measured from where the phone is when it will say, and from the featured park
+    /// Measured from where the phone is when it will say, and from the park on screen
     /// when it will not — because "near" has to be near something, and the honest
     /// fallback is the park you are looking at.
-    private var origin: (lat: Double, lon: Double) {
-        app.recommender.fix ?? (park.lat, park.lon)
+    private var origin: (lat: Double, lon: Double)? {
+        app.recommender.fix ?? park.map { ($0.lat, $0.lon) }
     }
 
     private var neighbours: [(park: CuratedPark, miles: Int)] {
+        guard let origin else { return [] }
         let all = app.library.orderedParks
             + NationalParks.all.map(CuratedPark.init(bundled:))
         // The same park carries different codes in the curated library and the on-device
-        // list — "romo" and "np-rocky-mountain" — so the featured park was appearing
+        // list — "romo" and "np-rocky-mountain" — so the park on screen was appearing
         // again as the first tile under itself. Names are what a reader compares.
-        var seen: Set<String> = [park.name]
+        var seen: Set<String> = park.map { [$0.name] } ?? []
         return all
-            .filter { $0.code != park.code && seen.insert($0.name).inserted }
+            .filter { $0.code != park?.code && seen.insert($0.name).inserted }
             .map { ($0, Geo.haversine(origin, ($0.lat, $0.lon))) }
             .sorted { $0.1 < $1.1 }
-            .prefix(4)
+            .prefix(8)
             .map { (park: $0.0, miles: Int(($0.1 / 5).rounded()) * 5) }
     }
 
+    /// Computed from the farthest park actually in the rail, rounded up to the nearest
+    /// twenty-five — a radius, not a constant. The old rounding was to five, which put a
+    /// number like "within 235 miles" in a line that is meant to read as a rule of thumb.
     private var radiusLabel: String {
-        guard let farthest = neighbours.last?.miles else { return "" }
-        return "within \(farthest) miles"
+        guard let farthest = neighbours.last?.miles, farthest > 0 else { return "" }
+        return "within \(Int((Double(farthest) / 25).rounded(.up)) * 25) miles"
     }
 
     var body: some View {
@@ -248,29 +54,28 @@ struct NearbyRail: View {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     HStack(spacing: 5) {
                         Image(systemName: "mappin.and.ellipse")
-                            .font(.system(size: 11))
-                        Text("Near \(app.recommender.placeName ?? park.gw)")
-                            .font(WP.body(13.5))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color(hex: 0xF7F0E5, opacity: 0.75))
+                        Text("parks near you")
+                            .font(WP.body(13))
+                            .foregroundStyle(Color(hex: 0xF7F0E5, opacity: 0.82))
                     }
                     Text(radiusLabel)
-                        .font(WP.bodyItalic(13))
-                        .opacity(0.5)
+                        .font(WP.bodyItalic(12.5))
+                        .foregroundStyle(Color(hex: 0xF7F0E5, opacity: 0.45))
                         .lineLimit(1)
                     Spacer(minLength: 0)
-                    HStack(spacing: 3) {
-                        Text("all").font(WP.body(12.5))
-                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
-                    }
-                    .foregroundStyle(WP.accent700)
+                    Text("all")
+                        .font(WP.body(12.5))
+                        .foregroundStyle(Color(hex: 0xC9974A))
                 }
-                .foregroundStyle(WP.text)
                 .contentShape(Rectangle())
             }
             .buttonStyle(PressStyle(scale: 0.99))
-            .padding(.bottom, 11)
+            .padding(.bottom, 9)
 
             ScrollView(.horizontal) {
-                HStack(spacing: 11) {
+                HStack(spacing: 9) {
                     ForEach(neighbours, id: \.park.code) { neighbour in
                         NearbyTile(park: neighbour.park, miles: neighbour.miles)
                     }
@@ -290,46 +95,60 @@ struct NearbyTile: View {
     var park: CuratedPark
     var miles: Int
 
+    private static let width: CGFloat = 126
+    private static let plateHeight: CGFloat = 74
+    private static let radius: CGFloat = 16
+
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             Button {
                 app.openPark(park.code)
             } label: {
                 ZStack {
                     // Blurred, as the design has it: the photograph is texture behind the
                     // name, not something you are meant to read.
-                    ParkImage(park: park, blur: 6, saturation: 1.15, topLight: false)
-                    // The design's specular sweep, so the tile reads as glass over colour.
+                    ParkImage(park: park, blur: 5, saturation: 1.15,
+                              showsScrim: false, topLight: false)
+
                     LinearGradient(
                         stops: [
-                            .init(color: .white.opacity(0.44), location: 0),
-                            .init(color: .white.opacity(0.13), location: 0.30),
-                            .init(color: .white.opacity(0.02), location: 0.52),
-                            .init(color: .white.opacity(0.26), location: 1),
+                            .init(color: Color(hex: 0x100A06, opacity: 0.42), location: 0),
+                            .init(color: Color(hex: 0x100A06, opacity: 0), location: 0.68),
                         ],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
+                        startPoint: .bottom, endPoint: .top
                     )
+
                     Text(park.name)
-                        .font(WP.display(19))
+                        .font(WP.display(15))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
-                        .shadow(color: Color(hex: 0x181008, opacity: 0.5), radius: 9)
-                        .padding(.horizontal, 12)
+                        .lineLimit(2)
+                        .shadow(color: Color(hex: 0x0A0603, opacity: 0.55), radius: 4, y: 1)
+                        .padding(.horizontal, 8)
                 }
-                .frame(width: 200, height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(.white.opacity(0.6), lineWidth: 0.5))
-                .shadow(color: Color(hex: 0x1E1208, opacity: 0.2), radius: 10, y: 7)
-                .zoomSource("park:" + park.code, in: zoom, clip: .card(22))
+                .frame(width: Self.width, height: Self.plateHeight)
+                .clipShape(RoundedRectangle(cornerRadius: Self.radius, style: .continuous))
+                // The sheen along the top edge, inset either side so it fades before it
+                // reaches the corner rather than lighting the arc itself.
+                .overlay(alignment: .top) {
+                    LinearGradient(colors: [.clear, .white.opacity(0.80), .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(height: 1)
+                        .padding(.horizontal, Self.width * 0.08)
+                }
+                .overlay(RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+                    .stroke(.white.opacity(0.50), lineWidth: 0.5))
+                .shadow(color: Color(hex: 0x060301, opacity: 0.30), radius: 8, y: 6)
+                .zoomSource("park:" + park.code, in: zoom, clip: .card(Self.radius))
             }
-            .buttonStyle(PressStyle(scale: 0.98))
+            .buttonStyle(PressStyle(scale: 0.97))
 
-            Text("\(miles) mi · \(park.region.lowercased())")
-                .font(WP.body(11.5))
-                .opacity(0.62)
+            Text("\(miles) mi · \(USStates.name(for: park.state) ?? park.state)")
+                .font(WP.body(10.5))
+                .foregroundStyle(Color(hex: 0xF7F0E5, opacity: 0.60))
+                .lineLimit(1)
         }
-        .frame(width: 200)
+        .frame(width: Self.width)
     }
 }
 

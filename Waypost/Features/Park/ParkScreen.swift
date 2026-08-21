@@ -13,6 +13,9 @@ struct ParkScreen: View {
     var date: Date?
 
     @State private var segment: ParkSegment = .brief
+    /// Bumped by a tap on the section already showing. A counter rather than a flag, so
+    /// the second tap in a row is still a change the scroll view can observe.
+    @State private var scrollTopRequests = 0
     /// Which way the next page comes in from.
     @State private var forward = true
     /// Where the in-flow rail is on the display, and the line it turns into a header at.
@@ -353,6 +356,20 @@ struct ParkScreen: View {
                             .padding(.horizontal, WP.gutter)
                             .padding(.top, Self.sectionTop)
                             .padding(.bottom, WP.tabBarClearance)
+                            // Pinned to the width of the scroll view, so nothing inside a
+                            // section can ever make the *page* wider than the phone.
+                            //
+                            // One `HStack` that cannot fit — a booking pill beside two
+                            // controls, a long park name beside a chip — used to widen this
+                            // whole column, and because the column is laid out leading in a
+                            // wider frame, every other line on the screen shifted left with
+                            // it. The symptom appeared nowhere near the cause: a masthead
+                            // reading "ATIONAL PARK" at the top of the page, and the whole
+                            // screen sliding sideways under a thumb like a web page.
+                            // Individual rows still wrap properly; this is the backstop for
+                            // the ones that have not been taught to, on a narrower phone or
+                            // at a text size nobody tested.
+                            .containerRelativeFrame(.horizontal)
                             // Every section is at least a screen tall, so a short one —
                             // weather is six figures and a line — can still be scrolled
                             // into the pinned state the long ones reach.
@@ -379,6 +396,15 @@ struct ParkScreen: View {
                         withAnimation(.snappy(duration: 0.32)) {
                             scroller.scrollTo(Self.railAnchor, anchor: .top)
                         }
+                    }
+                }
+                // The top of the section, not the top of the park. Re-tapping the rail
+                // means "take me back to the start of what I am reading" — the same place
+                // changing section lands you, so the rail has one destination rather than
+                // two that depend on which section was showing when you pressed it.
+                .onChange(of: scrollTopRequests) { _, _ in
+                    withAnimation(.snappy(duration: 0.34)) {
+                        scroller.scrollTo(Self.railAnchor, anchor: .top)
                     }
                 }
             }
@@ -508,7 +534,15 @@ struct ParkScreen: View {
         Binding(
             get: { segment },
             set: { new in
-                guard new != segment else { return }
+                // Tapping the section you are already reading used to be swallowed here.
+                // A rail that answers nothing is a rail that looks broken from the foot of
+                // a long page, so the same tap now does what the same tap does everywhere
+                // else on iOS: takes you back to the top of what you are reading.
+                guard new != segment else {
+                    scrollTopRequests += 1
+                    Haptics.tap()
+                    return
+                }
                 let all = ParkSegment.allCases
                 forward = (all.firstIndex(of: new) ?? 0) > (all.firstIndex(of: segment) ?? 0)
                 withAnimation(.snappy(duration: 0.28)) { segment = new }
@@ -779,31 +813,7 @@ struct OverviewSection: View {
                     // so a flash-flood warning and a car-park notice were the same object
                     // on the page and the reader had to read every row to find the one
                     // that mattered.
-                    let tone = AlertSeverity(category: alert.cat).color
-                    Button {
-                        app.sheet = .alert(park: park.name, alert: alert)
-                    } label: {
-                        DividedRow(vertical: 12) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 8) {
-                                    Text(alert.cat)
-                                        .font(WP.body(10))
-                                        .padding(.horizontal, 9).padding(.vertical, 2)
-                                        .background(tone.opacity(0.12), in: Capsule())
-                                        .overlay(Capsule().stroke(tone, lineWidth: 1))
-                                        .foregroundStyle(tone)
-                                    Spacer(minLength: 0)
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(WP.accent700)
-                                }
-                                Text(alert.title).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
-                                Text(alert.body).font(WP.body(12.5)).lineSpacing(2).opacity(0.75)
-                                    .multilineTextAlignment(.leading)
-                            }
-                        }
-                    }
-                    .buttonStyle(PressStyle(scale: 0.99))
+                    AlertDisclosureRow(alert: alert)
                 }
             }
             }
@@ -862,12 +872,14 @@ struct OverviewSection: View {
                 SectionTitle("Fuel & charging")
                 // Apple Maps knows every charger and pump in the country; the curated
                 // lists covered four parks. Tapping a row opens directions to it.
-                PlaceRows(park: park, kind: .charger, title: "Charging")
-                PlaceRows(park: park, kind: .fuel, title: "Gasoline")
-
-                // The reason a camper looks at this screen at all: the last shop before
-                // the gate.
-                PlaceRows(park: park, kind: .store, title: "Shops & supplies")
+                //
+                // One line of chips rather than three lists stacked. Fifteen rows of
+                // somewhere-to-plug-in sat between the alerts and the campgrounds — the
+                // two things this page is actually read for — and most visits only need
+                // to know a charger exists and roughly how far it is, which is what the
+                // chip says without being opened. The last shop before the gate is in
+                // here too, which is the reason a camper opens this screen at all.
+                PlaceCategoryChips(park: park, kinds: [.charger, .fuel, .store])
             }
 
             SourceLine(overviewSource)
@@ -1633,6 +1645,72 @@ struct NearbySection: View {
 
 // MARK: - Shared bits
 
+
+/// One posted alert: its category, its title, and its text when you ask for it.
+///
+/// The park service writes these at whatever length it likes, and a park in fire season
+/// posts five of them. Printed in full they were most of the Overview — the reader scrolled
+/// past a paragraph about propane stoves to reach the entry gates. The tag and the title
+/// are what triage a list; the body is what you read once you have found the one that
+/// matters, so the body is what waits.
+///
+/// The severity tag never collapses. Red for a danger or a closure, amber for a caution,
+/// green for an information notice — that is the whole point of the row and it has to
+/// survive being shut.
+private struct AlertDisclosureRow: View {
+    var alert: CuratedAlert
+
+    @State private var isOpen = false
+
+    var body: some View {
+        let tone = AlertSeverity(category: alert.cat).color
+
+        Button {
+            withAnimation(Motion.panel) { isOpen.toggle() }
+        } label: {
+            DividedRow(vertical: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(alert.cat)
+                            .font(WP.body(10))
+                            .padding(.horizontal, 9).padding(.vertical, 2)
+                            .background(tone.opacity(0.12), in: Capsule())
+                            .overlay(Capsule().stroke(tone, lineWidth: 1))
+                            .foregroundStyle(tone)
+                        Spacer(minLength: 0)
+                        // The same chevron, turned rather than swapped: down means the
+                        // text is below, right means it is still folded away.
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(WP.accent700)
+                            .rotationEffect(.degrees(isOpen ? 90 : 0))
+                    }
+
+                    Text(alert.title)
+                        .font(WP.rowTitle(17))
+                        .multilineTextAlignment(.leading)
+                        // Shut, the title is the only thing in the stack and SwiftUI gave
+                        // it a single line — "Heat Alert - Temperatures May Be Higher Th…".
+                        // It wrapped correctly only while the body was under it, which is
+                        // exactly the state this row now spends most of its life outside of.
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if isOpen {
+                        Text(alert.body)
+                            .font(WP.body(12.5)).lineSpacing(2).opacity(0.75)
+                            .multilineTextAlignment(.leading)
+                            .transition(.opacity)
+                    }
+                }
+            }
+        }
+        .buttonStyle(PressStyle(scale: 0.99))
+        .accessibilityLabel("\(alert.cat). \(alert.title)")
+        .accessibilityValue(isOpen ? alert.body : "")
+        .accessibilityHint(isOpen ? "Collapses the notice" : "Expands the notice")
+    }
+}
+
 struct SectionTitle: View {
     var text: String
     init(_ text: String) { self.text = text }
@@ -1664,18 +1742,15 @@ struct SourceLine: View {
 }
 
 
-/// One campground: what the park service says about it, and what Recreation.gov says is
-/// free tonight.
-///
-/// The two are different questions and the row keeps them apart — a campground with 184
-/// sites and none free is not the same as one that takes no reservations at all, and
-/// neither is the same as a request that failed.
-struct LiveCampgroundRow: View {
-    var camp: ParkFacts.Campground
 
-    private var availability: Recreation.State? {
-        camp.facilityID.map { Recreation.shared.state(facility: $0) }
-    }
+/// The one control that takes a reader off this app and onto the page that can actually
+/// book them a site.
+///
+/// Lifted out of the park screen's campground row so the trip's Stays list can carry the
+/// same pill rather than a second one drawn to look like it. The errand is identical on
+/// both screens — "open the official page for this campground" — so it is one view.
+struct CampgroundOfficialLink: View {
+    var camp: ParkFacts.Campground
 
     /// The campground's own page on Recreation.gov. Only the facilities that book there
     /// have an id, so a concessioner-run campground gets no link rather than a wrong one.
@@ -1703,6 +1778,44 @@ struct LiveCampgroundRow: View {
         if let url = bookingLink { return (url, bookingLabel, "tent.fill") }
         if let url = camp.npsURL { return (url, "View on NPS.gov", "leaf.fill") }
         return nil
+    }
+
+    var body: some View {
+        if let official {
+            Link(destination: official.url) {
+                HStack(spacing: 7) {
+                    Image(systemName: official.glyph)
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(official.title)
+                        .font(WP.body(12, semibold: true))
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(WP.text)
+                .padding(.horizontal, 12)
+                .frame(height: 32)
+                .background(WP.book, in: Capsule())
+                // The pill is 32 points tall so it sits inside the row rather than
+                // dominating it; the target around it is the full 44.
+                .contentShape(Capsule())
+                .padding(.vertical, 6)
+            }
+            .accessibilityLabel("\(official.title) — \(camp.name)")
+        }
+    }
+}
+
+/// One campground: what the park service says about it, and what Recreation.gov says is
+/// free tonight.
+///
+/// The two are different questions and the row keeps them apart — a campground with 184
+/// sites and none free is not the same as one that takes no reservations at all, and
+/// neither is the same as a request that failed.
+struct LiveCampgroundRow: View {
+    var camp: ParkFacts.Campground
+
+    private var availability: Recreation.State? {
+        camp.facilityID.map { Recreation.shared.state(facility: $0) }
     }
 
     private var tonight: String {
@@ -1760,26 +1873,27 @@ struct LiveCampgroundRow: View {
                 // The panel counts the free sites and then left you to find the booking
                 // page yourself. A facility id *is* the Recreation.gov page — the same id
                 // the availability above was read from — so the row can just open it.
-                if let official {
-                    Link(destination: official.url) {
-                        HStack(spacing: 7) {
-                            Image(systemName: official.glyph)
-                                .font(.system(size: 11, weight: .semibold))
-                            Text(official.title)
-                                .font(WP.body(12, semibold: true))
-                            Image(systemName: "arrow.up.right")
-                                .font(.system(size: 10, weight: .semibold))
-                        }
-                        .foregroundStyle(WP.text)
-                        .padding(.horizontal, 12)
-                        .frame(height: 32)
-                        .background(WP.book, in: Capsule())
-                        // The pill is 32 points tall so it sits inside the row rather than
-                        // dominating it; the target around it is the full 44.
-                        .contentShape(Capsule())
-                        .padding(.vertical, 6)
+                // Wraps rather than overflows.
+                //
+                // "Book on Recreation.gov" is a wide pill, and beside the add and
+                // directions controls the row came to more than the width of the phone. An
+                // `HStack` does not wrap — it overflowed, and because the column is laid
+                // out `maxWidth: .infinity` the whole *page* shifted left to accommodate
+                // it. That is why the masthead read "ATIONAL PARK" with the N off the
+                // screen and the screen slid sideways under a finger like a web page.
+                FlowRow(spacing: 9, rowSpacing: 8) {
+                    CampgroundOfficialLink(camp: camp)
+                    // A campground is a place like any other: on a park opened from a trip
+                    // it can go on that trip's list, and from anywhere else it cannot.
+                    if let lat = camp.lat, let lon = camp.lon {
+                        PlaceRowActions(place: PlannedPlace(
+                            name: camp.name,
+                            subtitle: [camp.fee, camp.sites.map { "\($0) sites" }]
+                                .compactMap { $0 }.joined(separator: " · "),
+                            lat: lat, lon: lon,
+                            category: PlacesService.Kind.campground.rawValue
+                        ), day: nil)
                     }
-                    .accessibilityLabel("\(official.title) — \(camp.name)")
                 }
             }
         }

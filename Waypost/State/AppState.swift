@@ -40,7 +40,11 @@ enum PushedScreen: Hashable, Identifiable {
     /// `date` is the day the park is being opened *for* — a trip's arrival date, say. Nil
     /// means today. Without it the weather panel had no way to know it was being read for
     /// a trip next month, so it always asked for today's forecast.
-    case park(code: String, segment: ParkSegment = .brief, date: Date? = nil)
+    /// `trip` is the trip this park was opened *from*, when it was. It is what turns the
+    /// add controls on: a park reached from a trip can put a charger or a café on that
+    /// trip's list, and the same park reached from the home screen or from Discover
+    /// cannot, because there is no list for it to go on.
+    case park(code: String, segment: ParkSegment = .brief, date: Date? = nil, trip: String? = nil)
     case trip(id: String)
     /// The catalogue, which used to be a tab of its own.
     ///
@@ -52,7 +56,7 @@ enum PushedScreen: Hashable, Identifiable {
 
     var id: String {
         switch self {
-        case .park(let code, _, _): return "park:" + code
+        case .park(let code, _, _, _): return "park:" + code
         case .trip(let id): return "trip:" + id
         case .explore: return "explore"
         }
@@ -101,9 +105,19 @@ enum ParkSegment: String, CaseIterable, Hashable {
 }
 
 enum TripSegment: String, CaseIterable, Hashable {
-    case route, days, stays
+    /// `stays` was a read-only catalogue of the park service's campgrounds — a strictly
+    /// worse view of a screen one tap away on the park itself. What stands in its place is
+    /// the list the traveller builds: the raw value is kept so a trip that was last read on
+    /// the old third tab still decodes and simply opens on the new one.
+    case route, days, list = "stays"
 
-    var label: String { rawValue.capitalized }
+    var label: String {
+        switch self {
+        case .route: return "Route"
+        case .days: return "To do"
+        case .list: return "My list"
+        }
+    }
 }
 
 /// The bottom sheets: a park alert, a permit window, a leg, a passport stamp.
@@ -236,6 +250,13 @@ final class AppState {
 
     // Trip building
     var builder: TripBuilder?
+    /// The trip a sheet was opened from, when it was one.
+    ///
+    /// Sheets are presented by the shell rather than by the screen that asked for them, so
+    /// a leg sheet opened out of a trip cannot inherit that trip through the environment —
+    /// it is not underneath it. This carries it across, and it is what lets the stops on a
+    /// drive offer to go on that trip's list.
+    var sheetTrip: String?
     var myTrips: [SavedTrip] = []
     /// Parks the traveller added to the visited rail by hand. Codes only: a park added
     /// this way carries no date, because stamping it with today would be inventing when
@@ -603,9 +624,12 @@ final class AppState {
         return Datasets.shared.statePark(code: code)
     }
 
-    func openPark(_ code: String, segment: ParkSegment = .brief, date: Date? = nil) {
+    /// - Parameter trip: the trip this park is being opened from, when there is one. Only
+    ///   then can its rows offer to put a place on a list.
+    func openPark(_ code: String, segment: ParkSegment = .brief, date: Date? = nil,
+                  trip: String? = nil) {
         parkSegment[code] = segment
-        push(.park(code: code, segment: segment, date: date))
+        push(.park(code: code, segment: segment, date: date, trip: trip))
     }
 
     func show(_ text: String) {
@@ -705,6 +729,98 @@ final class AppState {
         myTrips
     }
 
+
+    // MARK: The trip list
+
+    /// What is on a trip's list, in the order it reads: the day it belongs to, then when
+    /// it was added.
+    func plan(for tripID: String) -> [PlanItem] {
+        (trip(tripID)?.plan ?? []).sorted { a, b in
+            switch (a.day, b.day) {
+            // Undated things are for the whole trip and sit above the first day.
+            case (nil, nil): return a.added < b.added
+            case (nil, _): return true
+            case (_, nil): return false
+            case (let x?, let y?): return x == y ? a.added < b.added : x < y
+            }
+        }
+    }
+
+    /// Whether this place is already on the trip's list, so a row can say "Added" rather
+    /// than offering to add it twice. Matched on name and position: the same café reached
+    /// from a leg sheet and from a park screen is one place.
+    func planContains(_ tripID: String, place: PlannedPlace) -> Bool {
+        plan(for: tripID).contains { item in
+            guard let existing = item.place else { return false }
+            return existing.name == place.name
+                && abs(existing.lat - place.lat) < 0.0005
+                && abs(existing.lon - place.lon) < 0.0005
+        }
+    }
+
+    func addToPlan(_ tripID: String, item: PlanItem) {
+        guard let index = myTrips.firstIndex(where: { $0.id == tripID }) else { return }
+        myTrips[index].plan = (myTrips[index].plan ?? []) + [item]
+        Haptics.tap()
+        persist()
+    }
+
+    /// Adds a place, or takes it off again if it is already there — one control, one row.
+    func togglePlanPlace(_ tripID: String, place: PlannedPlace, day: Date?) {
+        guard let index = myTrips.firstIndex(where: { $0.id == tripID }) else { return }
+        var items = myTrips[index].plan ?? []
+        if let existing = items.firstIndex(where: {
+            guard let p = $0.place else { return false }
+            return p.name == place.name
+                && abs(p.lat - place.lat) < 0.0005 && abs(p.lon - place.lon) < 0.0005
+        }) {
+            items.remove(at: existing)
+        } else {
+            items.append(PlanItem(id: UUID().uuidString, day: day,
+                                  kind: .place(place), added: Date()))
+        }
+        myTrips[index].plan = items
+        Haptics.tap()
+        persist()
+    }
+
+    /// Empties a trip's list. Asked about first — everything on it was put there by hand,
+    /// one row at a time, and there is no undo.
+    func clearPlan(_ tripID: String) {
+        guard let index = myTrips.firstIndex(where: { $0.id == tripID }) else { return }
+        myTrips[index].plan = []
+        Haptics.tap()
+        show("List cleared")
+        persist()
+    }
+
+    func removeFromPlan(_ tripID: String, itemID: String) {
+        guard let index = myTrips.firstIndex(where: { $0.id == tripID }) else { return }
+        myTrips[index].plan?.removeAll { $0.id == itemID }
+        Haptics.tap()
+        persist()
+    }
+
+    /// Moves one item to another day, or to no day at all.
+    func movePlanItem(_ tripID: String, itemID: String, to day: Date?) {
+        guard let index = myTrips.firstIndex(where: { $0.id == tripID }),
+              let item = myTrips[index].plan?.firstIndex(where: { $0.id == itemID })
+        else { return }
+        myTrips[index].plan?[item].day = day
+        persist()
+    }
+
+    /// Whether a place on the list is driven to. A place switched off stays on the list
+    /// and comes out of the route.
+    func togglePlanStop(_ tripID: String, itemID: String) {
+        guard let index = myTrips.firstIndex(where: { $0.id == tripID }),
+              let item = myTrips[index].plan?.firstIndex(where: { $0.id == itemID })
+        else { return }
+        myTrips[index].plan?[item].isStop.toggle()
+        Haptics.tap()
+        persist()
+    }
+
     /// Removing a trip is not undoable, so the card asks first.
     func deleteTrip(_ id: String) {
         if id == "seed" {
@@ -714,6 +830,9 @@ final class AppState {
         }
         stack.removeAll { $0.id == "trip:" + id }
         tripSegment[id] = nil
+        // Its route map goes with it. Every other stored picture is discarded by its own
+        // fingerprint disagreeing, which a trip that no longer exists can never do.
+        Task { await RouteSnapshotStore.shared.forget(id: id) }
         Haptics.tap()
         show("Trip removed")
         persist()
@@ -982,6 +1101,9 @@ struct SavedTrip: Codable, Hashable, Identifiable {
     /// switch changed nothing about the trip it was set on. Optional, so a trip saved
     /// before it meant anything decodes as the drive it was planned as.
     var flyWhenFaster: Bool? = nil
+    /// What the traveller has put on this trip's list — the third tab. Optional, so a trip
+    /// saved before the list existed decodes with an empty one rather than failing.
+    var plan: [PlanItem]? = nil
 
     /// Where this trip actually starts. Prefers the searched city; falls back to the code.
     func resolvedOrigin(_ library: CuratedLibrary) -> TripOrigin? {

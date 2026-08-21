@@ -242,19 +242,216 @@ final class PlacesService {
 /// after "where is the nearest charger" is directions to it.
 /// A secondary action on a place row — call it, or open its site. Sized to the same 36×40
 /// the directions control is, so the three sit on one baseline.
-private struct PlaceAction: View {
+/// One icon in a place row's trailing cluster — call, website, directions.
+///
+/// Drawn to the same pattern as the *Add* pill beside it: a capsule of the same height,
+/// the same hairline, the same 44pt reach around a smaller mark. It used to be a 40pt
+/// rounded rectangle with a heavier border, so a row ended in a squarish box sitting next
+/// to a capsule and the pair read as two controls borrowed from different screens.
+///
+/// The colour is the accent ramp used as a ramp — `accent100` tint, `accent600` hairline,
+/// `accent800` mark — the same three steps the passport stamp is built from. It was a bare
+/// `accent700` glyph inside a grey `text` hairline, which is the ramp used as *lettering*:
+/// that is what `accent700` is for everywhere else in the app (captions, tracking-spaced
+/// labels, section rules), and a control wearing a text colour on a neutral border read as
+/// a brown mark floating in a box that belonged to something else.
+///
+/// Not lime, and not `mark`. Lime is a claim about state — *added* on the pill next door,
+/// *this opens a booking* on `book` — and `mark` belongs to the round controls that share
+/// the app icon's orange. These three are secondary actions with no state, so they take the
+/// page's own warm ramp and nothing louder.
+struct PlaceAction: View {
     var glyph: String
 
     var body: some View {
         Image(systemName: glyph)
-            .font(.system(size: 15, weight: .medium))
-            .foregroundStyle(WP.accent700)
-            .frame(width: 34, height: 40)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(WP.accent800)
+            .frame(width: 38, height: 30)
             .background {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(WP.accent.opacity(0.35), lineWidth: 1)
+                Capsule().fill(WP.accent100)
+                Capsule().stroke(WP.accent600.opacity(0.45), lineWidth: 0.75)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+    }
+}
+
+/// Charging, fuel and shops as three chips on one line, and the list of whichever one
+/// you press underneath.
+///
+/// Three categories at five rows apiece is most of a screen for something a reader mostly
+/// wants to know *exists*, and it sits between the alerts and the campgrounds, which are
+/// what the page is for. Shut, the whole section is one line that still answers the
+/// question — how many, and how far the nearest one is. Pressed, a chip opens its own list
+/// and the other two stay shut.
+///
+/// The chips carry a glyph rather than the category's name, which is what buys the line.
+/// The word is not lost: it is the accessibility label, and it heads the list the moment
+/// one is open — so nobody has to know what a basket means to use this.
+struct PlaceCategoryChips: View {
+    var park: CuratedPark
+    var kinds: [PlacesService.Kind]
+    var limit: Int = 5
+
+    /// Which category's list is showing. Nil is shut.
+    @State private var open: PlacesService.Kind?
+
+    /// Whether the section has already opened itself once.
+    ///
+    /// A row of chips with nothing under them gives a reader no reason to think there is
+    /// anything under them. So the first category that has results opens on arrival: the
+    /// ring and the list explain each other, and the mechanism is demonstrated rather
+    /// than hinted at. It happens once — close it and it stays closed.
+    @State private var didAutoOpen = false
+
+    /// The first category the park actually has anything in. Charging usually, but a park
+    /// with no chargers within thirty miles opens on fuel rather than on an empty chip.
+    ///
+    /// Nil while an earlier category is still unresolved, which is the whole point of the
+    /// loop. Asking for `kinds.first { places is non-empty }` treated "Apple Maps has not
+    /// answered yet" and "Apple Maps says none" as the same thing, so the section opened
+    /// on whichever category happened to answer first — shops, usually, being the shortest
+    /// search. Waiting for each in turn is what makes the order the order.
+    private var firstWithRows: PlacesService.Kind? {
+        for kind in kinds {
+            guard let places = PlacesService.shared.places(park, kind) else {
+                // A lookup that failed outright is never going to answer; it is a category
+                // with nothing in it as far as this is concerned, so move past it.
+                if PlacesService.shared.failure(park, kind) != nil { continue }
+                return nil
+            }
+            if !places.isEmpty { return kind }
+        }
+        return nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Equal shares of the row rather than three chips hugging their text with a
+            // third of the width left dead beside them. Fixed shares also mean a chip
+            // does not resize when the mileage under it changes from `2.0 mi` to `14 mi`.
+            HStack(spacing: 7) {
+                ForEach(kinds, id: \.self) { kind in
+                    chip(kind)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
+            if let open {
+                // The name the chip could not carry, restored the moment there is room
+                // for it. Also the only thing on screen that says which chip is down.
+                Text(caption(open))
+                    .font(WP.body(11.5))
+                    .foregroundStyle(open.tint)
+                    .padding(.top, 13)
+
+                PlaceRows(park: park, kind: open, title: nil, limit: limit)
+                    .transition(.opacity)
+            }
+        }
+        // The chips have to know their counts before anybody presses one, and the row
+        // list is what used to do the asking — it carries the `.task` that starts the
+        // lookup. Mounted only for the open category, that meant nothing was ever
+        // requested and all three chips sat on their loading ellipsis forever. The
+        // section asks for all of its categories up front, which is what `loadAll` is for.
+        .task(id: park.code) {
+            PlacesService.shared.loadAll(park, kinds)
+            // A park whose answers are already on hand never fires the change below.
+            didAutoOpen = false
+            autoOpen()
+        }
+        // Apple Maps answers well after the section is drawn, so the usual case is this
+        // one: the chips arrive empty and the first of them opens as its results land.
+        .onChange(of: firstWithRows) { _, _ in autoOpen() }
+    }
+
+    private func autoOpen() {
+        guard !didAutoOpen, let kind = firstWithRows else { return }
+        didAutoOpen = true
+        withAnimation(Motion.panel) { open = kind }
+    }
+
+    // MARK: One chip
+
+    @ViewBuilder
+    private func chip(_ kind: PlacesService.Kind) -> some View {
+        let places = PlacesService.shared.places(park, kind)
+        let isOpen = open == kind
+        let hasRows = !(places?.isEmpty ?? true)
+
+        Button {
+            withAnimation(Motion.panel) { open = isOpen ? nil : kind }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: kind.glyph)
+                    .font(.system(size: 12, weight: .medium))
+                Text(label(kind, places))
+                    .font(WP.body(12))
+                    .tnum()
+            }
+            .foregroundStyle(kind.tint)
+            // Fills its share of the row. The `maxWidth` at the call site sizes the
+            // *button*; without this one the capsule still hugged its text and sat
+            // centred in a third of the row with the rest of that third left blank.
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 8)
+            // Selection is a ring, not a flood. Filling the open chip with `kind.tint`
+            // read as a pressed or disabled control rather than a chosen one — and shops
+            // are a neutral grey, so that fill came out as a black pill sitting between
+            // two pale ones. The soft wash and a solid edge say "this is the open one"
+            // without any chip having to change what colour it is.
+            .background(isOpen ? kind.tintSoft : .clear, in: Capsule())
+            .overlay {
+                Capsule().stroke(kind.tint.opacity(isOpen ? 1 : 0.28),
+                                 lineWidth: isOpen ? 1.5 : 0.5)
+            }
+            // A chip is 30pt of ink and a finger is not. The target grows around it
+            // rather than the chip growing to meet it.
+            .frame(minHeight: 44)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressStyle(scale: 0.96))
+        .disabled(!hasRows)
+        // Nothing to open reads as nothing to press.
+        .opacity(hasRows ? 1 : 0.45)
+        .accessibilityLabel(kind.title)
+        .accessibilityValue(accessibilityValue(kind, places))
+        .accessibilityHint(hasRows ? (isOpen ? "Closes the list" : "Opens the list") : "")
+        .accessibilityAddTraits(isOpen ? [.isButton, .isSelected] : .isButton)
+    }
+
+    // MARK: What a chip says
+
+    /// `5 · 8.0 mi`, and the honest short forms when there is no list behind it. The
+    /// distance is sliced off the first row's own subtitle, so the chip and the row it
+    /// summarises can never disagree.
+    private func label(_ kind: PlacesService.Kind, _ places: [PlacesService.Place]?) -> String {
+        guard let places else { return "…" }
+        guard let first = places.first else { return "none" }
+        let shown = min(places.count, limit)
+        let nearest = first.subtitle
+            .split(separator: "·").first?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        return nearest.isEmpty ? "\(shown)" : "\(shown) · \(nearest)"
+    }
+
+    /// The heading over an open list — the category's name, spelled out.
+    private func caption(_ kind: PlacesService.Kind) -> String {
+        let places = PlacesService.shared.places(park, kind) ?? []
+        let shown = min(places.count, limit)
+        return shown == 1 ? "\(kind.title) · 1 nearby" : "\(kind.title) · \(shown) nearby"
+    }
+
+    /// Said in full for VoiceOver, where a glyph and an abbreviation say nothing.
+    private func accessibilityValue(_ kind: PlacesService.Kind, _ places: [PlacesService.Place]?) -> String {
+        guard let places else { return "Still looking" }
+        guard let first = places.first else {
+            if let why = PlacesService.shared.failure(park, kind) { return "Apple Maps did not answer — \(why)" }
+            return "None within 30 miles"
+        }
+        return "\(min(places.count, limit)) nearby, nearest \(first.subtitle)"
     }
 }
 
@@ -311,31 +508,27 @@ struct PlaceRows: View {
                                                 .font(WP.body(11.5)).foregroundStyle(kind.tint).tnum()
                                         }
                                         Spacer(minLength: 0)
-                                        // The size the driving day's own open-in-Maps
-                                        // control is, so the same action is the same
-                                        // target on both.
-                                        Image(systemName: "arrow.triangle.turn.up.right.circle")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(WP.accent700)
-                                            .frame(width: 36, height: 40)
                                     }
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(PressStyle(scale: 0.995))
 
-                                if let call = place.callLink {
-                                    Link(destination: call) {
-                                        PlaceAction(glyph: "phone.fill")
-                                    }
-                                    .accessibilityLabel("Call \(place.name)")
-                                }
-
-                                if let site = place.url {
-                                    Link(destination: site) {
-                                        PlaceAction(glyph: "safari")
-                                    }
-                                    .accessibilityLabel("Open the website for \(place.name)")
-                                }
+                                // Curation happens where the reader already is. Every list
+                                // in the app is a place they might want on their trip, so
+                                // the control goes on the row rather than behind a search
+                                // screen of its own. It draws nothing outside a trip.
+                                PlaceRowActions(
+                                    place: PlannedPlace(
+                                        name: place.name,
+                                        subtitle: place.subtitle,
+                                        lat: place.mapItem.placemark.coordinate.latitude,
+                                        lon: place.mapItem.placemark.coordinate.longitude,
+                                        category: kind.rawValue
+                                    ),
+                                    day: nil,
+                                    call: place.callLink,
+                                    site: place.url
+                                )
                             }
                         }
                     }
@@ -352,4 +545,5 @@ struct PlaceRows: View {
             PlacesService.shared.load(park, kind)
         }
     }
+
 }

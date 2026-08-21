@@ -7,12 +7,33 @@ struct DetailSheet: View {
 
     /// The day this drive is actually being made, when one of the saved trips starts
     /// today. Nil otherwise, and the stops and traffic stay unasked-for.
+    @Environment(\.planningTrip) private var planningTrip
+
     private var driveDate: Date? {
         var trips = app.myTrips
         // The seed trip lives outside `myTrips` but is still a trip the user has.
         if !app.seedTripHidden { trips.append(SavedTrip.seed(dayNumber: app.day)) }
         return trips.compactMap(\.startDate).first { LegStops.isLive($0) }
     }
+    /// The day this drive happens on the trip it belongs to.
+    ///
+    /// Not `driveDate` — that one answers "is this drive happening *today*", which is what
+    /// traffic needs and is nil for every trip that is not under way right now. A stop
+    /// added from this sheet belongs to the day the drive is made, whenever that is, so it
+    /// is looked up from the trip's own day-by-day plan by matching the leg's two ends.
+    private var planDay: Date? {
+        guard let planningTrip, let trip = app.trip(planningTrip),
+              case .ready(let days) = TripDays.shared.state(for: trip),
+              case .routedLeg(let leg, _) = sheet
+        else { return nil }
+        return days.first { day in
+            if case .travel(let from, let to, _, _, _) = day.kind {
+                return from == leg.from && to == leg.to
+            }
+            return false
+        }?.date
+    }
+
     @Environment(\.dismiss) private var dismiss
     var sheet: ActiveSheet
 
@@ -21,10 +42,8 @@ struct DetailSheet: View {
     /// Apple Maps takes a whole chain of places, not just a destination, so the ones ticked
     /// here are handed over as waypoints in mile order and the drive arrives in Maps with
     /// the stops already in it.
-    @State private var chosen: Set<String> = []
     /// Park-service places picked for this drive, kept apart from the fuel-and-food picks
     /// because they come from a different source and are handed to Maps in their own order.
-    @State private var chosenUnits: Set<String> = []
 
     var body: some View {
         ScrollView(.vertical) {
@@ -84,8 +103,14 @@ struct DetailSheet: View {
                 // on one line say as much while the list is being read; the roads they are
                 // driven on stay in the body, where they are reference rather than a thing
                 // consulted mid-decision.
-                // On a flown leg the mileage is the road not taken, so the line leads with
-                // the flight and the button says plainly that it opens the alternative.
+                // On a flown leg the mileage is the road not taken.
+                //
+                // No button under it any more. Opening this one leg in Maps was worth a
+                // pinned control while the sheet was also where a drive's stops were
+                // chosen; the list does that now, across the whole trip, so a button here
+                // would hand Maps a single leg with nothing in it — a worse version of
+                // what "Drive it with N stops" already does, one screen away. The rows
+                // keep their own directions control for one place at a time.
                 if let fly = leg.fly {
                     Text("\(fly.via) · \(fly.time)")
                         .font(WP.body(12.5)).foregroundStyle(WP.text.opacity(0.72)).tnum()
@@ -93,9 +118,6 @@ struct DetailSheet: View {
                     Text("\(leg.miles) mi · \(leg.drive) · \(leg.road.split(separator: " → ").count) roads")
                         .font(WP.body(12.5)).foregroundStyle(WP.text.opacity(0.72)).tnum()
                 }
-
-                GlowButton(title: leg.fly == nil ? openTitle(leg) : "Drive it instead in Maps",
-                           minHeight: 48) { openRoute(leg) }
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, WP.gutter)
@@ -264,13 +286,14 @@ struct DetailSheet: View {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text("On the way".uppercased())
                             .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent800)
-                        Text("+ adds a stop to the drive")
+                        Text(planningTrip == nil
+                             ? "fuel, charging and food along this drive"
+                             : "add puts it on your list")
                             .font(WP.bodyItalic(11)).opacity(0.5)
                     }
                     .padding(.top, 18).padding(.bottom, 2)
 
                     ForEach(stops) { stop in
-                        let picked = chosen.contains(stop.id)
                         DividedRow(vertical: 11) {
                             HStack(spacing: 12) {
                                 // The disc carries the colour, the glyph sits in it: four
@@ -289,38 +312,18 @@ struct DetailSheet: View {
                                 }
                                 Spacer(minLength: 0)
 
-                                // Two separate controls, so neither is reached by accident:
-                                // the first puts this place in the chain handed to Maps, the
-                                // second opens this one place on its own.
-                                Button {
-                                    withAnimation(.snappy(duration: 0.18)) {
-                                        if picked { chosen.remove(stop.id) } else { chosen.insert(stop.id) }
-                                    }
-                                    Haptics.tap()
-                                } label: {
-                                    Image(systemName: picked ? "checkmark.circle.fill" : "plus.circle")
-                                        .font(.system(size: 22))
-                                        .foregroundStyle(picked ? WP.accent : WP.accent700.opacity(0.55))
-                                        .frame(width: 40, height: 40)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(PressStyle(scale: 0.9))
-                                .accessibilityLabel(picked
-                                    ? "Remove \(stop.name) from the drive"
-                                    : "Add \(stop.name) to the drive")
-
-                                Button {
-                                    stop.mapItem.openInMaps(launchOptions: [
-                                        MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
-                                    ])
-                                } label: {
-                                    Image(systemName: "arrow.triangle.turn.up.right.circle")
-                                        .font(.system(size: 20)).foregroundStyle(WP.accent700)
-                                        .frame(width: 36, height: 40)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Open \(stop.name) in Maps")
+                                // This used to hold a second control that put the stop
+                                // into a chain handed straight to Maps. The list does that
+                                // job now and does it better: a place goes on it once, from
+                                // whichever screen the reader found it on, and can be
+                                // switched out of the drive there without leaving the list.
+                                PlaceRowActions(place: PlannedPlace(
+                                    name: stop.name,
+                                    subtitle: "mile \(stop.mile) · \(stop.label)",
+                                    lat: stop.mapItem.placemark.coordinate.latitude,
+                                    lon: stop.mapItem.placemark.coordinate.longitude,
+                                    category: stop.kind.rawValue
+                                ), day: planDay)
                             }
                         }
                     }
@@ -429,7 +432,6 @@ struct DetailSheet: View {
             .padding(.top, 18).padding(.bottom, 2)
 
             ForEach(units) { unit in
-                let picked = chosenUnits.contains(unit.id)
                 DividedRow(vertical: 11) {
                     HStack(spacing: 12) {
                         Image(systemName: "leaf.fill")
@@ -446,36 +448,12 @@ struct DetailSheet: View {
                         }
                         Spacer(minLength: 0)
 
-                        Button {
-                            withAnimation(.snappy(duration: 0.18)) {
-                                if picked { chosenUnits.remove(unit.id) } else { chosenUnits.insert(unit.id) }
-                            }
-                            Haptics.tap()
-                        } label: {
-                            Image(systemName: picked ? "checkmark.circle.fill" : "plus.circle")
-                                .font(.system(size: 22))
-                                .foregroundStyle(picked ? WP.accent : WP.accent700.opacity(0.55))
-                                .frame(width: 40, height: 40)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(PressStyle(scale: 0.9))
-                        .accessibilityLabel(picked
-                            ? "Remove \(unit.name) from the drive"
-                            : "Add \(unit.name) to the drive")
-
-                        Button {
-                            Self.mapItem(lat: unit.lat, lon: unit.lon, name: unit.name)
-                                .openInMaps(launchOptions: [
-                                    MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
-                                ])
-                        } label: {
-                            Image(systemName: "arrow.triangle.turn.up.right.circle")
-                                .font(.system(size: 20)).foregroundStyle(WP.accent700)
-                                .frame(width: 36, height: 40)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Open \(unit.name) in Maps")
+                        PlaceRowActions(place: PlannedPlace(
+                            name: unit.name,
+                            subtitle: "\(unit.place) · \(unit.designation)",
+                            lat: unit.lat, lon: unit.lon,
+                            category: PlacesService.Kind.campground.rawValue
+                        ), day: planDay)
                     }
                 }
             }
@@ -489,57 +467,10 @@ struct DetailSheet: View {
         return item
     }
 
-    /// The park-service stops picked for this drive, nearest detour first.
-    private func pickedUnits(_ leg: TripRouting.Leg) -> [TripDays.Stop] {
-        (TripDays.shared.legStops[leg.id] ?? []).filter { chosenUnits.contains($0.id) }
-    }
-
     /// The stops this leg has found, if it has finished looking.
     private func readyStops(_ leg: TripRouting.Leg) -> [LegStops.Stop] {
         if case .ready(let stops, _) = LegStops.shared.state(for: leg) { return stops }
         return []
-    }
-
-    /// The picked stops, in the order they are driven past.
-    private func pickedStops(_ leg: TripRouting.Leg) -> [LegStops.Stop] {
-        readyStops(leg).filter { chosen.contains($0.id) }
-    }
-
-    private func openTitle(_ leg: TripRouting.Leg) -> String {
-        let count = pickedStops(leg).count + pickedUnits(leg).count
-        guard count > 0 else { return "Open in Maps" }
-        return "Open in Maps · \(count) stop\(count == 1 ? "" : "s")"
-    }
-
-    /// Hands the whole drive to Apple Maps — start, every picked stop in mile order, then
-    /// the park — as one route rather than a single destination.
-    ///
-    /// `MKMapItem.openMaps(with:)` takes the chain, which the old `?daddr=` URL could not:
-    /// that carried a park *name* and no stops at all, so Maps had to guess the destination
-    /// from a string and the driver re-added every stop by hand.
-    private func openRoute(_ leg: TripRouting.Leg) {
-        func item(_ point: (lat: Double, lon: Double), _ name: String) -> MKMapItem {
-            let item = MKMapItem(placemark: MKPlacemark(
-                coordinate: CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon)))
-            item.name = name
-            return item
-        }
-
-        var chain: [MKMapItem] = []
-        if let start = leg.coordinates.first { chain.append(item(start, leg.from)) }
-        chain += pickedStops(leg).map(\.mapItem)
-        // The park-service stops after the roadside ones: fuel and food are ordered by the
-        // mile they sit at, and a monument has no mile — it has a detour, which is what
-        // `pickedUnits` is already sorted by.
-        chain += pickedUnits(leg).map { Self.mapItem(lat: $0.lat, lon: $0.lon, name: $0.name) }
-        if let end = leg.coordinates.last { chain.append(item(end, leg.to)) }
-
-        // A leg with no geometry has nothing to hand over but the name it is going to.
-        guard chain.count > 1 else { return openInMaps(from: leg.from, to: leg.to) }
-
-        MKMapItem.openMaps(with: chain, launchOptions: [
-            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
-        ])
     }
 
     // MARK: Leg

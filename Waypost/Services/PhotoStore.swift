@@ -6,23 +6,28 @@ import UIKit
 /// difference between a screen that works and a screen that shrugs, so they are stored
 /// rather than re-fetched.
 ///
-/// **Sized to the screen, not to the source.** The widest thing this app ever draws a
-/// photograph into is the full width of the display; Wikipedia's original of Delicate
-/// Arch is 1.8 MB of pixels for a card 393 points across. Every image is therefore
-/// re-encoded to at most 1400 points on its long edge before it is written down —
-/// roughly 250 KB apiece, against a megabyte for the original.
+/// **Two sizes, because there are two jobs.** A 126×74 rail tile and a photograph filling
+/// the whole display are not the same request, and storing one size for both meant either
+/// a soft home screen or eight oversized decodes in a horizontal rail. `standardEdge` is
+/// what a card or a tile needs; `displayEdge` is the home carousel's, a little over the
+/// longest edge any current iPhone reports, so a full-bleed photograph is never upscaled.
+/// The size is part of the cache key, so the two never overwrite each other.
 ///
-/// **Capped, and honest about it.** Eighty megabytes, evicting whatever was read longest
-/// ago. All sixty-two national parks at one photograph each is about fifteen; the cap is
-/// there so that browsing hundreds of state parks cannot quietly fill a phone.
+/// **Capped, and honest about it.** Evicting whatever was read longest ago. The cap is
+/// there so that browsing hundreds of state parks — or rotating through every national
+/// park at display size — cannot quietly fill a phone.
 actor PhotoStore {
     static let shared = PhotoStore()
 
-    /// The ceiling. Reached only by browsing far past the national parks.
-    static let capBytes = 80 * 1024 * 1024
-    /// The long edge everything is stored at: a little over the widest iPhone, so a
-    /// photograph is never upscaled and never much larger than it needs to be.
-    static let longEdge: CGFloat = 1400
+    /// The ceiling. All sixty-three national parks at display size is about eighty of
+    /// this, which leaves room for the tiles and for a long browse through state parks.
+    static let capBytes = 220 * 1024 * 1024
+
+    /// What a card, a tile or a rail thumbnail is stored at.
+    static let standardEdge: CGFloat = 1400
+    /// What the home carousel is stored at. The 17 Pro Max reports 1320×2868; this is a
+    /// little over that, so no phone in service upscales its home screen.
+    static let displayEdge: CGFloat = 2900
 
     private let directory: URL
     private let manager = FileManager.default
@@ -35,30 +40,32 @@ actor PhotoStore {
 
     // MARK: Reading and writing
 
-    private func file(for key: String) -> URL {
-        directory.appendingPathComponent(Self.filename(key))
+    private func file(for key: String, edge: CGFloat) -> URL {
+        directory.appendingPathComponent(Self.filename(key, edge: edge))
     }
 
-    /// A stable, filesystem-safe name. The URL is the identity, so the same photograph
-    /// found twice is stored once.
-    private static func filename(_ key: String) -> String {
+    /// A stable, filesystem-safe name. The URL *and the size* are the identity, so the
+    /// same photograph stored for a tile and for the carousel is two files rather than
+    /// one that keeps being rewritten at whichever size was asked for last.
+    private static func filename(_ key: String, edge: CGFloat) -> String {
         let safe = key.unicodeScalars.map { CharacterSet.alphanumerics.contains($0) ? Character($0) : "-" }
-        return String(safe.suffix(120)) + ".jpg"
+        let suffix = edge == standardEdge ? "" : "-\(Int(edge))"
+        return String(safe.suffix(120)) + suffix + ".jpg"
     }
 
-    func image(for url: URL) -> UIImage? {
-        let path = file(for: url.absoluteString)
+    func image(for url: URL, maxEdge: CGFloat = PhotoStore.standardEdge) -> UIImage? {
+        let path = file(for: url.absoluteString, edge: maxEdge)
         guard let data = try? Data(contentsOf: path) else { return nil }
         // Reading it counts as using it, which is what keeps it out of the eviction.
         try? manager.setAttributes([.modificationDate: Date()], ofItemAtPath: path.path)
         return UIImage(data: data)
     }
 
-    /// Fetches, downsizes, stores and returns. A photograph already on disk is returned
-    /// without touching the network.
+    /// Fetches, downsizes, stores and returns. A photograph already on disk at this size
+    /// is returned without touching the network.
     @discardableResult
-    func fetch(_ url: URL) async -> UIImage? {
-        if let cached = image(for: url) { return cached }
+    func fetch(_ url: URL, maxEdge: CGFloat = PhotoStore.standardEdge) async -> UIImage? {
+        if let cached = image(for: url, maxEdge: maxEdge) { return cached }
 
         var request = URLRequest(url: url)
         request.setValue(ParkDirectory.userAgent, forHTTPHeaderField: "User-Agent")
@@ -67,17 +74,20 @@ actor PhotoStore {
               let full = UIImage(data: data)
         else { return nil }
 
-        let sized = Self.downsized(full)
-        guard let jpeg = sized.jpegData(compressionQuality: 0.82) else { return sized }
-        try? jpeg.write(to: file(for: url.absoluteString), options: .atomic)
+        let sized = Self.downsized(full, to: maxEdge)
+        // A photograph filling the display shows its own compression; a 74pt tile does not.
+        let quality: CGFloat = maxEdge > Self.standardEdge ? 0.92 : 0.82
+        guard let jpeg = sized.jpegData(compressionQuality: quality) else { return sized }
+        try? jpeg.write(to: file(for: url.absoluteString, edge: maxEdge), options: .atomic)
         evictIfNeeded()
         return sized
     }
 
-    private static func downsized(_ image: UIImage) -> UIImage {
+    /// Never upscales: a source smaller than the target is stored as it came.
+    private static func downsized(_ image: UIImage, to edge: CGFloat) -> UIImage {
         let longest = max(image.size.width, image.size.height)
-        guard longest > longEdge else { return image }
-        let scale = longEdge / longest
+        guard longest > edge else { return image }
+        let scale = edge / longest
         let target = CGSize(width: image.size.width * scale, height: image.size.height * scale)
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 1

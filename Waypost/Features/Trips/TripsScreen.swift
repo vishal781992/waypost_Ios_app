@@ -267,7 +267,7 @@ struct TripCard: View {
                 Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.68).padding(.top, 4)
                     .multilineTextAlignment(.leading)
 
-                RouteMapPlate(points: points, route: routeShape)
+                RouteMapPlate(id: trip.id, points: points, route: routeShape)
                     .frame(height: 132)
                     .padding(.top, 11)
 
@@ -353,6 +353,8 @@ struct TripCard: View {
 /// It is a picture, not a map to explore — no interaction modes, so a drag over it
 /// scrolls the list underneath.
 struct RouteMapPlate: View {
+    /// The trip this map is of — the key its picture is filed under.
+    var id: String
     /// Where the route starts, stops and ends.
     var points: [(lat: Double, lon: Double)]
     /// The drive as it is actually driven, when the router has answered.
@@ -386,37 +388,74 @@ struct RouteMapPlate: View {
         points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
     }
 
-    /// Bumped once the map has a projection, to draw the route a second time.
+    @State private var plate: UIImage?
+
+    /// What identifies this trip's map: where it stops, and how big the plate is.
     ///
-    /// `MapProxy.convert` answers nil until the map has laid out and worked out where on
-    /// screen a coordinate falls, so the first pass through the overlay converts nothing
-    /// and draws nothing — and nothing asks it again. The line only appeared when some
-    /// unrelated state change happened to re-run the body, which is why deleting a trip
-    /// made the route on the card above it materialise.
-    @State private var projection = 0
+    /// Deliberately not the road. The road is fetched again on every launch and lands a
+    /// moment after the card is drawn — a key that included it disagreed with itself twice
+    /// per launch, so every trip re-rendered its map from the network every time the app
+    /// opened. The stops are what a reader changes when they change a trip, and the road
+    /// follows from them.
+    private func key(size: CGSize, scale: CGFloat) -> String {
+        let places = points.map { String(format: "%.4f,%.4f", $0.lat, $0.lon) }
+        return (["\(Int(size.width))x\(Int(size.height))@\(Int(scale))"] + places)
+            .joined(separator: "|")
+    }
 
     var body: some View {
-        // The basemap is desaturated, the route is not — so the filter is applied to the
-        // map alone and the line is drawn over it, projected through MapReader.
-        MapReader { proxy in
-            Map(initialPosition: .region(region), interactionModes: [])
-                .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
-                .saturation(0)
-                .contrast(1.04)
-                // Fires when the camera settles on the initial region, by which point the
-                // projection is good. Interaction is off, so this cannot churn.
-                .onMapCameraChange(frequency: .onEnd) { _ in projection += 1 }
-                .overlay {
-                    RouteOverlay(coordinates: coordinates, stops: stops, routed: isRouted,
-                                 proxy: proxy, projection: projection)
+        // A drawn picture rather than a live map. The route is composited into it, so the
+        // basemap can be greyed without greying the line — the same trick the `MapReader`
+        // overlay used to do, moved to where the drawing now happens.
+        GeometryReader { geo in
+            let size = geo.size
+            let scale = UIScreen.main.scale
+
+            ZStack {
+                // Never blank. A trip whose map has not been drawn yet, on a phone with no
+                // signal to draw it, shows the plate rather than a hole in the card.
+                WP.surface.opacity(0.5)
+
+                if let plate {
+                    Image(uiImage: plate)
+                        .resizable()
+                        .frame(width: size.width, height: size.height)
+                        .transition(.opacity)
                 }
-                .task {
-                    // A card scrolled into view whose camera never reports a change would
-                    // otherwise keep its first, empty pass forever. One nudge after the
-                    // first layout pass covers it.
-                    await Task.yield()
-                    projection += 1
-                }
+            }
+            .animation(.easeOut(duration: 0.35), value: plate != nil)
+            // Re-runs when the road lands, so a card that came up with the dashed straight
+            // line replaces it with the drive as soon as the router answers.
+            .task(id: key(size: size, scale: scale) + (isRouted ? "|road" : "|straight")) {
+                // Let the layout settle before drawing anything. `GeometryReader` reports
+                // the card's width twice — an intermediate 126pt and then the real 332pt —
+                // and the plate's size is part of what a snapshot is filed under, so both
+                // passes rendered and each overwrote the other's file. Every launch went
+                // back to the network for maps it already had. `.task(id:)` cancels the
+                // previous run when the id changes, so a transient size never gets past
+                // this line.
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled else { return }
+
+                // Nothing to draw from until the trip has both ends of a drive. The
+                // origin resolves after the first layout pass, so asking before that is
+                // asking about a route that does not exist yet.
+                guard points.count > 1 else { return }
+                plate = await RouteSnapshotStore.shared.snapshot(
+                    id: id,
+                    key: key(size: size, scale: scale),
+                    region: region,
+                    size: size,
+                    scale: scale,
+                    route: coordinates,
+                    stops: stops,
+                    routed: isRouted,
+                    style: .init(line: UIColor(WP.accent),
+                                 start: UIColor(WP.accent700),
+                                 stopFill: UIColor(WP.bg),
+                                 stopStroke: UIColor(WP.accent700))
+                )
+            }
         }
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)

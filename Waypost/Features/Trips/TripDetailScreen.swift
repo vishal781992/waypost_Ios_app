@@ -1,3 +1,4 @@
+import MapKit
 import SwiftUI
 
 /// A trip, opened. Route / Days / Stays — the web app's single long scroll, split three
@@ -7,6 +8,8 @@ struct TripDetailScreen: View {
     var trip: SavedTrip
 
     @State private var segment: TripSegment = .route
+    /// Whether the "this drive has no stops on it" question is showing.
+    @State private var confirmingBareDrive = false
 
     private var parks: [CuratedPark] { trip.codes.compactMap { app.park($0) } }
     private var isSeed: Bool { trip.id == "seed" }
@@ -31,27 +34,41 @@ struct TripDetailScreen: View {
                         switch segment {
                         case .route: routeList
                         case .days: dayList
-                        case .stays: stayList
+                        case .list: TripPlanList(trip: trip)
                         }
                     }
                     .padding(.top, 20)
                     .panelTransition(id: segment)
 
-                    GlowButton(title: "Share this itinerary") {
-                        app.show("Sharing sends a read-only copy")
-                    }
-                    .padding(.top, 22)
-
-                    Text("Sharing sends a read-only copy. Whoever opens it can duplicate it into their own Trips.")
-                        .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3).padding(.top, 14)
+                    // Share is a disc now, and it floats. Full width at the foot of the
+                    // scroll it was the largest thing on the screen and the last thing
+                    // anybody wanted — on a trip with a fortnight of days it also sat
+                    // below all of them. See `shareDisc`.
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, WP.gutter)
                 .padding(.top, 18)
-                .padding(.bottom, WP.tabBarClearance)
+                // Enough for the floating share disc to clear the last line of the page.
+                .padding(.bottom, segment == .list ? WP.tabBarClearance : 82)
             }
             .scrollIndicators(.hidden)
             .captureScrollPosition()
+            // Frozen to the floor on My list. `safeAreaInset` also pads the scrolling
+            // content by the bar's height, so the last row still clears it.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if segment == .list { listFooter }
+            }
+            // On the other two it floats over the page and stays where it is while the
+            // page moves under it.
+            .overlay(alignment: .bottomTrailing) {
+                if segment != .list {
+                    shareDisc
+                        .padding(.trailing, WP.gutter)
+                        .padding(.bottom, 18)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .animation(Motion.panel, value: segment)
         }
         .background(WP.bg)
         .onAppear {
@@ -78,6 +95,104 @@ struct TripDetailScreen: View {
         .task(id: trip.id) {
             TripDays.shared.build(trip, parks: parks, legs: app.routing.legs(for: trip))
         }
+    }
+
+
+
+    /// Sharing, as one disc in the mark's orange.
+    ///
+    /// The same control wherever it sits: welded beside *drive it* on My list, floating over
+    /// the page on the other two. A trip is shared once and read many times, so it is the
+    /// smaller of the two things you can do with one.
+    private var shareDisc: some View {
+        Button {
+            app.show("Sharing sends a read-only copy")
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                // The glyph's own weight sits it low in its box; lifting it centres the
+                // arrow in the disc rather than the box that contains it.
+                .offset(y: -1)
+                .frame(width: 52, height: 52)
+                .background(Circle().fill(WP.mark))
+                .shadow(color: Color(hex: 0x181008, opacity: 0.22), radius: 10, y: 6)
+        }
+        .buttonStyle(PressStyle(scale: 0.94))
+        .accessibilityLabel("Share this itinerary")
+    }
+
+    // MARK: The list's frozen footer
+
+    /// Drive it, and share it — welded to the bottom of My list.
+    ///
+    /// The two were stacked full-width down the page with a paragraph between them, which
+    /// read as two unrelated announcements rather than as the pair of things you do with a
+    /// finished list. Share is the rarer of the two and becomes a disc; drive keeps the
+    /// words because it is the one that needs explaining.
+    private var listFooter: some View {
+        HStack(spacing: 11) {
+            GlowButton(title: driveTitle, minHeight: 52) {
+                driveTheList()
+            }
+
+            shareDisc
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, WP.gutter)
+        .padding(.top, 10)
+        .padding(.bottom, -12)
+        .background(WP.bg.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) { Hairline() }
+        .alert("No stops on the list", isPresented: $confirmingBareDrive) {
+            Button("Cancel", role: .cancel) {}
+            Button("Drive there") { openDrive(bare: true) }
+        } message: {
+            Text("Nothing on this list is set as a stop, so this will take you straight to \(parks.first?.name ?? "the first park") from where you are now.")
+        }
+    }
+
+    /// The places on the list that are actually driven to, in trip order.
+    private var listStops: [PlannedPlace] {
+        app.plan(for: trip.id).filter { $0.isStop }.compactMap(\.place)
+    }
+
+    private var driveTitle: String {
+        switch listStops.count {
+        case 0: return "Drive to \(parks.first?.name ?? "the park")"
+        case 1: return "Drive it with 1 stop"
+        case let count: return "Drive it with \(count) stops"
+        }
+    }
+
+    /// A drive with nothing on it is a legitimate thing to want and an easy thing to ask
+    /// for by accident — every stop switched off looks the same as never having added one.
+    /// So it asks first, and says what it is about to do.
+    private func driveTheList() {
+        if listStops.isEmpty { confirmingBareDrive = true } else { openDrive(bare: false) }
+    }
+
+    private func openDrive(bare: Bool) {
+        var chain: [MKMapItem] = []
+        if let origin = trip.resolvedOrigin(app.library) {
+            chain.append(Self.mapItem(lat: origin.lat, lon: origin.lon, name: origin.name))
+        }
+        chain += bare ? [] : listStops.map(\.mapItem)
+        // Always ends at the park, whether or not anything was picked on the way.
+        if let park = parks.first {
+            chain.append(Self.mapItem(lat: park.lat, lon: park.lon, name: park.name))
+        }
+        guard chain.count > 1 else { return }
+        MKMapItem.openMaps(with: chain, launchOptions: [
+            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
+        ])
+    }
+
+    private static func mapItem(lat: Double, lon: Double, name: String) -> MKMapItem {
+        let item = MKMapItem(placemark: MKPlacemark(
+            coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)))
+        item.name = name
+        return item
     }
 
     // MARK: Stats
@@ -168,8 +283,8 @@ struct TripDetailScreen: View {
             // includes, and the first one anybody actually drives.
             if let approach = app.routing.approach(for: trip) {
                 legRow(approach.curated, date: "", index: 0, label: "Getting there",
-                       flyRefusal: approach.flyRefusal) {
-                    app.sheet = .routedLeg(approach, label: "Getting there")
+                       flyRefusal: approach.flyRefusal, arriving: parks.first) {
+                    app.sheetTrip = trip.id; app.sheet = .routedLeg(approach, label: "Getting there")
                 }
             } else if case .routing = app.routing.approachPhase(for: trip) {
                 Text("Measuring the drive from where you are to \(parks.first?.name ?? "the first park")…")
@@ -196,8 +311,9 @@ struct TripDetailScreen: View {
                 ForEach(Array(parks.enumerated()), id: \.element.code) { index, park in
                     if index < routed.count {
                         let leg = routed[index]
-                        legRow(leg.curated, date: "", index: index, flyRefusal: leg.flyRefusal) {
-                            app.sheet = .routedLeg(leg, label: leg.fly == nil ? "Driving day" : "Flying day")
+                        legRow(leg.curated, date: "", index: index, flyRefusal: leg.flyRefusal,
+                               arriving: park) {
+                            app.sheetTrip = trip.id; app.sheet = .routedLeg(leg, label: leg.fly == nil ? "Driving day" : "Flying day")
                         }
                     }
                     parkRow(park, date: trip.dates, days: 2, numeral: ["I", "II", "III", "IV", "V"][min(index, 4)])
@@ -208,12 +324,53 @@ struct TripDetailScreen: View {
                     let homeLabel = home.fly == nil ? "The drive home" : "The flight home"
                     legRow(home.curated, date: "", index: parks.count, label: homeLabel,
                            flyRefusal: home.flyRefusal) {
-                        app.sheet = .routedLeg(home, label: homeLabel)
+                        app.sheetTrip = trip.id; app.sheet = .routedLeg(home, label: homeLabel)
                     }
                 }
 
                 Text(routingNote)
                     .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.top, 14)
+            }
+        }
+    }
+
+
+    // MARK: Weather on the route
+
+    /// The trip's days, once they have been worked out. The route tab draws legs and parks
+    /// rather than days, so this is where a row finds out which date it happens on.
+    private var plannedDaysList: [TripDays.Day] {
+        if case .ready(let days) = TripDays.shared.state(for: trip) { return days }
+        return []
+    }
+
+    /// The date of the nth drive, in the order they are driven.
+    private func travelDate(_ index: Int) -> Date? {
+        let travel = plannedDaysList.compactMap { day -> Date? in
+            if case .travel = day.kind { return day.date }
+            return nil
+        }
+        return travel.indices.contains(index) ? travel[index] : nil
+    }
+
+    /// Every date spent in one park. Two entries for a two-day park, which is what earns
+    /// that park a symbol per day rather than one average true of neither.
+    private func parkDates(_ code: String) -> [Date] {
+        plannedDaysList.compactMap { day in
+            if case .park(let dayCode, _, _, _) = day.kind, dayCode == code { return day.date }
+            return nil
+        }
+    }
+
+    /// A leg is weathered at the place it arrives — the end of a drive is where the day is
+    /// spent, and the start of it is a park whose own row already carries the morning.
+    private func legWeather(_ index: Int, to park: CuratedPark?) -> some View {
+        Group {
+            if let park, let date = travelDate(index) {
+                WeatherGlyph(day: TripWeather.shared.day(lat: park.lat, lon: park.lon, date: date))
+                    .task(id: park.code + date.description) {
+                        TripWeather.shared.load(lat: park.lat, lon: park.lon, date: date)
+                    }
             }
         }
     }
@@ -229,13 +386,18 @@ struct TripDetailScreen: View {
     private func legRow(_ leg: CuratedLeg, date: String, index: Int,
                         label: String? = nil,
                         flyRefusal: String? = nil,
+                        arriving: CuratedPark? = nil,
                         onTap: (() -> Void)? = nil) -> some View {
         Button {
             // A seed leg opens the sheet the library built; a routed one opens the sheet
             // built from what the router returned. Both open.
-            if let onTap { onTap() } else { app.sheet = .leg(index: index, date: date) }
+            if let onTap { onTap() } else { app.sheetTrip = trip.id; app.sheet = .leg(index: index, date: date) }
         } label: {
             DividedRow(vertical: 13) {
+                // Centred, not top-aligned. The glyph pinned to the top of the row sat
+                // level with the "LEG I" rule and read as belonging to the heading rather
+                // than to the drive under it.
+                HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 9) {
                         Text((label ?? "Leg \(["I", "II", "III", "IV"][min(index, 3)])").uppercased())
@@ -265,16 +427,61 @@ struct TripDetailScreen: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                Spacer(minLength: 0)
+                // One column down the right edge of the whole route, so the weather of a
+                // trip reads as a strip in a single pass rather than as a fact buried in
+                // each row's own sentence.
+                legWeather(index, to: arriving)
+
+                // The same chevron the park rows carry. A leg opens a sheet with the
+                // whole drive in it and nothing said so — the row was the only openable
+                // thing on this screen with no mark on it.
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(WP.accent700)
+                }
             }
         }
         .buttonStyle(PressStyle(scale: 0.99))
     }
 
+
+    /// A park's sky for the days actually spent in it.
+    ///
+    /// One day, one symbol. More than one, a symbol each with the weekday over it — a
+    /// two-day park averaged into a single glyph is a reading true of neither day, and
+    /// "which of the two is the wet one" is the question somebody planning a park actually
+    /// has. Capped at three so a long stay cannot push the row off its own edge.
+    @ViewBuilder
+    private func parkWeather(_ park: CuratedPark) -> some View {
+        let dates = parkDates(park.code)
+        HStack(spacing: 9) {
+            ForEach(Array(dates.prefix(3).enumerated()), id: \.offset) { _, date in
+                WeatherGlyph(
+                    day: TripWeather.shared.day(lat: park.lat, lon: park.lon, date: date),
+                    caption: dates.count > 1 ? Self.weekday.string(from: date) : nil
+                )
+            }
+        }
+        .task(id: park.code + "\(dates.count)") {
+            for date in dates.prefix(3) {
+                TripWeather.shared.load(lat: park.lat, lon: park.lon, date: date)
+            }
+        }
+    }
+
+    private static let weekday: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter
+    }()
+
     private func parkRow(_ park: CuratedPark, date: String, days: Int, numeral: String) -> some View {
         Button {
             // Opened for the day the trip reaches it, so the weather panel answers for
-            // then rather than for today.
-            app.openPark(park.code, date: trip.startDate)
+            // then rather than for today — and carrying the trip, so every list on the
+            // park screen can put a place on this trip's list.
+            app.openPark(park.code, date: trip.startDate, trip: trip.id)
         } label: {
             DividedRow(vertical: 14) {
                 HStack(spacing: 13) {
@@ -293,14 +500,17 @@ struct TripDetailScreen: View {
                         Text(park.name).font(WP.rowTitle(18))
                         // A park the curated library has no weather for reported "0°" here,
                         // which reads as a freezing forecast rather than as no forecast.
-                        Text([date,
-                              "\(days) day\(days == 1 ? "" : "s")",
-                              park.wx.isPublished ? "\(park.wx.hi)°" : ""]
+                        // The high has moved to the glyph on the right, where it sits under
+                        // the sky it belongs to.
+                        Text([date, "\(days) day\(days == 1 ? "" : "s")"]
                                 .filter { !$0.isEmpty }
                                 .joined(separator: " · "))
                             .font(WP.body(12)).opacity(0.62).tnum()
                     }
                     Spacer(minLength: 0)
+
+                    parkWeather(park)
+
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(WP.accent700)
@@ -346,8 +556,230 @@ struct TripDetailScreen: View {
         }
     }
 
-    /// Which descriptions have been opened out.
+    /// The trip, day by day: what is driven, what is worth stopping at on the way, and
+    /// what the park service says there is to do once you are there.
+    @ViewBuilder
+    private var plannedDays: some View {
+        switch TripDays.shared.state(for: trip) {
+        case .idle, .building:
+            HStack(spacing: 9) {
+                ProgressView().controlSize(.small)
+                Text("Working out the days — the roads, and what the park service has near them…")
+                    .font(WP.bodyItalic(12.5)).opacity(0.7).lineSpacing(3)
+            }
+        case .failed(let why):
+            Text(why).font(WP.bodyItalic(13)).opacity(0.7).lineSpacing(3)
+        case .ready(let days):
+            ForEach(days) { day in
+                PlannedDayRow(day: day)
+                    .environment(\.planningTrip, trip.id)
+            }
+
+            SourceLine("Stops from the National Park Service, detours measured by OSRM against the same drive without them. Things to do are the park service's own list, in its own order — NPS publishes no rating to sort by.")
+                .padding(.top, 14)
+        }
+    }
+
+    private func dayKicker(_ day: CuratedDay) -> String {
+        if day.isLeg { return "Driving day" }
+        guard let code = day.code, let park = app.library.park(code) else { return "" }
+        return "\(park.name) · day \(day.n ?? 1) of \(day.of ?? 1)"
+    }
+
+    private func dayTitle(_ day: CuratedDay) -> String {
+        if let index = day.leg, app.library.legs.indices.contains(index) {
+            let leg = app.library.legs[index]
+            return "\(leg.from) → \(leg.to)"
+        }
+        // The park itself. This used to print a written-down itinerary title — "Geyser
+        // basins" — which shipped for eight parks and for no others, so most trips got a
+        // blank line where a day's name should be.
+        guard let code = day.code, let park = app.library.park(code) else { return "" }
+        return park.name
+    }
+
+    private func daySub(_ day: CuratedDay) -> String {
+        if let index = day.leg, app.library.legs.indices.contains(index) {
+            let leg = app.library.legs[index]
+            return "\(leg.mi) mi · \(leg.drive) · \(leg.ev.count) charge stops"
+        }
+        guard let code = day.code, let park = app.library.park(code) else { return "" }
+        // The temperature only once something has answered for it. It was the bundled
+        // August high, printed against whatever date the trip actually falls on.
+        guard park.wx.isPublished else { return park.gw }
+        return park.gw.isEmpty ? "\(park.wx.hi)°" : "\(park.wx.hi)° · \(park.gw)"
+    }
+}
+
+
+// MARK: - One planned day
+
+/// A day of the trip, folded down to a line.
+///
+/// The plan printed every day in full: the drive, the detours worth taking, and the park
+/// service's own paragraph about each thing to do at each park. Four days filled a screen,
+/// so a fortnight was fourteen screens and the *shape* of a trip — where the driving is,
+/// which parks get two days — could not be seen at all. Folded, a fortnight fits on one
+/// screen and the question "what am I doing on Wednesday" is answered by scanning rather
+/// than by scrolling.
+///
+/// The shut line is never blank: a driving day keeps its mileage, a park day says how many
+/// things are in it. Nothing is hidden that was not already a paragraph.
+private struct PlannedDayRow: View {
+    var day: TripDays.Day
+
+    @State private var isOpen = false
+    /// Which descriptions inside this day have been opened out.
     @State private var expandedDoings: Set<String> = []
+
+    var body: some View {
+        DividedRow(vertical: 13) {
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                if isOpen {
+                    detail
+                        .padding(.top, 7)
+                        .padding(.leading, 74)
+                        .transition(.opacity)
+                }
+            }
+        }
+    }
+
+    // MARK: Shut
+
+    private var header: some View {
+        Button {
+            withAnimation(Motion.panel) { isOpen.toggle() }
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Text(day.dateLabel)
+                    .font(WP.body(11.5))
+                    .foregroundStyle(WP.accent700)
+                    .frame(width: 62, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(kicker.uppercased())
+                        .font(WP.body(10)).tracking(1.4).opacity(0.55)
+                    Text(summary)
+                        .font(WP.rowTitle(17))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+
+                if let trailing {
+                    Text(trailing)
+                        .font(WP.body(12)).opacity(0.62).tnum()
+                        .padding(.top, 13)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(WP.accent700)
+                    .rotationEffect(.degrees(isOpen ? 90 : 0))
+                    .padding(.top, 13)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle(scale: 0.995))
+        .accessibilityLabel("\(day.dateLabel). \(kicker). \(summary)")
+        .accessibilityHint(isOpen ? "Collapses the day" : "Expands the day")
+        .accessibilityAddTraits(isOpen ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private var kicker: String {
+        switch day.kind {
+        case .travel(_, _, _, _, let fly): return fly == nil ? "Driving day" : "Flying day"
+        case .park(_, let name, let number, let of): return "\(name) · day \(number) of \(of)"
+        }
+    }
+
+    /// The one line the day is worth when it is shut.
+    private var summary: String {
+        switch day.kind {
+        case .travel(let from, let to, _, _, _):
+            return "\(from) → \(to)"
+        case .park:
+            switch day.doings.count {
+            case 0: return day.doingsNote == nil ? "Nothing to do listed" : "Nothing listed yet"
+            case 1: return "1 thing to do"
+            case let count: return "\(count) things to do"
+            }
+        }
+    }
+
+    /// What a driving day is, in the space a park day does not need.
+    private var trailing: String? {
+        guard case .travel(_, _, let miles, _, _) = day.kind else { return nil }
+        return "\(miles) mi"
+    }
+
+    // MARK: Open
+
+    @ViewBuilder
+    private var detail: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            switch day.kind {
+            case .travel(_, _, let miles, let drive, let fly):
+                if let fly {
+                    Text("\(fly.via) · \(fly.time)")
+                        .font(WP.body(12)).foregroundStyle(WP.accent700).tnum()
+                    Text("\(miles) mi · \(drive) if driven instead")
+                        .font(WP.bodyItalic(11.5)).opacity(0.55).tnum()
+                    // A flown leg has no roadside to stop at, so the day says nothing
+                    // about detours rather than reporting that it found none.
+                } else {
+                    Text("\(miles) mi · \(drive)")
+                        .font(WP.body(12)).opacity(0.62).tnum()
+
+                    if day.stops.isEmpty {
+                        Text("Nothing of the park service's within a two-hour detour of this drive.")
+                            .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text("Worth stopping for".uppercased())
+                            .font(WP.body(9.5)).tracking(1.3)
+                            .foregroundStyle(WP.mark)
+                            .padding(.top, 4)
+                        ForEach(day.stops) { stop in
+                            HStack(alignment: .top, spacing: 9) {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(stop.name).font(WP.body(13.5))
+                                    Text("\(stop.place) · \(stop.designation) · \(stop.diversionLine)")
+                                        .font(WP.bodyItalic(11)).opacity(0.6)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer(minLength: 0)
+                                // A detour worth taking is exactly the kind of thing that
+                                // should end up on the list, and this is the screen where
+                                // a reader decides it is worth taking.
+                                PlaceRowActions(place: PlannedPlace(
+                                    name: stop.name,
+                                    subtitle: "\(stop.place) · \(stop.designation)",
+                                    lat: stop.lat, lon: stop.lon,
+                                    category: PlacesService.Kind.campground.rawValue
+                                ), day: day.date)
+                            }
+                        }
+                    }
+                }
+
+            case .park:
+                if day.doings.isEmpty {
+                    Text(day.doingsNote ?? "Nothing to do listed for this park.")
+                        .font(WP.bodyItalic(12)).opacity(0.6).lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    ForEach(day.doings) { doing in
+                        doingRow(doing)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
     /// One thing to do, with a way to read the rest of what the park service wrote.
     ///
@@ -402,170 +834,4 @@ struct TripDetailScreen: View {
         .accessibilityHint(hasMore ? (isOpen ? "Collapses the description" : "Expands the description") : "")
     }
 
-    /// The trip, day by day: what is driven, what is worth stopping at on the way, and
-    /// what the park service says there is to do once you are there.
-    @ViewBuilder
-    private var plannedDays: some View {
-        switch TripDays.shared.state(for: trip) {
-        case .idle, .building:
-            HStack(spacing: 9) {
-                ProgressView().controlSize(.small)
-                Text("Working out the days — the roads, and what the park service has near them…")
-                    .font(WP.bodyItalic(12.5)).opacity(0.7).lineSpacing(3)
-            }
-        case .failed(let why):
-            Text(why).font(WP.bodyItalic(13)).opacity(0.7).lineSpacing(3)
-        case .ready(let days):
-            ForEach(days) { day in
-                DividedRow(vertical: 13) {
-                    HStack(alignment: .top, spacing: 12) {
-                        Text(day.dateLabel)
-                            .font(WP.body(11.5))
-                            .foregroundStyle(WP.accent700)
-                            .frame(width: 62, alignment: .leading)
-                        VStack(alignment: .leading, spacing: 5) {
-                            switch day.kind {
-                            case .travel(let from, let to, let miles, let drive, let fly):
-                                Text((fly == nil ? "Driving day" : "Flying day").uppercased())
-                                    .font(WP.body(10)).tracking(1.4).opacity(0.55)
-                                Text("\(from) → \(to)").font(WP.rowTitle(17))
-                                    .multilineTextAlignment(.leading)
-                                if let fly {
-                                    Text("\(fly.via) · \(fly.time)")
-                                        .font(WP.body(12)).foregroundStyle(WP.accent700).tnum()
-                                    Text("\(miles) mi · \(drive) if driven instead")
-                                        .font(WP.bodyItalic(11.5)).opacity(0.55).tnum()
-                                } else {
-                                    Text("\(miles) mi · \(drive)")
-                                        .font(WP.body(12)).opacity(0.62).tnum()
-                                }
-
-                                if fly != nil {
-                                    // A flown leg has no roadside to stop at, so the day
-                                    // says nothing about detours rather than reporting
-                                    // that it found none.
-                                    EmptyView()
-                                } else if day.stops.isEmpty {
-                                    Text("Nothing of the park service's within a two-hour detour of this drive.")
-                                        .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                } else {
-                                    Text("Worth stopping for".uppercased())
-                                        .font(WP.body(9.5)).tracking(1.3)
-                                        .foregroundStyle(WP.mark)
-                                        .padding(.top, 4)
-                                    ForEach(day.stops) { stop in
-                                        VStack(alignment: .leading, spacing: 1) {
-                                            Text(stop.name).font(WP.body(13.5))
-                                            Text("\(stop.place) · \(stop.designation) · \(stop.diversionLine)")
-                                                .font(WP.bodyItalic(11)).opacity(0.6)
-                                                .fixedSize(horizontal: false, vertical: true)
-                                        }
-                                    }
-                                }
-
-                            case .park(_, let name, let number, let of):
-                                Text("\(name) · day \(number) of \(of)".uppercased())
-                                    .font(WP.body(10)).tracking(1.4).opacity(0.55)
-                                if day.doings.isEmpty {
-                                    Text(day.doingsNote ?? "Nothing to do listed for this park.")
-                                        .font(WP.bodyItalic(12)).opacity(0.6).lineSpacing(2)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                } else {
-                                    ForEach(day.doings) { doing in
-                                        doingRow(doing)
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(minLength: 0)
-                    }
-                }
-            }
-
-            SourceLine("Stops from the National Park Service, detours measured by OSRM against the same drive without them. Things to do are the park service's own list, in its own order — NPS publishes no rating to sort by.")
-                .padding(.top, 14)
-        }
-    }
-
-    private func dayKicker(_ day: CuratedDay) -> String {
-        if day.isLeg { return "Driving day" }
-        guard let code = day.code, let park = app.library.park(code) else { return "" }
-        return "\(park.name) · day \(day.n ?? 1) of \(day.of ?? 1)"
-    }
-
-    private func dayTitle(_ day: CuratedDay) -> String {
-        if let index = day.leg, app.library.legs.indices.contains(index) {
-            let leg = app.library.legs[index]
-            return "\(leg.from) → \(leg.to)"
-        }
-        // The park itself. This used to print a written-down itinerary title — "Geyser
-        // basins" — which shipped for eight parks and for no others, so most trips got a
-        // blank line where a day's name should be.
-        guard let code = day.code, let park = app.library.park(code) else { return "" }
-        return park.name
-    }
-
-    private func daySub(_ day: CuratedDay) -> String {
-        if let index = day.leg, app.library.legs.indices.contains(index) {
-            let leg = app.library.legs[index]
-            return "\(leg.mi) mi · \(leg.drive) · \(leg.ev.count) charge stops"
-        }
-        guard let code = day.code, let park = app.library.park(code) else { return "" }
-        // The temperature only once something has answered for it. It was the bundled
-        // August high, printed against whatever date the trip actually falls on.
-        guard park.wx.isPublished else { return park.gw }
-        return park.gw.isEmpty ? "\(park.wx.hi)°" : "\(park.wx.hi)° · \(park.gw)"
-    }
-
-    // MARK: Stays
-
-    /// The park service's campgrounds for one park, once its record has arrived.
-    private func campgrounds(for park: CuratedPark) -> [ParkFacts.Campground] {
-        if case .loaded(let facts) = ParkFacts.shared.state(for: park) { return facts.campgrounds }
-        return []
-    }
-
-    private var stayList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(parks) { park in
-                let camps = campgrounds(for: park)
-                if camps.isEmpty {
-                    DividedRow(vertical: 12) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(park.name.uppercased())
-                                .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent)
-                            Text("Asking the park service for this park's campgrounds…")
-                                .font(WP.body(12)).opacity(0.65).lineSpacing(2)
-                        }
-                    }
-                } else {
-                    ForEach(camps) { camp in
-                        DividedRow(vertical: 12) {
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(park.name.uppercased())
-                                    .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent)
-                                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                    Text(camp.name).font(WP.rowTitle(17)).multilineTextAlignment(.leading)
-                                    Spacer(minLength: 0)
-                                    if let fee = camp.fee {
-                                        Text(fee).font(WP.body(12.5)).foregroundStyle(WP.accent700)
-                                    }
-                                }
-                                if let note = camp.reservationNote {
-                                    Text(note).font(WP.body(12)).opacity(0.65).lineSpacing(2)
-                                        .multilineTextAlignment(.leading)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            SourceLine("Campgrounds from the National Park Service. Availability for your own nights is not published to this app — confirm with the campground.")
-        }
-        // The trip screen reads these; nothing else on it has asked for them.
-        .task(id: parks.map(\.code).joined()) {
-            for park in parks { ParkFacts.shared.load(park) }
-        }
-    }
 }

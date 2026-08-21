@@ -167,3 +167,37 @@ extension View {
         }
     }
 }
+
+// MARK: - Planning context
+
+/// The trip whose list the screen you are looking at can add to, when there is one.
+///
+/// Nil on a park opened from the home screen or from Discover — those are the same screens
+/// showing the same rows, but with no trip behind them there is nothing to add a place to,
+/// so no row offers.
+struct PlanningTripKey: EnvironmentKey {
+    static let defaultValue: String? = nil
+}
+
+extension EnvironmentValues {
+    var planningTrip: String? {
+        get { self[PlanningTripKey.self] }
+        set { self[PlanningTripKey.self] = newValue }
+    }
+}
+
+/// The day a screen's add controls file things under, when the screen knows one.
+///
+/// A park opened from a trip is opened *for* the day the trip reaches it. Without this,
+/// every charger and café added from a park screen landed in the list's undated section and
+/// had to be moved by hand — which is most of the work the list was meant to save.
+struct PlanningDayKey: EnvironmentKey {
+    static let defaultValue: Date? = nil
+}
+
+extension EnvironmentValues {
+    var planningDay: Date? {
+        get { self[PlanningDayKey.self] }
+        set { self[PlanningDayKey.self] = newValue }
+    }
+}

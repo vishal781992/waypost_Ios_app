@@ -320,6 +320,69 @@ struct WeatherDay: Hashable {
     var note: String?
     var isNormals: Bool = false
     var years: Int?
+    /// What the sky is doing, when a source will say. Nil is not "clear" — it is "nobody
+    /// told us", and nothing is drawn for it.
+    var condition: WeatherCondition?
+}
+
+/// The sky, in the handful of states worth a symbol on a row.
+///
+/// Deliberately coarser than the forty-odd codes the WMO publishes: a reader glancing at a
+/// trip wants to know whether to expect sun, cloud, water or ice, and nine glyphs that can
+/// be told apart at 19pt beat forty that cannot. Everything maps into one of these.
+enum WeatherCondition: String, Hashable, Codable {
+    case clear, mainlyClear, cloudy, fog, drizzle, rain, snow, sleet, thunderstorm
+
+    /// The park service's weather in Apple's own glyphs. SF Symbols rather than drawn
+    /// shapes: they are already on the phone, they carry the reader's Dynamic Type size,
+    /// and they are the vocabulary every other weather reading on iOS uses.
+    /// The filled cuts, not the outlines. These are drawn in the mark's orange at 19pt,
+    /// and an outline at that size in that colour reads as a thin sketch rather than as a
+    /// symbol — the fill is what lets the colour carry.
+    var symbol: String {
+        switch self {
+        case .clear: return "sun.max.fill"
+        case .mainlyClear: return "cloud.sun.fill"
+        case .cloudy: return "cloud.fill"
+        case .fog: return "cloud.fog.fill"
+        case .drizzle: return "cloud.drizzle.fill"
+        case .rain: return "cloud.rain.fill"
+        case .snow: return "cloud.snow.fill"
+        case .sleet: return "cloud.sleet.fill"
+        case .thunderstorm: return "cloud.bolt.rain.fill"
+        }
+    }
+
+    /// Said in words for VoiceOver, which cannot read a glyph.
+    var label: String {
+        switch self {
+        case .clear: return "Clear"
+        case .mainlyClear: return "Mainly clear"
+        case .cloudy: return "Cloudy"
+        case .fog: return "Fog"
+        case .drizzle: return "Drizzle"
+        case .rain: return "Rain"
+        case .snow: return "Snow"
+        case .sleet: return "Freezing rain"
+        case .thunderstorm: return "Thunderstorms"
+        }
+    }
+
+    /// The WMO codes Open-Meteo answers with, folded into the nine.
+    init?(wmo code: Int) {
+        switch code {
+        case 0: self = .clear
+        case 1, 2: self = .mainlyClear
+        case 3: self = .cloudy
+        case 45, 48: self = .fog
+        case 51, 53, 55, 56, 57: self = .drizzle
+        case 61, 63, 65, 80, 81, 82: self = .rain
+        case 66, 67: self = .sleet
+        case 71, 73, 75, 77, 85, 86: self = .snow
+        case 95, 96, 99: self = .thunderstorm
+        default: return nil
+        }
+    }
 }
 
 /// Recreation.gov availability for one campground over the nights of a stay.

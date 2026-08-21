@@ -54,6 +54,11 @@ final class ParkFacts {
         /// campground it runs, including the first-come ones that book nowhere — which is
         /// exactly the case a Recreation.gov link cannot cover.
         var npsURL: URL?
+        /// Where it actually is. The park service publishes a point for every campground
+        /// it runs, and without one a campground cannot be a waypoint in a drive — the
+        /// park's own centre would put the stop miles from the site.
+        var lat: Double?
+        var lon: Double?
         var id: String { name }
     }
 
@@ -369,7 +374,12 @@ final class ParkFacts {
                     reservationNote: (camp["reservationInfo"] as? String).map { Self.sentences($0, within: 180) },
                     // "…/camping/campgrounds/232445" — the join across to Recreation.gov.
                     facilityID: Self.facilityID(from: camp["reservationUrl"] as? String),
-                    npsURL: Self.parkServiceURL(from: camp["url"] as? String)
+                    npsURL: Self.parkServiceURL(from: camp["url"] as? String),
+                    // NPS sends these as strings, and as empty strings for the handful of
+                    // campgrounds it has not surveyed — hence `Double.init` rather than a
+                    // cast, and optionals rather than a zero that would plot off Africa.
+                    lat: (camp["latitude"] as? String).flatMap(Double.init),
+                    lon: (camp["longitude"] as? String).flatMap(Double.init)
                 )
             },
             thingsToDo: things.prefix(8).compactMap { thing in

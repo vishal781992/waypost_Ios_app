@@ -23,8 +23,11 @@ struct WaypostApp: App {
                 } else {
                     RootShell()
                         .environment(app)
-                        // The Classical palette is a light one and commits to it, as on the web.
-                        .preferredColorScheme(.light)
+                        // The Classical palette is a light one and commits to it, as on the
+                        // web — but the home screen is a photograph behind the status bar and
+                        // needs the dark scheme for those glyphs alone. `RootShell` decides,
+                        // per tab; a `.preferredColorScheme(.light)` written here would sit
+                        // outside it and win, which is exactly what it used to do.
                         .tint(WP.accent)
                         .transition(.opacity)
                 }
@@ -114,13 +117,26 @@ struct RootShell: View {
                     .allowsHitTesting(false)
             }
         }
+        // The status bar the home screen needs, decided here rather than inside the
+        // `TabView`. Home is a photograph under the clock and the battery, and those take
+        // their colour from the window's scheme — dark glyphs over a cave mouth are simply
+        // gone. Written at this level because a preference set inside a `TabView` page does
+        // not reliably reach the window: it held at launch and was lost the first time a
+        // reader came back from another tab.
+        //
+        // Only at the root of Today. A park pushed out of it is a paper screen again.
+        .preferredColorScheme(currentTab == .today && app.path(for: .today).isEmpty ? .dark : .light)
         .sheet(item: Binding(get: { currentSheet }, set: { app.sheet = $0 })) { sheet in
+            // The sheets are paper whatever is behind them, so they say so rather than
+            // inheriting whichever scheme the tab underneath happens to be wearing.
             DetailSheet(sheet: sheet)
+                .preferredColorScheme(.light)
+                .environment(\.planningTrip, app.sheetTrip)
         }
         .sheet(isPresented: Binding(get: { openBuilder != nil },
                                     set: { if !$0 { app.builder = nil } })) {
             if let openBuilder {
-                NewTripSheet(builder: openBuilder)
+                NewTripSheet(builder: openBuilder).preferredColorScheme(.light)
             }
         }
     }
@@ -138,10 +154,19 @@ struct RootShell: View {
                 // The system bar is off everywhere; `CompactTabBar` stands in for it.
                 .toolbar(.hidden, for: .tabBar)
                 .navigationDestination(for: PushedScreen.self) { screen in
-                    pushed(screen)
-                        .toolbar(.hidden, for: .navigationBar)
-                        .zoomDestination(screen.id, in: zoom)
-                        .toolbar(.hidden, for: .tabBar)
+                    // Every pushed screen gets its own paper, here rather than in each
+                    // screen. Discover never painted one — it read the page colour off the
+                    // tab root showing through behind it, which worked only because the
+                    // window was light everywhere. Now that Today puts the window into the
+                    // dark scheme for its status bar, that show-through is black, and
+                    // Discover pushed in over a black page before its own content landed.
+                    ZStack {
+                        WP.bg.ignoresSafeArea()
+                        pushed(screen)
+                    }
+                    .toolbar(.hidden, for: .navigationBar)
+                    .zoomDestination(screen.id, in: zoom)
+                    .toolbar(.hidden, for: .tabBar)
                 }
         }
     }
@@ -150,14 +175,22 @@ struct RootShell: View {
     /// and the zoom come with it.
     @ViewBuilder
     private func destination(_ tab: AppTab) -> some View {
-        ZStack {
-            WP.bg.ignoresSafeArea()
+        switch tab {
+        // Home lays its own ground: a photograph, full-bleed to all four edges. The page
+        // colour under it would only ever be the half-second of paper before the first
+        // picture arrives, and the carousel's own colour field is the better answer.
+        case .today:
+            HomeCarouselView()
+        case .trips, .saved, .me:
+            ZStack {
+                WP.bg.ignoresSafeArea()
 
-            switch tab {
-            case .today: TodayScreen()
-            case .trips: TripsScreen()
-            case .saved: SavedScreen()
-            case .me: ProfileScreen()
+                switch tab {
+                case .trips: TripsScreen()
+                case .saved: SavedScreen()
+                case .me: ProfileScreen()
+                case .today: EmptyView()
+                }
             }
         }
     }
@@ -165,9 +198,16 @@ struct RootShell: View {
     @ViewBuilder
     private func pushed(_ screen: PushedScreen) -> some View {
         switch screen {
-        case .park(let code, let segment, let date):
+        case .park(let code, let segment, let date, let trip):
             if let park = app.park(code) {
                 ParkScreen(park: park, initialSegment: segment, date: date)
+                    // Only a park opened from a trip can add to that trip's list. From the
+                    // home screen or from Discover this is nil and no add control is drawn,
+                    // because there is no list for a place to go on.
+                    .environment(\.planningTrip, trip)
+                    // The day the trip reaches this park, so what is added here files
+                    // itself under that day rather than into the undated pile.
+                    .environment(\.planningDay, date)
             }
         case .trip(let id):
             if let trip = app.trip(id) {
