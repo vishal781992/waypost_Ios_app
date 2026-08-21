@@ -258,10 +258,29 @@ extension Park {
 
 // MARK: - Legs
 
+/// One end of a flown leg: which airport, and where on the earth it is.
+struct FlyAirport: Codable, Hashable {
+    var code: String
+    var lat: Double
+    var lon: Double
+}
+
 struct FlyOption: Codable, Hashable {
     var via: String
     var time: String
     var note: String
+    /// The airports the leg would be flown between.
+    ///
+    /// `FlightCompare` has always known these — it finds both hubs and measures the air
+    /// miles between them — and then returned nothing but `via`, a string reading
+    /// "MDW → SLC". Two coordinates went into every verdict and neither came out, so the
+    /// map had no way to draw a leg the app itself had decided to fly.
+    ///
+    /// Optional because the bundled table in `curated.json` names a connection in prose
+    /// and carries no coordinates at all. A flight with no airports is drawn as a drive,
+    /// which is what it was before.
+    var from: FlyAirport? = nil
+    var to: FlyAirport? = nil
 }
 
 struct Leg: Codable, Hashable {

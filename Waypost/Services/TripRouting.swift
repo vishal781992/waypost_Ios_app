@@ -28,6 +28,8 @@ final class TripRouting {
         /// What flying this leg would cost against driving it — `nil` on a trip that never
         /// asked, `.drives(why)` on one that asked and was told no.
         var flight: FlightCompare.Verdict?
+        /// The shape of a flown leg. `nil` on one that is driven, which is most of them.
+        var flightPath: FlightPath?
         var id: String { from + to }
 
         static func == (a: Leg, b: Leg) -> Bool { a.id == b.id && a.miles == b.miles }
@@ -51,6 +53,43 @@ final class TripRouting {
             // one is what the bundled table decodes to, the other what a leg carries.
             CuratedLeg(from: from, to: to, mi: miles, drive: drive, date: "", road: road, ev: [],
                        fly: fly.map { CuratedFly(via: $0.via, time: $0.time, note: $0.note) })
+        }
+    }
+
+    /// A flown leg, as three stretches rather than one.
+    ///
+    /// Flying a leg is never only a flight: it is a drive to an airport, the flight, and a
+    /// longer drive from the far airport to the park. `FlightCompare` already counts all
+    /// three to reach its verdict — that is what makes it a door-to-door comparison — and
+    /// the map drew one road across the lot, as though the whole thing were driven.
+    ///
+    /// The two drives are routed here, properly, because they are not small. Salt Lake City
+    /// to Yellowstone is 327 miles and the better part of six hours; a straight line laid
+    /// across it would be the same lie the trip line was telling before.
+    struct FlightPath {
+        var departure: FlyAirport
+        var arrival: FlyAirport
+        /// Where the traveller sets out, and the park at the far end. Kept so a drive the
+        /// router declined to answer can still be drawn as the provisional straight line
+        /// the app already uses for exactly that, rather than not drawn at all.
+        var origin: (lat: Double, lon: Double)
+        var destination: (lat: Double, lon: Double)
+        /// OSRM's geometry for the two drives. Empty when it did not answer.
+        var toAirport: [(lat: Double, lon: Double)]
+        var fromAirport: [(lat: Double, lon: Double)]
+
+        /// Below this, the drive to the airport is not worth drawing.
+        ///
+        /// Set out from Chicago and Midway is eleven miles away — at the size these plates
+        /// are drawn, a stub too short to read as anything but a nick in the line. The arc
+        /// starts at the origin pin instead, which is where the traveller is anyway.
+        static let shortestStub = 25.0
+
+        var drawsOriginStub: Bool {
+            Geo.haversine(origin, (departure.lat, departure.lon)) >= Self.shortestStub
+        }
+        var drawsArrivalStub: Bool {
+            Geo.haversine((arrival.lat, arrival.lon), destination) >= Self.shortestStub
         }
     }
 
@@ -177,6 +216,32 @@ final class TripRouting {
                      comparesFlights: Bool) async -> Leg? {
         guard let route = await routing.route(fromLat: from.lat, fromLon: from.lon,
                                               toLat: toLat, toLon: toLon) else { return nil }
+
+        // Asked only of a trip that wants flights. A trip planned to drive is not told
+        // which of its legs it could have flown.
+        let verdict = comparesFlights
+            ? FlightCompare.verdict(from: (from.lat, from.lon), to: (toLat, toLon),
+                                    driveMinutes: route.minutes)
+            : nil
+
+        // Both drives at once. Sequentially this is two round trips added to a leg that
+        // has already waited for one, and the card is on screen while it waits.
+        var path: FlightPath?
+        if case .flies(let option) = verdict, let departure = option.from, let arrival = option.to {
+            async let toHub = routing.route(fromLat: from.lat, fromLon: from.lon,
+                                            toLat: departure.lat, toLon: departure.lon)
+            async let fromHub = routing.route(fromLat: arrival.lat, fromLon: arrival.lon,
+                                              toLat: toLat, toLon: toLon)
+            path = FlightPath(
+                departure: departure,
+                arrival: arrival,
+                origin: (from.lat, from.lon),
+                destination: (toLat, toLon),
+                toAirport: await toHub?.coordinates ?? [],
+                fromAirport: await fromHub?.coordinates ?? []
+            )
+        }
+
         return Leg(
             from: from.name,
             to: toName,
@@ -186,12 +251,8 @@ final class TripRouting {
             // No corridor means OSRM returned no numbered roads, not that there are none.
             road: route.corridor ?? "Roads not named by the routing service",
             coordinates: route.coordinates,
-            // Asked only of a trip that wants flights. A trip planned to drive is not
-            // told which of its legs it could have flown.
-            flight: comparesFlights
-                ? FlightCompare.verdict(from: (from.lat, from.lon), to: (toLat, toLon),
-                                        driveMinutes: route.minutes)
-                : nil
+            flight: verdict,
+            flightPath: path
         )
     }
 }

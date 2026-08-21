@@ -16,6 +16,52 @@ followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of t
 so a tester can say which build they were looking at.
 
 
+## 2.33.0 — A flown leg is drawn as a flight
+
+The trip tile drew a road across a leg the app had already decided to fly. Chicago to
+Yellowstone comes back from `FlightCompare` as `.flies(MDW → SLC)`, saving eleven hours
+fifty door to door, and the picture beside that verdict was 1,470 miles of unbroken road.
+
+**A flown leg is three stretches, and two of them are driven.** The drive to the airport,
+the flight, and the drive from the far airport to the park. That last one is the reason this
+matters rather than merely tidying up: Salt Lake City to Yellowstone is 327 miles and the
+better part of six hours. Anyone reading one continuous line believes the flight ends at the
+park. It ends most of a day short of it.
+
+**The coordinates already existed.** `FlightCompare.hub(near:)` finds both airports and
+measures the air miles between them, and then returned `via: "MDW → SLC"` — a string. Two
+coordinates went into every verdict and neither came out. `FlyOption` carries them now, and
+nothing new is fetched to make that true.
+
+**Both airport drives are routed.** Straight lines standing in for 327 miles of road would
+be the same fault the trip line had before the roads were drawn. Where OSRM does not answer,
+the drive falls back to the straight dashed line the app already uses to say a road has not
+been measured — never a straight line drawn as though it were a road.
+
+**The plate stopped being able to draw one line in one manner.** It took a flat list of
+coordinates and a single `routed` flag; it takes a list of stretches now, each carrying its
+own mode. The stored-picture rule widened with it: a picture is kept while it is of the same
+journey and replaced only when more of it has been measured, so a provisional road still
+upgrades silently to a real one and a trip that turns from driven to flown re-renders.
+
+**Telling a flight from an unmeasured road.** A dash already meant *roughly where you are
+going* on these plates, and flight maps are dashed too. Three things separate them: the
+flight arcs where a placeholder is straight, it carries a plane at its apex, and it is drawn
+in `accent800` against the road's `accent`. Airports are diamonds and parks are circles —
+at eight points across on a greyed basemap, shape carries what colour cannot.
+
+The arc is a convention, not a projection. A great circle on this basemap is a different
+shape, and drawing the real one would claim a route no airline publishes to this app.
+
+Framing counts the airports now, and so does the key a picture is filed under — an arc whose
+far end is off the plate reads as a line to nowhere. A drive under 25 miles is not drawn:
+set out from Chicago and Midway is eleven miles away, a stub too short at this size to read
+as anything but a nick in the line, so the arc starts at the origin.
+
+Driven legs are untouched. Denver to Zion has hubs at both ends and still comes back
+`.drives` — the flight saves fifteen minutes against the hour the model requires — and its
+tile draws exactly what it drew before.
+
 ## 2.29.0 — A photograph to open on, and a list the traveller writes
 
 Two screens stop being catalogues the app assembled and start being things the reader
