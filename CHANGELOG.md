@@ -15,6 +15,67 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.34.0 — The drive from the airport is a leg
+
+Landing is not arriving. Salt Lake City to Yellowstone is 327 miles and the better part of
+six hours, and until now that drive existed only as a figure on the flight's sheet — a sheet
+which also said, in as many words, that there was no roadside on a flown leg.
+
+**It is a leg now.** A flown leg ends at the airport it lands at, and the drive on to the
+park follows it in the trip as a row of its own: *SLC → Yellowstone*, with its distance, its
+wheel time and the roads it runs on.
+
+**Which means it has a roadside.** `LegStops` asks for fuel, charging and somewhere to eat
+along anything whose `fly` is nil, and `TripDays` asks the park service what is worth
+turning off for. Both work off the leg's own geometry and are keyed by its id — so the
+arrival drive gets its own stops, its own monuments, and its own *Drive it with N stops*
+into Maps, simply by being a leg rather than a special case. Six hours through Idaho with no
+suggestion of where to charge was the gap; this closes it.
+
+**The flight leg stops pretending to arrive at the park.** It reads *Chicago, IL → SLC* now,
+in the row and on its sheet. Two rows both ending at Yellowstone, one of them a flight,
+would have been unreadable. Its sheet still shows the drive to the departure airport, names
+what is left to drive at the far end, and points at the leg that carries it — the one place
+a distance is not repeated in two rows.
+
+Nothing changes on a driven leg, and nothing changes on a flown leg whose arrival drive the
+router declined to measure: with no geometry there is no leg to make, and the sheet says the
+distance is not known rather than inventing one.
+
+## 2.33.1 — A flown leg counts the driving it actually involves
+
+The map learned that a flown leg is three stretches. The numbers had not.
+
+A leg the app recommends flying still reported `leg.miles` everywhere — the drive from the
+origin city to the park, which is the drive being declined. The sheet named two airports and
+then said *"driven instead it is 1,470 miles"*, which describes a journey nobody is making
+and says nothing about the six hours that are actually going to be spent behind a wheel.
+Salt Lake City to Yellowstone is 327 miles. It was invisible until you looked at the map.
+
+**The two drives are measured now, not just drawn.** `FlightPath` carried the router's
+geometry and threw away everything else it returned; it keeps the miles, the wheel time and
+the numbered roads as well. `FlightCompare` does count both drives to reach its verdict, but
+as straight-line miles at an assumed 55mph — good enough to choose between a flight and a
+drive, not good enough to print.
+
+**The flown-leg sheet lists them.** *Chicago → MDW* and *SLC → Yellowstone*, each with its
+distance, its wheel time and the roads it runs on, and a line underneath totalling the
+driving against what driving the whole way would have been. Both ends are listed however
+short: the 25-mile rule that keeps a stub off the map is about what is too small to draw,
+and eleven miles to Midway is still eleven miles somebody has to leave the house for.
+
+**The pinned summary names the driving too.** It read *"MDW → SLC · 13 h 9 m door to door"*
+and stopped there, which is how a six-hour hire-car drive stayed hidden until the sheet was
+opened.
+
+**The trip's total mileage stops counting the road not taken.** A flown leg contributes its
+two airport drives rather than the drive it replaces, so the stat row totals the journey
+that will happen.
+
+What has not changed is the roadside. Stops are still chosen along the leg's own geometry,
+which on a flown leg is the drive nobody is making, so the sheet still offers none — the
+arrival drive has a roadside worth listing and does not have it yet.
+
 ## 2.33.0 — A flown leg is drawn as a flight
 
 The trip tile drew a road across a leg the app had already decided to fly. Chicago to

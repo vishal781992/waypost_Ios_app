@@ -199,12 +199,13 @@ struct TripCard: View {
             let arrival = CLLocationCoordinate2D(latitude: path.arrival.lat,
                                                  longitude: path.arrival.lon)
             if path.drawsOriginStub {
-                out.append(Self.drive(path.toAirport, from: path.origin,
+                out.append(Self.drive(path.toAirport?.coordinates ?? [], from: path.origin,
                                       to: (path.departure.lat, path.departure.lon)))
             }
             out.append(RouteLeg(.air, [departure, arrival]))
             if path.drawsArrivalStub {
-                out.append(Self.drive(path.fromAirport, from: (path.arrival.lat, path.arrival.lon),
+                out.append(Self.drive(path.fromAirport?.coordinates ?? [],
+                                      from: (path.arrival.lat, path.arrival.lon),
                                       to: path.destination))
             }
         }

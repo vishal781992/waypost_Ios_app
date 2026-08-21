@@ -48,10 +48,45 @@ final class TripRouting {
             return nil
         }
 
+        /// Where this leg ends, for a reader.
+        ///
+        /// A flown leg ends at the arrival airport. The drive on from there is a leg of its
+        /// own now, so naming the park here would give the trip two rows that both arrive
+        /// at the same place and no way to tell which was which.
+        var arrivesAt: String {
+            guard let path = flightPath, path.fromAirport != nil else { return to }
+            return path.arrival.code
+        }
+
+        /// The drive from the arrival airport to the park, as a leg in its own right.
+        ///
+        /// This is the point of the whole exercise. Salt Lake City to Yellowstone is 327
+        /// miles and the better part of six hours, and it was living inside a sheet that
+        /// also declared there was no roadside on a flown leg. It is a drive like any
+        /// other: there is fuel and charging along it, there are monuments worth turning
+        /// off for, and there is a list somebody hands to Maps at the end.
+        ///
+        /// So it is a `Leg` rather than a special case, and it gets all of that by being
+        /// one — `LegStops` asks for stops on anything whose `fly` is nil, and this carries
+        /// the arrival drive's own geometry for them to be measured along.
+        var arrivalDrive: Leg? {
+            guard let path = flightPath, let drive = path.fromAirport else { return nil }
+            return Leg(from: path.arrival.code,
+                       to: to,
+                       miles: drive.miles,
+                       drive: drive.drive,
+                       minutes: drive.minutes,
+                       road: drive.road,
+                       coordinates: drive.coordinates,
+                       // Nothing to compare and nothing to draw: this *is* the driving.
+                       flight: nil,
+                       flightPath: nil)
+        }
+
         var curated: CuratedLeg {
             // `CuratedFly` and `FlyOption` are the same three strings under two names —
             // one is what the bundled table decodes to, the other what a leg carries.
-            CuratedLeg(from: from, to: to, mi: miles, drive: drive, date: "", road: road, ev: [],
+            CuratedLeg(from: from, to: arrivesAt, mi: miles, drive: drive, date: "", road: road, ev: [],
                        fly: fly.map { CuratedFly(via: $0.via, time: $0.time, note: $0.note) })
         }
     }
@@ -74,9 +109,17 @@ final class TripRouting {
         /// the app already uses for exactly that, rather than not drawn at all.
         var origin: (lat: Double, lon: Double)
         var destination: (lat: Double, lon: Double)
-        /// OSRM's geometry for the two drives. Empty when it did not answer.
-        var toAirport: [(lat: Double, lon: Double)]
-        var fromAirport: [(lat: Double, lon: Double)]
+        /// The two drives, as the router measured them. `nil` when it did not answer.
+        var toAirport: AirportDrive?
+        var fromAirport: AirportDrive?
+
+        /// The driving a flown leg actually involves.
+        ///
+        /// Not `Leg.miles`, which is the drive from the origin city to the park — the one
+        /// the traveller is being told *not* to take. A flown leg's real mileage is the two
+        /// ends, and on Chicago to Yellowstone that is a twelve-mile run to Midway and 327
+        /// miles out of Salt Lake City, not the 1,470 the notional drive would have been.
+        var drivenMiles: Int { (toAirport?.miles ?? 0) + (fromAirport?.miles ?? 0) }
 
         /// Below this, the drive to the airport is not worth drawing.
         ///
@@ -90,6 +133,28 @@ final class TripRouting {
         }
         var drawsArrivalStub: Bool {
             Geo.haversine((arrival.lat, arrival.lon), destination) >= Self.shortestStub
+        }
+    }
+
+    /// One of the two drives a flight involves, measured rather than modelled.
+    ///
+    /// `FlightCompare` counts both to reach its verdict, but as straight-line miles over an
+    /// assumed 55mph — good enough to decide between a flight and a drive, and not good
+    /// enough to print. These are the router's own numbers for the same two stretches.
+    struct AirportDrive {
+        var miles: Int
+        var drive: String
+        var minutes: Int
+        /// The numbered roads actually driven.
+        var road: String
+        var coordinates: [(lat: Double, lon: Double)]
+
+        init(_ route: RoutingService.Route) {
+            miles = route.miles
+            drive = route.drive
+            minutes = route.minutes
+            road = route.corridor ?? "Roads not named by the routing service"
+            coordinates = route.coordinates
         }
     }
 
@@ -237,8 +302,8 @@ final class TripRouting {
                 arrival: arrival,
                 origin: (from.lat, from.lon),
                 destination: (toLat, toLon),
-                toAirport: await toHub?.coordinates ?? [],
-                fromAirport: await fromHub?.coordinates ?? []
+                toAirport: await toHub.map(AirportDrive.init),
+                fromAirport: await fromHub.map(AirportDrive.init)
             )
         }
 

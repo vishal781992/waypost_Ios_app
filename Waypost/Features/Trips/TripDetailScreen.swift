@@ -197,10 +197,18 @@ struct TripDetailScreen: View {
 
     // MARK: Stats
 
+    /// The miles this trip is actually driven.
+    ///
+    /// A flown leg used to contribute the drive it replaces — 1,470 miles for a leg the app
+    /// had just recommended flying — so the stat row totalled a journey nobody was making.
+    /// A leg that flies contributes the two airport drives instead, which is the driving
+    /// that will really happen.
     private var totalMiles: Int {
         if isSeed { return app.library.legs.reduce(0) { $0 + $1.mi } }
         let routed = app.routing.legs(for: trip)
-        return routed.isEmpty ? estimatedMiles : routed.reduce(0) { $0 + $1.miles }
+        return routed.isEmpty
+            ? estimatedMiles
+            : routed.reduce(0) { $0 + ($1.flightPath?.drivenMiles ?? $1.miles) }
     }
 
     /// Whether the miles on this screen were driven by a router or guessed from a great
@@ -311,9 +319,20 @@ struct TripDetailScreen: View {
                 ForEach(Array(parks.enumerated()), id: \.element.code) { index, park in
                     if index < routed.count {
                         let leg = routed[index]
+                        // A flown leg ends at the arrival airport, and the drive on to the
+                        // park follows as a row of its own — so the weather column belongs
+                        // to whichever of the two actually arrives at the park.
                         legRow(leg.curated, date: "", index: index, flyRefusal: leg.flyRefusal,
-                               arriving: park) {
+                               arriving: leg.arrivalDrive == nil ? park : nil) {
                             app.sheetTrip = trip.id; app.sheet = .routedLeg(leg, label: leg.fly == nil ? "Driving day" : "Flying day")
+                        }
+                        if let arrival = leg.arrivalDrive {
+                            let label = "Driving from \(arrival.from)"
+                            legRow(arrival.curated, date: "", index: index, label: label,
+                                   arriving: park) {
+                                app.sheetTrip = trip.id
+                                app.sheet = .routedLeg(arrival, label: label)
+                            }
                         }
                     }
                     parkRow(park, date: trip.dates, days: 2, numeral: ["I", "II", "III", "IV", "V"][min(index, 4)])
@@ -325,6 +344,13 @@ struct TripDetailScreen: View {
                     legRow(home.curated, date: "", index: parks.count, label: homeLabel,
                            flyRefusal: home.flyRefusal) {
                         app.sheetTrip = trip.id; app.sheet = .routedLeg(home, label: homeLabel)
+                    }
+                    if let arrival = home.arrivalDrive {
+                        let label = "Driving from \(arrival.from)"
+                        legRow(arrival.curated, date: "", index: parks.count, label: label) {
+                            app.sheetTrip = trip.id
+                            app.sheet = .routedLeg(arrival, label: label)
+                        }
                     }
                 }
 
