@@ -15,17 +15,33 @@ import CoreHaptics
 /// confirmation does not want a voice of its own. `friction` and `smooth` are Core Haptics
 /// patterns, because the two of them have to be told apart by feel alone, and the stock
 /// impact styles are five weights of the same knock — not five textures.
+@MainActor
 enum Haptics {
+    /// Why anything last failed to fire. Nil when nothing has.
+    ///
+    /// Haptics are the one part of the interface that cannot be seen, so a silent failure
+    /// here is indistinguishable from a device with haptics switched off — which is exactly
+    /// how this went unnoticed. `try?` everywhere is what the rest of the app calls
+    /// swallowing a failure, and the rule there is the rule here.
+    private(set) static var lastFailure: String?
+
     static func tap() {
         #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        Generator.light.prepare()
+        Generator.light.impactOccurred()
         #endif
     }
 
     static func success() {
         #if canImport(UIKit)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Generator.notice.prepare()
+        Generator.notice.notificationOccurred(.success)
         #endif
+    }
+
+    /// Notes why a pattern did not play. See `lastFailure`.
+    static func record(_ error: Error) {
+        lastFailure = String(String(describing: error).prefix(160))
     }
 
     /// Which kind of car, in the hand.
@@ -34,7 +50,6 @@ enum Haptics {
     /// and a thing with almost none, and the haptics say which is which before the label is
     /// read. It is the one place in the app where a haptic carries meaning rather than
     /// simply confirming that a tap landed.
-    @MainActor
     static func vehicle(isElectric: Bool) {
         if isElectric { smooth() } else { friction() }
     }
@@ -45,7 +60,6 @@ enum Haptics {
     /// between them. The wander is what makes it a texture rather than six taps — an
     /// evenly-spaced, evenly-weighted burst reads as a beep, and a ragged one reads as a
     /// rasp. It is deliberately the less pleasant of the two.
-    @MainActor
     static func friction() {
         #if canImport(CoreHaptics)
         if HapticEngine.shared.supported {
@@ -66,7 +80,8 @@ enum Haptics {
         #if canImport(UIKit)
         // No Core Haptics, or no Taptic Engine behind it. `.rigid` is the hardest of the
         // stock impacts and the nearest the generators get to a mechanical knock.
-        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+        Generator.rigid.prepare()
+        Generator.rigid.impactOccurred()
         #endif
     }
 
@@ -75,7 +90,6 @@ enum Haptics {
     /// A single continuous event, low sharpness, shaped by an intensity curve so it rises
     /// and falls away rather than starting and stopping. A continuous event with square
     /// edges buzzes; the curve is what makes it a breath.
-    @MainActor
     static func smooth() {
         #if canImport(CoreHaptics)
         if HapticEngine.shared.supported {
@@ -103,10 +117,27 @@ enum Haptics {
         }
         #endif
         #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+        Generator.soft.prepare()
+        Generator.soft.impactOccurred()
         #endif
     }
 }
+
+#if canImport(UIKit)
+/// The stock generators, held rather than made fresh each time.
+///
+/// `UIFeedbackGenerator` is documented as a thing you keep: `prepare()` warms the Taptic
+/// Engine and the hardware stays ready for a second or so, and a generator built and fired
+/// in the same statement usually misses because nothing warmed it. Held here, prepared at
+/// the call, they fire when they are asked to.
+@MainActor
+private enum Generator {
+    static let light = UIImpactFeedbackGenerator(style: .light)
+    static let rigid = UIImpactFeedbackGenerator(style: .rigid)
+    static let soft = UIImpactFeedbackGenerator(style: .soft)
+    static let notice = UINotificationFeedbackGenerator()
+}
+#endif
 
 #if canImport(CoreHaptics)
 /// One Core Haptics engine, held for the life of the app.
@@ -127,22 +158,39 @@ private final class HapticEngine {
 
     private var engine: CHHapticEngine?
 
+    /// The player that is playing.
+    ///
+    /// Core Haptics does not hold onto a player for you. `makePlayer` hands one back, and
+    /// if the only reference to it is a local it is released the moment the function
+    /// returns — which is long before a 300ms swell has finished, and in practice before a
+    /// pattern is heard at all. Holding it is not tidiness; it is the difference between
+    /// the pattern playing and nothing happening.
+    private var player: CHHapticPatternPlayer?
+
     private init() {
         supported = CHHapticEngine.capabilitiesForHardware().supportsHaptics
-        guard supported, let engine = try? CHHapticEngine() else { return }
-        self.engine = engine
-        engine.isAutoShutdownEnabled = true
-        engine.stoppedHandler = { [weak self] _ in
-            Task { @MainActor in self?.start() }
+        guard supported else { return }
+        do {
+            let engine = try CHHapticEngine()
+            self.engine = engine
+            // Haptics only. Left false, the engine opens an audio session it never uses,
+            // and can fail to start on a device where something else already owns one.
+            engine.playsHapticsOnly = true
+            engine.isAutoShutdownEnabled = true
+            engine.stoppedHandler = { [weak self] _ in
+                Task { @MainActor in self?.start() }
+            }
+            engine.resetHandler = { [weak self] in
+                Task { @MainActor in self?.start() }
+            }
+            start()
+        } catch {
+            Haptics.record(error)
         }
-        engine.resetHandler = { [weak self] in
-            Task { @MainActor in self?.start() }
-        }
-        start()
     }
 
     private func start() {
-        try? engine?.start()
+        do { try engine?.start() } catch { Haptics.record(error) }
     }
 
     func play(_ events: [CHHapticEvent], curves: [CHHapticParameterCurve] = []) {
@@ -150,9 +198,16 @@ private final class HapticEngine {
         // `isAutoShutdownEnabled` means the engine may have shut itself down since the last
         // pattern. Starting one that is already running is a no-op, so this costs nothing.
         start()
-        guard let pattern = try? CHHapticPattern(events: events, parameterCurves: curves),
-              let player = try? engine.makePlayer(with: pattern) else { return }
-        try? player.start(atTime: CHHapticTimeImmediate)
+        do {
+            let pattern = try CHHapticPattern(events: events, parameterCurves: curves)
+            let player = try engine.makePlayer(with: pattern)
+            // Held for the life of the pattern. A second tap replaces it, which stops the
+            // first — the right answer, since the second tap is the one being answered.
+            self.player = player
+            try player.start(atTime: CHHapticTimeImmediate)
+        } catch {
+            Haptics.record(error)
+        }
     }
 }
 #endif

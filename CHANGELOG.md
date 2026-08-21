@@ -16,6 +16,34 @@ followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of t
 so a tester can say which build they were looking at.
 
 
+## 2.32.1 — Haptics that actually fire
+
+Two faults, and only one of them was new.
+
+**A feedback generator has to be kept.** `Haptics.tap()` built a
+`UIImpactFeedbackGenerator`, fired it, and dropped it, in one statement — and that is
+documented not to work. `prepare()` warms the Taptic Engine and the hardware stays ready for
+about a second; a generator made and fired in the same breath warmed nothing, so it usually
+produced no haptic at all. This is every tap in the app, and it predates the vehicle control
+by a long way. The four generators are held now, and prepared at the call.
+
+**A Core Haptics player has to be kept too.** `makePlayer` hands back a player, and the only
+reference to it was a local — released the instant `play` returned, which is long before a
+300ms swell has finished and, in practice, before anything is felt. It is held for the life
+of the pattern now. A second tap replaces it and stops the first, which is the right answer:
+the second tap is the one being answered.
+
+The engine also sets `playsHapticsOnly`. Left false it opens an audio session it never uses,
+and can fail to start on a device where something else already owns one.
+
+**And the failures are recorded rather than swallowed.** Every `try?` became a `catch` that
+writes `Haptics.lastFailure`. Haptics are the one part of the interface that cannot be seen,
+so a silent failure is indistinguishable from a phone with haptics switched off — which is
+precisely how this went unnoticed. The rule the rest of the app follows now applies here.
+
+Still true, and not a fault: **the Simulator plays no haptics of any kind.** Neither Core
+Haptics nor the stock generators do anything there. These can only be judged on a phone.
+
 ## 2.32.0 — Gasoline rasps, electric hums
 
 The vehicle control is a choice between a thing full of moving parts and a thing with almost
