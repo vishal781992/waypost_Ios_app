@@ -157,6 +157,29 @@ is one. Do not write a second.
 
 ---
 
+## Haptics
+
+`Haptics.tap()` and `Haptics.success()` are the stock generators, and they are what almost
+everything wants: a confirmation does not need a voice of its own.
+
+`Haptics.vehicle(isElectric:)` is the exception, and the only haptic in the app that carries
+meaning rather than confirming a tap landed. Gasoline gets `friction()` — six sharp
+transients about 20ms apart with the intensity wandering, which reads as a rasp rather than
+as six taps. Electric gets `smooth()` — one continuous event at low sharpness, shaped by an
+intensity curve so it swells and falls away. A thing full of moving parts against a thing
+with almost none.
+
+Both are Core Haptics, because the stock impact styles are five weights of the same knock
+and these two have to be told apart by feel. Devices without a Taptic Engine fall back to
+`.rigid` and `.soft`. **The Simulator plays no haptics at all** — these can only be judged
+on a real phone.
+
+A haptic on a control is opt-in: `SegmentedTrough` takes a `haptic` closure and six of the
+app's seven leave it nil. Buzzing on every segmented tap says only that the tap landed,
+which the pill sliding across already said.
+
+---
+
 ## Things that have bitten, and the rule that came out of each
 
 - **A view that renders as empty is an `EmptyView`, and SwiftUI never runs `.task` on one.**

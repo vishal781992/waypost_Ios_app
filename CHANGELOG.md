@@ -16,6 +16,29 @@ followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of t
 so a tester can say which build they were looking at.
 
 
+## 2.32.0 — Gasoline rasps, electric hums
+
+The vehicle control is a choice between a thing full of moving parts and a thing with almost
+none, and now it says so in the hand. *Gasoline* answers with `friction()`: six sharp
+transients about twenty milliseconds apart, the intensity wandering between them, which
+reads as a rasp rather than as six taps — an evenly-weighted burst is a beep, and a ragged
+one is a texture. *Electric* answers with `smooth()`: one continuous event at low sharpness,
+shaped by an intensity curve so it swells and falls away instead of starting and stopping.
+
+Both are Core Haptics rather than the stock generators. The five `UIImpactFeedbackGenerator`
+styles are five weights of the same knock, not five textures, and these two have to be told
+apart by feel alone. Devices with no Taptic Engine behind them fall back to `.rigid` and
+`.soft`, which is the nearest the generators get.
+
+**A haptic on a control is opt-in.** `SegmentedTrough` takes a `haptic` closure and six of
+the app's seven segmented controls leave it nil. Buzzing on every segmented tap says only
+that the tap landed, which the pill sliding across the trough already said. It fires on a
+change of selection, never on a re-tap of the segment already showing.
+
+`Haptics` moves out of the bottom of `AppState.swift` and into `Design/Haptics.swift`, beside
+`Motion.swift` — the two files that between them decide how the app feels. Nothing else moved
+with it, and no call site changed.
+
 ## 2.29.0 — A photograph to open on, and a list the traveller writes
 
 Two screens stop being catalogues the app assembled and start being things the reader

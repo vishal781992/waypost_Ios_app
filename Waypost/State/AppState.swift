@@ -1385,21 +1385,3 @@ final class TripBuilder {
         )
     }
 }
-
-// MARK: - Haptics
-
-/// The design leans on haptics — "the phone taps back" when a stamp lands or an item is
-/// ticked. This is the one place that fires them.
-enum Haptics {
-    static func tap() {
-        #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        #endif
-    }
-
-    static func success() {
-        #if canImport(UIKit)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        #endif
-    }
-}
