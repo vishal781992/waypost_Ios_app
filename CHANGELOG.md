@@ -16,6 +16,42 @@ followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of t
 so a tester can say which build they were looking at.
 
 
+## 2.30.0 — The passport book holds every stamp you collect
+
+A stamp collected anywhere but the bundled page was being kept, counted, and never shown.
+The book drew twelve tiles from `curated.json` and nothing else, so a monument stamped from
+a park's Nearby tab pushed the header up by one and then vanished — there was no page for it
+to appear on. The stamp was not lost: `stamps` held it and the visited rail read it. The one
+screen whose job is to show stamps simply could not.
+
+**The book has two pages now.** *In the book* is what it always was — the twelve stops
+written into `curated.json`, stamped or waiting, with the progress bar over them.
+*Collected in the field* is everything else: the four hundred units the park service runs,
+reachable from the Nearby tab of any park screen, each tile carrying the place it was in and
+the date it was collected.
+
+**A stamp is a record rather than a code.** `CollectedStamp` carries the name, the place and
+the date, because for a unit found in the field there is nowhere on the phone to look any of
+those up afterwards. A code alone was enough only while the book was a written-down list of
+twelve with the names printed beside them.
+
+**The header stops counting against 63.** It read "*n* of 63 stamps" — 63 is the number of
+national parks, which is neither the size of the book nor the number of things that can be
+stamped, and a sixty-fourth would have filled the progress bar past its end. The header now
+counts what has been collected and names no total; the bar measures the bundled twelve,
+which is the only denominator on this screen that is real.
+
+**The sheet stops saying "today".** A collected stamp's face read *stamped · today* whenever
+it was opened, months afterwards included. It prints the date on the record, or plain
+*stamped* when there is no date to print.
+
+**Stamps collected by older builds are carried over, not invented.** `stampKey(forName:)`
+strips everything that is not a letter, so a code cannot be read back into a name — but it
+can be matched, by running the same key over every name the app already knows. That recovers
+the bundled twelve and every national park. A monument found in the field has genuinely lost
+its name; it keeps its place in the count, and the book says how many are unnamed rather
+than guessing at one.
+
 ## 2.29.0 — A photograph to open on, and a list the traveller writes
 
 Two screens stop being catalogues the app assembled and start being things the reader

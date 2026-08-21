@@ -106,7 +106,10 @@ Named but not built in this pass — each panel says so rather than looking empt
 
 - **Day plan** renders when the NPS things-to-do feed answers, and the curated day plans
   for the six bundled parks; it does not yet spread activities by time of day.
-- **Passport stamps** (nearby NPS units within 160 miles).
+- **Passport stamps** are built: the Nearby tab on a park screen reaches every unit the park
+  service runs, and the book on Saved holds both the bundled page and everything collected in
+  the field. What is not built is the geofence — the sheet says a stamp is "geofenced on
+  device", and collecting one is still a tap rather than a location check.
 - **Know before you go** shows live alerts; the timed-entry deadlines and `.ics` exports
   are not built.
 

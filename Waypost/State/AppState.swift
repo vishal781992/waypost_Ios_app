@@ -200,7 +200,18 @@ final class AppState {
     // Library. Empty on a clean install: a saved park, a stamp and a downloaded pack are
     // claims about what somebody did, and nobody has done anything yet.
     var saved: [String] = []
+    /// The codes of every stamp collected. Authoritative, and the shape the visited rail
+    /// and `isStamped` ask in — a set, so a filter over sixty parks is sixty lookups.
     var stamps: Set<String> = []
+    /// The same stamps, as records.
+    ///
+    /// A code was enough while the book was the twelve written-down units in
+    /// `curated.json`: the name and the town were on the page beside it. The Nearby tab
+    /// ended that. A stamp can be collected at any of the four hundred units the park
+    /// service runs, and none of those are written down on the phone — so a stamp
+    /// collected out there went into `stamps`, counted, and had no tile to appear on.
+    /// The record carries what a tile has to print, because there is nowhere to look it up.
+    var stampBook: [CollectedStamp] = []
     var savedShowsPassport = false
 
     // Discover
@@ -519,7 +530,7 @@ final class AppState {
                 let wanted = Set(empty.split(separator: ",").map(String.init))
                 if wanted.contains("trips") { self.seedTripHidden = true; self.myTrips = [] }
                 if wanted.contains("saved") { self.saved = [] }
-                if wanted.contains("stamps") || wanted.contains("saved") { self.stamps = [] }
+                if wanted.contains("stamps") || wanted.contains("saved") { self.stamps = []; self.stampBook = [] }
             }
 
             // The four sheets, each of which needs a row tapped to reach.
@@ -665,15 +676,28 @@ final class AppState {
         persist()
     }
 
-    func collectStamp(_ unitCode: String, name: String) {
+    func collectStamp(_ unitCode: String, name: String, place: String) {
         guard !stamps.contains(unitCode) else {
             show("\(name) — collected")
             return
         }
         stamps.insert(unitCode)
+        stampBook.append(CollectedStamp(code: unitCode, name: name, place: place, on: Date()))
         Haptics.success()
         show("Stamp collected · haptic tap")
         persist()
+    }
+
+    /// The record behind a code, when there is one.
+    func stamp(_ unitCode: String) -> CollectedStamp? {
+        stampBook.first { $0.code == unitCode }
+    }
+
+    /// Collected stamps with no record behind them — see `recoverBook(from:)`. Counted so
+    /// the book can say they are there rather than quietly showing fewer stamps than the
+    /// header counts.
+    var unnamedStampCount: Int {
+        stamps.subtracting(stampBook.map(\.code)).count
     }
 
     func toggleLiveActivity() {
@@ -1010,6 +1034,10 @@ final class AppState {
         var visits: [String]?
         /// Parks taken off the rail by hand. Optional for the same reason.
         var unvisits: [String]?
+        /// The stamp records. Optional, so a snapshot written before the book kept names
+        /// still decodes — `stamps` carries the codes either way, and it is still written
+        /// alongside this, so a build without the book reads a snapshot with one.
+        var book: [CollectedStamp]?
     }
 
     private static let key = "waypost-app"
@@ -1033,7 +1061,8 @@ final class AppState {
             passport: savedShowsPassport,
             seedHidden: seedTripHidden,
             visits: manualVisits,
-            unvisits: Array(hiddenVisits)
+            unvisits: Array(hiddenVisits),
+            book: stampBook
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             UserDefaults.standard.set(data, forKey: Self.key)
@@ -1049,6 +1078,7 @@ final class AppState {
         doneItems = Set(snapshot.done)
         saved = snapshot.saved
         stamps = Set(snapshot.stamps)
+        stampBook = snapshot.book ?? recoverBook(from: snapshot.stamps)
         packs = snapshot.packs.compactMapValues { PackState(rawValue: $0) }
         journalCount = snapshot.journal
         vehicleIsElectric = snapshot.ev
@@ -1061,6 +1091,61 @@ final class AppState {
         tab = snapshot.tab.flatMap(AppTab.init(rawValue:)) ?? .today
         savedShowsPassport = snapshot.passport ?? false
         seedTripHidden = snapshot.seedHidden ?? false
+    }
+
+    /// Names for stamp codes written before the book kept records.
+    ///
+    /// `stampKey(forName:)` is one-way — it strips everything that is not a letter, so
+    /// "Cedar Breaks National Monument" and "cedarbreaksnationalmonument" cannot be told
+    /// back apart. A code cannot be read into a name, but it can be *matched*: run the same
+    /// key over every name the app already knows and see which one lands on it. That
+    /// recovers the twelve bundled units and every national park.
+    ///
+    /// A monument collected from the Nearby tab is in none of those lists, and its name is
+    /// genuinely gone. It keeps its place in `stamps` — the count and the visited rail are
+    /// unaffected — and the book says how many are unnamed rather than inventing one.
+    private func recoverBook(from codes: [String]) -> [CollectedStamp] {
+        // This runs inside `init`, and building the table decodes `national-parks.json` on
+        // the main thread. Nothing to recover means nothing to decode — which is the case
+        // for every upgrade by somebody who had not collected a stamp yet.
+        guard !codes.isEmpty else { return [] }
+
+        var named: [String: (name: String, place: String)] = [:]
+        for unit in library.passport {
+            named[unit.code] = (unit.name, unit.city)
+        }
+        for park in library.orderedParks + NationalParks.all.map(CuratedPark.init(bundled:)) {
+            let key = stampKey(forName: park.name)
+            if named[key] == nil { named[key] = (park.name, park.stateName) }
+        }
+        return codes.compactMap { code in
+            guard let hit = named[code] else { return nil }
+            // No date: it was never written down, and today is not when they went.
+            return CollectedStamp(code: code, name: hit.name, place: hit.place, on: nil)
+        }
+    }
+}
+
+// MARK: - The passport book
+
+/// One stamp, as collected: what it was called, where it was, and when.
+struct CollectedStamp: Codable, Hashable, Identifiable {
+    let code: String
+    let name: String
+    /// The town or the state, as the screen that collected it knew the place. Empty when
+    /// that screen had no place to give.
+    let place: String
+    /// When it was collected. Nil for a stamp carried over from a build that kept only
+    /// codes — see `AppState.recoverBook(from:)`.
+    let on: Date?
+
+    var id: String { code }
+
+    /// What the tile prints under the name. A stamp with no date says only that it was
+    /// stamped, which is the whole of what is known about it.
+    var caption: String {
+        guard let on else { return "stamped" }
+        return "stamped · " + on.formatted(.dateTime.day().month(.abbreviated))
     }
 }
 
