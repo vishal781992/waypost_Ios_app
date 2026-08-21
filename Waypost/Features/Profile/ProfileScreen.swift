@@ -90,7 +90,8 @@ struct ProfileScreen: View {
                             SegmentedTrough(
                                 options: [(false, "Gasoline"), (true, "Electric")],
                                 selection: Binding(get: { app.vehicleIsElectric },
-                                                   set: { app.vehicleIsElectric = $0; app.persist() })
+                                                   set: { app.vehicleIsElectric = $0; app.persist() }),
+                                haptic: { Haptics.vehicle(isElectric: $0) }
                             )
                         }
                         VStack(alignment: .leading, spacing: 6) {

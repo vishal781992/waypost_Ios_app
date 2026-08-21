@@ -585,12 +585,22 @@ extension RuledHeading where Trailing == EmptyView {
 struct SegmentedTrough<T: Hashable>: View {
     var options: [(value: T, label: String)]
     @Binding var selection: T
+    /// What choosing a given option should feel like.
+    ///
+    /// Opt-in, and nil for six of the app's seven segmented controls. A haptic on every
+    /// segmented tap is noise — it says only that the tap landed, which the pill sliding
+    /// across already said. It earns its place where the two options *differ* in a way
+    /// worth feeling, which so far is one control: the vehicle.
+    var haptic: ((T) -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 3) {
             ForEach(options, id: \.value) { option in
                 let active = option.value == selection
                 Button {
+                    // Only on a change. Re-tapping the segment already showing is not a
+                    // choice, and answering it would make the control feel jumpy.
+                    if option.value != selection { haptic?(option.value) }
                     withAnimation(.snappy(duration: 0.2)) { selection = option.value }
                 } label: {
                     Text(option.label)

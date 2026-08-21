@@ -485,7 +485,8 @@ struct NewTripSheet: View {
                     fieldLabel("Vehicle")
                     SegmentedTrough(
                         options: [(false, "Gasoline"), (true, "Electric")],
-                        selection: $builder.vehicleIsElectric
+                        selection: $builder.vehicleIsElectric,
+                        haptic: { Haptics.vehicle(isElectric: $0) }
                     )
                     Text("Electric adds fast-charge stops to every leg and to the day plans.")
                         .font(WP.bodyItalic(11.5)).opacity(0.55)
