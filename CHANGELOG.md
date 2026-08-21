@@ -15,6 +15,40 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.33.1 — A flown leg counts the driving it actually involves
+
+The map learned that a flown leg is three stretches. The numbers had not.
+
+A leg the app recommends flying still reported `leg.miles` everywhere — the drive from the
+origin city to the park, which is the drive being declined. The sheet named two airports and
+then said *"driven instead it is 1,470 miles"*, which describes a journey nobody is making
+and says nothing about the six hours that are actually going to be spent behind a wheel.
+Salt Lake City to Yellowstone is 327 miles. It was invisible until you looked at the map.
+
+**The two drives are measured now, not just drawn.** `FlightPath` carried the router's
+geometry and threw away everything else it returned; it keeps the miles, the wheel time and
+the numbered roads as well. `FlightCompare` does count both drives to reach its verdict, but
+as straight-line miles at an assumed 55mph — good enough to choose between a flight and a
+drive, not good enough to print.
+
+**The flown-leg sheet lists them.** *Chicago → MDW* and *SLC → Yellowstone*, each with its
+distance, its wheel time and the roads it runs on, and a line underneath totalling the
+driving against what driving the whole way would have been. Both ends are listed however
+short: the 25-mile rule that keeps a stub off the map is about what is too small to draw,
+and eleven miles to Midway is still eleven miles somebody has to leave the house for.
+
+**The pinned summary names the driving too.** It read *"MDW → SLC · 13 h 9 m door to door"*
+and stopped there, which is how a six-hour hire-car drive stayed hidden until the sheet was
+opened.
+
+**The trip's total mileage stops counting the road not taken.** A flown leg contributes its
+two airport drives rather than the drive it replaces, so the stat row totals the journey
+that will happen.
+
+What has not changed is the roadside. Stops are still chosen along the leg's own geometry,
+which on a flown leg is the drive nobody is making, so the sheet still offers none — the
+arrival drive has a roadside worth listing and does not have it yet.
+
 ## 2.33.0 — A flown leg is drawn as a flight
 
 The trip tile drew a road across a leg the app had already decided to fly. Chicago to

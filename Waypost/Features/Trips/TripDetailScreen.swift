@@ -197,10 +197,18 @@ struct TripDetailScreen: View {
 
     // MARK: Stats
 
+    /// The miles this trip is actually driven.
+    ///
+    /// A flown leg used to contribute the drive it replaces — 1,470 miles for a leg the app
+    /// had just recommended flying — so the stat row totalled a journey nobody was making.
+    /// A leg that flies contributes the two airport drives instead, which is the driving
+    /// that will really happen.
     private var totalMiles: Int {
         if isSeed { return app.library.legs.reduce(0) { $0 + $1.mi } }
         let routed = app.routing.legs(for: trip)
-        return routed.isEmpty ? estimatedMiles : routed.reduce(0) { $0 + $1.miles }
+        return routed.isEmpty
+            ? estimatedMiles
+            : routed.reduce(0) { $0 + ($1.flightPath?.drivenMiles ?? $1.miles) }
     }
 
     /// Whether the miles on this screen were driven by a router or guessed from a great

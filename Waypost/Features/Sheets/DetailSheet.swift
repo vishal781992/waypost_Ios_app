@@ -112,7 +112,10 @@ struct DetailSheet: View {
                 // what "Drive it with N stops" already does, one screen away. The rows
                 // keep their own directions control for one place at a time.
                 if let fly = leg.fly {
-                    Text("\(fly.via) · \(fly.time)")
+                    // The driving is part of the summary. Naming only the flight is what
+                    // made a six-hour hire-car drive invisible until the sheet was opened.
+                    let driven = leg.flightPath.map { "\($0.drivenMiles) mi driving" }
+                    Text(([fly.via, fly.time] + [driven].compactMap { $0 }).joined(separator: " · "))
                         .font(WP.body(12.5)).foregroundStyle(WP.text.opacity(0.72)).tnum()
                 } else {
                     Text("\(leg.miles) mi · \(leg.drive) · \(leg.road.split(separator: " → ").count) roads")
@@ -355,9 +358,19 @@ struct DetailSheet: View {
                 .multilineTextAlignment(.leading)
 
             if let fly = leg.fly {
-                // The flight is the leg. Nothing below it applies: there is no roadside on
-                // a flown leg, and offering monuments to detour to and filling stations to
-                // stop at is describing a drive nobody is making.
+                // The flight is not the whole leg, and this used to read as though it were.
+                //
+                // A flown leg is a drive to an airport, the flight, and a drive from the
+                // far airport to the park — and that last one is routinely the longest
+                // single stretch of the day. Salt Lake City to Yellowstone is 327 miles and
+                // the better part of six hours. The sheet named the two airports and then
+                // said "driven instead it is 1,470 miles", which describes the drive being
+                // declined and says nothing at all about the six hours that are actually
+                // going to be spent behind a wheel.
+                //
+                // What still does not apply is the roadside: stops are chosen along
+                // `leg.coordinates`, which is the drive nobody is making. The stretches
+                // below are the real ones, and they carry their own distance and roads.
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(alignment: .firstTextBaseline, spacing: 9) {
                         Text(fly.via).font(WP.mono(14)).tracking(2.2).foregroundStyle(WP.accent800)
@@ -371,12 +384,38 @@ struct DetailSheet: View {
                 .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 12))
                 .padding(.top, 14)
 
-                Text("Driven instead it is \(leg.miles) mi and \(leg.drive), by \(leg.road).")
-                    .font(WP.body(13)).lineSpacing(3).opacity(0.8)
-                    .padding(.top, 14)
-                    .overlay(alignment: .top) { Hairline() }
+                if let path = leg.flightPath {
+                    Kicker(text: "And the driving either side")
+                        .padding(.top, 18)
+                        .overlay(alignment: .top) { Hairline() }
+                        .padding(.top, 14)
 
-                SourceLine("Airports from the OurAirports table of large US hubs; distances and the drive to each one are measured, the hours in the air are modelled. No airline schedule is published to this app, so this names the airports the leg would be flown between rather than a flight — check fares and times with an airline before planning around it.")
+                    // Both ends, however short. `drawsOriginStub` is a rule about what is
+                    // too small to draw on a map; eleven miles to Midway is still eleven
+                    // miles somebody has to leave the house for, and leaving it out here
+                    // would make the total below disagree with the rows above it.
+                    if let toAirport = path.toAirport {
+                        airportDrive("\(leg.from) → \(path.departure.code)", toAirport)
+                    }
+                    if let fromAirport = path.fromAirport {
+                        airportDrive("\(path.arrival.code) → \(leg.to)", fromAirport)
+                    }
+                    if path.toAirport == nil || path.fromAirport == nil {
+                        Text("The routing service did not answer for one of these drives, so it has no distance here.")
+                            .font(WP.bodyItalic(12)).opacity(0.6).lineSpacing(3).padding(.top, 8)
+                    } else {
+                        Text("\(path.drivenMiles) mi behind a wheel in all — against \(leg.miles) mi and \(leg.drive) driving the whole way instead.")
+                            .font(WP.bodyItalic(12)).opacity(0.62).lineSpacing(3).padding(.top, 10)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
+                    Text("Driven instead it is \(leg.miles) mi and \(leg.drive), by \(leg.road).")
+                        .font(WP.body(13)).lineSpacing(3).opacity(0.8)
+                        .padding(.top, 14)
+                        .overlay(alignment: .top) { Hairline() }
+                }
+
+                SourceLine("Airports from the OurAirports table of large US hubs. The two drives are measured by OSRM over the roads named; the hours in the air are modelled. No airline schedule is published to this app, so this names the airports the leg would be flown between rather than a flight — check fares and times with an airline before planning around it.")
                     .padding(.top, 16)
             } else {
                 // Places first, then the roadside. A long leg lists thirty petrol stations
@@ -565,6 +604,23 @@ struct DetailSheet: View {
             UIApplication.shared.open(url)
             #endif
         }
+    }
+
+    /// One end of a flown leg: where it runs, how far, how long, and on what.
+    private func airportDrive(_ title: String, _ drive: TripRouting.AirportDrive) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 9) {
+                Text(title).font(WP.rowTitle(15))
+                Spacer(minLength: 0)
+                Text("\(drive.miles) mi · \(drive.drive)")
+                    .font(WP.body(12.5)).tnum().foregroundStyle(WP.accent700)
+            }
+            Text(drive.road).font(WP.bodyItalic(11.5)).opacity(0.62).lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .bottom) { Hairline() }
     }
 
     // MARK: Stamp

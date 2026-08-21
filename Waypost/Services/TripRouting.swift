@@ -74,9 +74,17 @@ final class TripRouting {
         /// the app already uses for exactly that, rather than not drawn at all.
         var origin: (lat: Double, lon: Double)
         var destination: (lat: Double, lon: Double)
-        /// OSRM's geometry for the two drives. Empty when it did not answer.
-        var toAirport: [(lat: Double, lon: Double)]
-        var fromAirport: [(lat: Double, lon: Double)]
+        /// The two drives, as the router measured them. `nil` when it did not answer.
+        var toAirport: AirportDrive?
+        var fromAirport: AirportDrive?
+
+        /// The driving a flown leg actually involves.
+        ///
+        /// Not `Leg.miles`, which is the drive from the origin city to the park — the one
+        /// the traveller is being told *not* to take. A flown leg's real mileage is the two
+        /// ends, and on Chicago to Yellowstone that is a twelve-mile run to Midway and 327
+        /// miles out of Salt Lake City, not the 1,470 the notional drive would have been.
+        var drivenMiles: Int { (toAirport?.miles ?? 0) + (fromAirport?.miles ?? 0) }
 
         /// Below this, the drive to the airport is not worth drawing.
         ///
@@ -90,6 +98,28 @@ final class TripRouting {
         }
         var drawsArrivalStub: Bool {
             Geo.haversine((arrival.lat, arrival.lon), destination) >= Self.shortestStub
+        }
+    }
+
+    /// One of the two drives a flight involves, measured rather than modelled.
+    ///
+    /// `FlightCompare` counts both to reach its verdict, but as straight-line miles over an
+    /// assumed 55mph — good enough to decide between a flight and a drive, and not good
+    /// enough to print. These are the router's own numbers for the same two stretches.
+    struct AirportDrive {
+        var miles: Int
+        var drive: String
+        var minutes: Int
+        /// The numbered roads actually driven.
+        var road: String
+        var coordinates: [(lat: Double, lon: Double)]
+
+        init(_ route: RoutingService.Route) {
+            miles = route.miles
+            drive = route.drive
+            minutes = route.minutes
+            road = route.corridor ?? "Roads not named by the routing service"
+            coordinates = route.coordinates
         }
     }
 
@@ -237,8 +267,8 @@ final class TripRouting {
                 arrival: arrival,
                 origin: (from.lat, from.lon),
                 destination: (toLat, toLon),
-                toAirport: await toHub?.coordinates ?? [],
-                fromAirport: await fromHub?.coordinates ?? []
+                toAirport: await toHub.map(AirportDrive.init),
+                fromAirport: await fromHub.map(AirportDrive.init)
             )
         }
 
