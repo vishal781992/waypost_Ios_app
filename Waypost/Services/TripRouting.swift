@@ -48,10 +48,45 @@ final class TripRouting {
             return nil
         }
 
+        /// Where this leg ends, for a reader.
+        ///
+        /// A flown leg ends at the arrival airport. The drive on from there is a leg of its
+        /// own now, so naming the park here would give the trip two rows that both arrive
+        /// at the same place and no way to tell which was which.
+        var arrivesAt: String {
+            guard let path = flightPath, path.fromAirport != nil else { return to }
+            return path.arrival.code
+        }
+
+        /// The drive from the arrival airport to the park, as a leg in its own right.
+        ///
+        /// This is the point of the whole exercise. Salt Lake City to Yellowstone is 327
+        /// miles and the better part of six hours, and it was living inside a sheet that
+        /// also declared there was no roadside on a flown leg. It is a drive like any
+        /// other: there is fuel and charging along it, there are monuments worth turning
+        /// off for, and there is a list somebody hands to Maps at the end.
+        ///
+        /// So it is a `Leg` rather than a special case, and it gets all of that by being
+        /// one — `LegStops` asks for stops on anything whose `fly` is nil, and this carries
+        /// the arrival drive's own geometry for them to be measured along.
+        var arrivalDrive: Leg? {
+            guard let path = flightPath, let drive = path.fromAirport else { return nil }
+            return Leg(from: path.arrival.code,
+                       to: to,
+                       miles: drive.miles,
+                       drive: drive.drive,
+                       minutes: drive.minutes,
+                       road: drive.road,
+                       coordinates: drive.coordinates,
+                       // Nothing to compare and nothing to draw: this *is* the driving.
+                       flight: nil,
+                       flightPath: nil)
+        }
+
         var curated: CuratedLeg {
             // `CuratedFly` and `FlyOption` are the same three strings under two names —
             // one is what the bundled table decodes to, the other what a leg carries.
-            CuratedLeg(from: from, to: to, mi: miles, drive: drive, date: "", road: road, ev: [],
+            CuratedLeg(from: from, to: arrivesAt, mi: miles, drive: drive, date: "", road: road, ev: [],
                        fly: fly.map { CuratedFly(via: $0.via, time: $0.time, note: $0.note) })
         }
     }

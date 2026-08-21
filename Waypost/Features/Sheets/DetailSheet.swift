@@ -354,7 +354,7 @@ struct DetailSheet: View {
             Text(label.uppercased())
                 .font(WP.body(13.5)).tracking(1.7).foregroundStyle(WP.accent700)
                 .padding(.top, 10)
-            Text("\(leg.from) → \(leg.to)").font(WP.heading(23)).padding(.top, 9)
+            Text("\(leg.from) → \(leg.arrivesAt)").font(WP.heading(23)).padding(.top, 9)
                 .multilineTextAlignment(.leading)
 
             if let fly = leg.fly {
@@ -390,22 +390,25 @@ struct DetailSheet: View {
                         .overlay(alignment: .top) { Hairline() }
                         .padding(.top, 14)
 
-                    // Both ends, however short. `drawsOriginStub` is a rule about what is
-                    // too small to draw on a map; eleven miles to Midway is still eleven
-                    // miles somebody has to leave the house for, and leaving it out here
-                    // would make the total below disagree with the rows above it.
+                    // The drive to the airport, listed however short — `drawsOriginStub`
+                    // is a rule about what is too small to draw on a map, and eleven miles
+                    // to Midway is still eleven miles somebody has to leave the house for.
                     if let toAirport = path.toAirport {
                         airportDrive("\(leg.from) → \(path.departure.code)", toAirport)
-                    }
-                    if let fromAirport = path.fromAirport {
-                        airportDrive("\(path.arrival.code) → \(leg.to)", fromAirport)
-                    }
-                    if path.toAirport == nil || path.fromAirport == nil {
-                        Text("The routing service did not answer for one of these drives, so it has no distance here.")
-                            .font(WP.bodyItalic(12)).opacity(0.6).lineSpacing(3).padding(.top, 8)
                     } else {
+                        Text("The routing service did not answer for the drive to \(path.departure.code), so it has no distance here.")
+                            .font(WP.bodyItalic(12)).opacity(0.6).lineSpacing(3).padding(.top, 8)
+                    }
+
+                    // The drive off the far end is a leg of its own on the trip, with its
+                    // own fuel, charging and monuments along it. Repeating its distance
+                    // here would be the only place in the app where one drive is two rows.
+                    if let fromAirport = path.fromAirport {
+                        Text("Landing at \(path.arrival.code) leaves \(fromAirport.miles) mi to \(leg.to) — its own leg on this trip, with the stops along it.")
+                            .font(WP.body(13)).lineSpacing(3).opacity(0.8).padding(.top, 12)
+                            .fixedSize(horizontal: false, vertical: true)
                         Text("\(path.drivenMiles) mi behind a wheel in all — against \(leg.miles) mi and \(leg.drive) driving the whole way instead.")
-                            .font(WP.bodyItalic(12)).opacity(0.62).lineSpacing(3).padding(.top, 10)
+                            .font(WP.bodyItalic(12)).opacity(0.62).lineSpacing(3).padding(.top, 8)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 } else {

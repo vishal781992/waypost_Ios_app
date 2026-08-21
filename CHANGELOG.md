@@ -15,6 +15,33 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.34.0 — The drive from the airport is a leg
+
+Landing is not arriving. Salt Lake City to Yellowstone is 327 miles and the better part of
+six hours, and until now that drive existed only as a figure on the flight's sheet — a sheet
+which also said, in as many words, that there was no roadside on a flown leg.
+
+**It is a leg now.** A flown leg ends at the airport it lands at, and the drive on to the
+park follows it in the trip as a row of its own: *SLC → Yellowstone*, with its distance, its
+wheel time and the roads it runs on.
+
+**Which means it has a roadside.** `LegStops` asks for fuel, charging and somewhere to eat
+along anything whose `fly` is nil, and `TripDays` asks the park service what is worth
+turning off for. Both work off the leg's own geometry and are keyed by its id — so the
+arrival drive gets its own stops, its own monuments, and its own *Drive it with N stops*
+into Maps, simply by being a leg rather than a special case. Six hours through Idaho with no
+suggestion of where to charge was the gap; this closes it.
+
+**The flight leg stops pretending to arrive at the park.** It reads *Chicago, IL → SLC* now,
+in the row and on its sheet. Two rows both ending at Yellowstone, one of them a flight,
+would have been unreadable. Its sheet still shows the drive to the departure airport, names
+what is left to drive at the far end, and points at the leg that carries it — the one place
+a distance is not repeated in two rows.
+
+Nothing changes on a driven leg, and nothing changes on a flown leg whose arrival drive the
+router declined to measure: with no geometry there is no leg to make, and the sheet says the
+distance is not known rather than inventing one.
+
 ## 2.33.1 — A flown leg counts the driving it actually involves
 
 The map learned that a flown leg is three stretches. The numbers had not.
