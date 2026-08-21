@@ -173,19 +173,63 @@ struct TripCard: View {
             + parks.map { (lat: $0.lat, lon: $0.lon) }
     }
 
-    /// The roads of the trip, end to end, once the router has answered for every leg.
+    /// The trip as stretches, each knowing how it is travelled.
     ///
-    /// Legs meet at a park, so each one's first point repeats the previous one's last;
-    /// the repeat is dropped or the path doubles back on itself at every stop.
-    private var routeShape: [(lat: Double, lon: Double)] {
-        var out: [(lat: Double, lon: Double)] = []
-        for leg in app.routing.legs(for: trip) {
-            for point in leg.coordinates {
-                if let last = out.last, last.lat == point.lat, last.lon == point.lon { continue }
-                out.append(point)
+    /// This used to flatten every leg into one continuous line, dropping the repeated point
+    /// where legs meet at a park so the path did not double back. Each stretch is stroked
+    /// separately now, so a shared endpoint costs nothing and the flattening is gone with
+    /// the thing that needed it.
+    ///
+    /// A driven leg is one road. A flown leg is three: the drive to the airport, the
+    /// flight, and the drive from the far airport to the park — which on a leg like
+    /// Chicago to Yellowstone is 327 miles and most of a day, and was previously drawn as
+    /// part of one unbroken road line running the whole way.
+    private var routeLegs: [RouteLeg] {
+        let legs = app.routing.legs(for: trip)
+        guard !legs.isEmpty else { return [] }
+
+        var out: [RouteLeg] = []
+        for leg in legs {
+            guard let path = leg.flightPath else {
+                out.append(RouteLeg(.road, leg.coordinates.map(Self.coordinate)))
+                continue
+            }
+            let departure = CLLocationCoordinate2D(latitude: path.departure.lat,
+                                                   longitude: path.departure.lon)
+            let arrival = CLLocationCoordinate2D(latitude: path.arrival.lat,
+                                                 longitude: path.arrival.lon)
+            if path.drawsOriginStub {
+                out.append(Self.drive(path.toAirport, from: path.origin,
+                                      to: (path.departure.lat, path.departure.lon)))
+            }
+            out.append(RouteLeg(.air, [departure, arrival]))
+            if path.drawsArrivalStub {
+                out.append(Self.drive(path.fromAirport, from: (path.arrival.lat, path.arrival.lon),
+                                      to: path.destination))
             }
         }
         return out
+    }
+
+    /// A drive as the router gave it, or the straight line the app already uses to say a
+    /// road has not been measured. Never a straight line drawn as though it were a road.
+    private static func drive(_ routed: [(lat: Double, lon: Double)],
+                              from: (lat: Double, lon: Double),
+                              to: (lat: Double, lon: Double)) -> RouteLeg {
+        routed.count > 1
+            ? RouteLeg(.road, routed.map(coordinate))
+            : RouteLeg(.provisional, [coordinate(from), coordinate(to)])
+    }
+
+    private static func coordinate(_ point: (lat: Double, lon: Double)) -> CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon)
+    }
+
+    /// Every airport this trip actually passes through, in order.
+    private var airports: [(lat: Double, lon: Double)] {
+        app.routing.legs(for: trip).compactMap(\.flightPath).flatMap {
+            [($0.departure.lat, $0.departure.lon), ($0.arrival.lat, $0.arrival.lon)]
+        }
     }
 
     @State private var confirmingDelete = false
@@ -267,7 +311,7 @@ struct TripCard: View {
                 Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.68).padding(.top, 4)
                     .multilineTextAlignment(.leading)
 
-                RouteMapPlate(id: trip.id, points: points, route: routeShape)
+                RouteMapPlate(id: trip.id, points: points, legs: routeLegs, airports: airports)
                     .frame(height: 132)
                     .padding(.top, 11)
 
@@ -357,29 +401,40 @@ struct RouteMapPlate: View {
     var id: String
     /// Where the route starts, stops and ends.
     var points: [(lat: Double, lon: Double)]
-    /// The drive as it is actually driven, when the router has answered.
+    /// The trip as stretches, each knowing how it is travelled.
     ///
     /// `TripRouting.Leg` has carried OSRM's own geometry all along and this plate drew a
     /// straight line between origin and park regardless — so a trip over the Sierra read
-    /// as a ruler laid across the mountains, through country with no road in it. The
-    /// straight line survives only as the thing shown while the route is still being
-    /// fetched, and it is dashed to say so.
-    var route: [(lat: Double, lon: Double)] = []
-
-    private var routedCoordinates: [CLLocationCoordinate2D] {
-        route.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
-    }
+    /// as a ruler laid across the mountains, through country with no road in it. That was
+    /// fixed by drawing the road; this is the other half of the same fault. A leg the app
+    /// decided to *fly* was still drawn as one unbroken road from the origin city to the
+    /// park, and the two drives that flight actually involves — one of which is routinely
+    /// the longest single stretch of the day — were nowhere.
+    ///
+    /// Empty until the router answers, at which point the straight placeholder below is
+    /// replaced, and it is dashed until then to say so.
+    var legs: [RouteLeg] = []
+    /// The airports a flown trip passes through. Drawn as diamonds, and counted in the
+    /// framing — an arc whose far end is off the plate reads as a line to nowhere.
+    var airports: [(lat: Double, lon: Double)] = []
 
     /// The straight line between the places, for while the road is still being asked for.
     private var straightCoordinates: [CLLocationCoordinate2D] {
         points.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
     }
 
-    private var isRouted: Bool { routedCoordinates.count > 1 }
-
-    private var coordinates: [CLLocationCoordinate2D] {
-        isRouted ? routedCoordinates : straightCoordinates
+    /// What the plate draws. The stretches once they exist; until then the straight line
+    /// between the places, dashed, exactly as before.
+    private var drawn: [RouteLeg] {
+        legs.isEmpty ? [RouteLeg(.provisional, straightCoordinates)] : legs
     }
+
+    private var airportCoordinates: [CLLocationCoordinate2D] {
+        airports.map { CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon) }
+    }
+
+    /// Everything the picture has to contain: the stops, and the airports a flight uses.
+    private var framed: [(lat: Double, lon: Double)] { points + airports }
 
     /// Where the route starts, stops and ends — drawn as discs on top of the line. Off the
     /// places, not off the geometry, which has thousands of points and no idea which of
@@ -398,7 +453,9 @@ struct RouteMapPlate: View {
     /// opened. The stops are what a reader changes when they change a trip, and the road
     /// follows from them.
     private func key(size: CGSize, scale: CGFloat) -> String {
-        let places = points.map { String(format: "%.4f,%.4f", $0.lat, $0.lon) }
+        // Airports are part of what the picture is *of*, so a trip that starts flying gets
+        // a new key and a new picture rather than the old one at the old zoom.
+        let places = framed.map { String(format: "%.4f,%.4f", $0.lat, $0.lon) }
         return (["\(Int(size.width))x\(Int(size.height))@\(Int(scale))"] + places)
             .joined(separator: "|")
     }
@@ -426,7 +483,7 @@ struct RouteMapPlate: View {
             .animation(.easeOut(duration: 0.35), value: plate != nil)
             // Re-runs when the road lands, so a card that came up with the dashed straight
             // line replaces it with the drive as soon as the router answers.
-            .task(id: key(size: size, scale: scale) + (isRouted ? "|road" : "|straight")) {
+            .task(id: key(size: size, scale: scale) + "|" + drawn.map(\.mode.tag).joined(separator: ",")) {
                 // Let the layout settle before drawing anything. `GeometryReader` reports
                 // the card's width twice — an intermediate 126pt and then the real 332pt —
                 // and the plate's size is part of what a snapshot is filed under, so both
@@ -440,20 +497,21 @@ struct RouteMapPlate: View {
                 // Nothing to draw from until the trip has both ends of a drive. The
                 // origin resolves after the first layout pass, so asking before that is
                 // asking about a route that does not exist yet.
-                guard points.count > 1 else { return }
+                guard framed.count > 1 else { return }
                 plate = await RouteSnapshotStore.shared.snapshot(
                     id: id,
                     key: key(size: size, scale: scale),
                     region: region,
                     size: size,
                     scale: scale,
-                    route: coordinates,
+                    route: drawn,
                     stops: stops,
-                    routed: isRouted,
+                    airports: airportCoordinates,
                     style: .init(line: UIColor(WP.accent),
                                  start: UIColor(WP.accent700),
                                  stopFill: UIColor(WP.bg),
-                                 stopStroke: UIColor(WP.accent700))
+                                 stopStroke: UIColor(WP.accent700),
+                                 air: UIColor(WP.accent800))
                 )
             }
         }
@@ -465,7 +523,7 @@ struct RouteMapPlate: View {
 
     /// Framed on every stop with a margin, so the whole route reads at a glance.
     private var region: MKCoordinateRegion {
-        let lats = points.map(\.lat), lons = points.map(\.lon)
+        let lats = framed.map(\.lat), lons = framed.map(\.lon)
         guard let minLat = lats.min(), let maxLat = lats.max(),
               let minLon = lons.min(), let maxLon = lons.max() else {
             return MKCoordinateRegion(

@@ -107,7 +107,11 @@ enum FlightCompare {
             time: "≈ \(clock(doorToDoor)) door to door",
             note: "About \(clock(saving)) quicker than driving it. Counts \(clock(toAirport)) to "
                 + "\(origin.airport.code) and \(clock(fromAirport)) from \(destination.airport.code) "
-                + "in a hire car. Estimated — no airline schedule is published to this app."
+                + "in a hire car. Estimated — no airline schedule is published to this app.",
+            from: FlyAirport(code: origin.airport.code,
+                             lat: origin.airport.lat, lon: origin.airport.lon),
+            to: FlyAirport(code: destination.airport.code,
+                           lat: destination.airport.lat, lon: destination.airport.lon)
         ))
     }
 
