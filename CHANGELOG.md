@@ -15,6 +15,41 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.30.0 — The passport book holds every stamp you collect
+
+A stamp collected anywhere but the bundled page was being kept, counted, and never shown.
+The book drew twelve tiles from `curated.json` and nothing else, so a monument stamped from
+a park's Nearby tab pushed the header up by one and then vanished — there was no page for it
+to appear on. The stamp was not lost: `stamps` held it and the visited rail read it. The one
+screen whose job is to show stamps simply could not.
+
+**The book has two pages now.** *In the book* is what it always was — the twelve stops
+written into `curated.json`, stamped or waiting, with the progress bar over them.
+*Collected in the field* is everything else: the four hundred units the park service runs,
+reachable from the Nearby tab of any park screen, each tile carrying the place it was in and
+the date it was collected.
+
+**A stamp is a record rather than a code.** `CollectedStamp` carries the name, the place and
+the date, because for a unit found in the field there is nowhere on the phone to look any of
+those up afterwards. A code alone was enough only while the book was a written-down list of
+twelve with the names printed beside them.
+
+**The header stops counting against 63.** It read "*n* of 63 stamps" — 63 is the number of
+national parks, which is neither the size of the book nor the number of things that can be
+stamped, and a sixty-fourth would have filled the progress bar past its end. The header now
+counts what has been collected and names no total; the bar measures the bundled twelve,
+which is the only denominator on this screen that is real.
+
+**The sheet stops saying "today".** A collected stamp's face read *stamped · today* whenever
+it was opened, months afterwards included. It prints the date on the record, or plain
+*stamped* when there is no date to print.
+
+**Stamps collected by older builds are carried over, not invented.** `stampKey(forName:)`
+strips everything that is not a letter, so a code cannot be read back into a name — but it
+can be matched, by running the same key over every name the app already knows. That recovers
+the bundled twelve and every national park. A monument found in the field has genuinely lost
+its name; it keeps its place in the count, and the book says how many are unnamed rather
+than guessing at one.
 
 ## 2.29.1 — The search pill answers a tap anywhere on it
 
@@ -144,7 +179,6 @@ site. `DESIGN.md` writes down the measurements the app already uses — colour, 
 motion — so a new screen matches the ones beside it instead of inventing its own corner
 radius.
 
-
 ## 2.28.0 — Fly when faster, meant literally
 
 "Fly when faster" was a switch with nothing behind it. The builder stored the answer, the
@@ -177,7 +211,6 @@ without a contract, so this cannot claim a flight exists on a given day. It says
 the leg would be flown between and what that would cost in hours, with an hour of slack on
 every flight — no flight leaves at the minute somebody wants one and not every pair of hubs has
 a nonstop, so the slack keeps the estimate on the conservative side of its own comparison.
-
 
 ## 2.27.0 — What the sources actually say
 
@@ -391,7 +424,6 @@ an identity now, so a clean install sees these rather than going straight to Tod
 they sit in, the builder footer sitting into the home indicator's clearance rather than
 above it (a seventh row shows), and a larger profile monogram.
 
-
 ## 2.26.0 — NPS data actually arrives
 
 Not the proxy, not the key, not the network — all three verified with curl against the
@@ -419,7 +451,6 @@ whether that particular value came from NPS, because the service can answer with
 no fee. Descriptions end on a whole sentence rather than a character count, which had cut
 Congaree's hours on "Please review the par".
 
-
 ## 2.25.0 — A button answers a tap anywhere on it
 
 Controls worked only where their label's glyphs were. Every control in the app is a
@@ -442,7 +473,6 @@ park's row under its measured figures, rather than a bullet list five rows above
 shortlist it corresponded to. **A build badge on Profile** (.2), `vX.Y.Z.a` read from the
 bundle so it cannot drift from what shipped, selectable so it can be copied into a report.
 
-
 ## 2.24.0 — Set out from any city in the country
 
 `curated.json` shipped six origin cities and the builder offered no other way to answer
@@ -452,7 +482,6 @@ with typing and do not queue behind the park search on Nominatim's one-per-1.1-s
 door — and the shipped six stay as shortcuts. Origins become `TripOrigin` (name, lat, lon)
 throughout; the new `SavedTrip` fields are optional, so trips saved before this still
 decode.
-
 
 ## 2.23.0 — A trip describes the trip that was planned
 
@@ -467,7 +496,6 @@ next month read today's forecast; the date is threaded through the route now, fa
 to the ten-year climatology that had been written for dates past the forecast horizon and
 called from nowhere.
 
-
 ## 2.22.0 — The app stops loading forever
 
 Every location-dependent surface could spin indefinitely, and on a first launch all of
@@ -481,13 +509,11 @@ continuation with a deadline task that resumes it, waiters held in an array so c
 callers share one fix, four `LocationService` instances collapsed into one. The network
 layer is bounded too: `timeoutIntervalForResource` was unset, which is a seven-day default.
 
-
 ## 2.21.0 — A trip from any park
 
 The builder button was gated behind a designation check, so a national park screen offered no
 way into trip planning even though it is the likeliest first stop. "Plan a trip here" shows on
 every park screen.
-
 
 ## 2.20.0 — Back, and one navigation path per tab
 
@@ -495,7 +521,6 @@ All five `NavigationStack`s were bound to the same `$app.stack`. Five stacks dri
 array: a park pushed from Discover was in the history of Today, Trips, Saved and Profile as
 well, and popping it popped all of them. Each tab owns its path now and keeps it across
 switches.
-
 
 ## 2.19.0 — Plan a trip from the park you are looking at
 
@@ -509,14 +534,12 @@ and tapping one produced a toast — "a name and a location is all any nationwid
 publishes" — and went nowhere. True of the row and untrue of the park: the row carries
 coordinates, and coordinates are all the live sources need.
 
-
 ## 2.18.0 — Navigation controls stop reading as borrowed chrome
 
 Back was 15pt with a 16pt UI title and the builder's Cancel 14.5, all sitting under a masthead
 set in 44pt serif — system chrome from another app pasted onto the top of this one. Back and
 Cancel are 19pt with a matching chevron and a 44-point target; the pushed title is the display
 serif at 24.
-
 
 ## 2.17.0 — Campgrounds, availability and things to do, all live
 
@@ -531,7 +554,6 @@ day plans.
 only offer the curated eight — a park found on Discover could be opened and saved and then not
 planned around.
 
-
 ## 2.16.0 — NPS answers now
 
 The service was never broken. The worker allowlists the website's origin, and the app
@@ -539,7 +561,6 @@ introduced itself as `app://waypost-ios`, which it answers 403 to. Every NPS cal
 ever made had failed, and the empty panels were read as the API being down. The header was
 never authentication — the key lives on the worker — so the app sends the site's own origin
 and `X-Waypost-Client` still says which client is calling.
-
 
 ## 2.15.0 — Screen titles match the masthead
 
@@ -549,13 +570,11 @@ ParkHop on the home screen. Doing it exposed the bug `HP_changes` lists first un
 asked for the Bold cut, passed its own check that the Bold cut exists, and then drew SemiBold —
 including the masthead the weight was cut for. Carries the P0 trust fixes from `HP_changes`.
 
-
 ## 2.14.0 — The page is #D1CFA5
 
 One token: the page colour goes from near-white to the sage the design asked for. It needed one
 split to stay that way — `WP.bg` was doing two jobs, the page and the pale type that sits on
 ink, which were the same colour by coincidence rather than by intent.
-
 
 ## 2.13.0 — The home screen answers with your location
 
@@ -573,7 +592,6 @@ nothing; both are a single `GlassDisc`. **Stop telling people where the data is 
 — where a record came from is worth saying (NPS, Apple Maps, OpenStreetMap); which disc it is
 sitting on is not the reader's problem.
 
-
 ## 2.12.0 — Every national park on the phone
 
 The instinct was right and the number was ten times too big. Measured rather than guessed: a
@@ -585,13 +603,11 @@ every park in it.
 **Every screen, named, for feedback** (2.12.1, 2.12.2) — `docs/SCREENS.md` and all thirty-six
 captures, including the halves below the fold.
 
-
 ## 2.11.0 — Parks on screen in about a second
 
 The search ran its sources in order, so the wait was all of them added together: three
 Nominatim calls one after another, then a request to a proxy that answers 403, and only then
 the slow sweep. They run together now.
-
 
 ## 2.10.0 — A recommendation that actually changes
 
@@ -605,13 +621,11 @@ profile carrying it and the build fails before any of the code runs. Deleting a 
 implementation for a billing reason is the wrong trade, so it is compiled out rather than
 removed.
 
-
 ## 2.9.0 — What is actually around the park, from Apple Maps
 
 The camper's questions — where do I charge, where do I fill up, where is the last shop before
 the gate, where can I sleep — were answered from lists that existed for four of the eight
 shipped parks and for nowhere else in the country. `PlacesService` asks Apple Maps instead.
-
 
 ## 2.8.0 — Suggestions while you type
 
@@ -625,14 +639,12 @@ Utah returns five of those, ten national monuments, thirty-two state parks, thre
 recreation areas and over a hundred wilderness areas, and the cards said none of it. The
 designation is a field on the record rather than something inferred at the point of drawing.
 
-
 ## 2.7.0 — Results as they arrive
 
 A state-wide Overpass query takes thirty to ninety seconds — Texas took ninety — and the whole
 search waited on it before showing anything, so a search that was working looked like one that
 had failed. The sources answer independently and publish as they land: Nominatim first at about
 a second, NPS next, Overpass last. Apple Weather, and a sheet for routed legs.
-
 
 ## 2.6.0 — Live park search, and the leg from where you actually are
 
@@ -646,13 +658,11 @@ most of the damage: the search was started by an `onChange` on the Discover scre
 depended on which view was mounted — and the state-park side of the toggle never started one at
 all. Typing searches from the property itself now, where nothing can miss it.
 
-
 ## 2.5.0 — Every button and tab on ink glass
 
 The controls were a mix — light glass pills, hairline outlines, accent-tinted capsules, one
 flat ink plate — and none read as the same kind of object. One thing now: ink glass carrying
 white type, applied through `glassControl()` so a button and a selected tab agree.
-
 
 ## 2.4.0 — Real photographs on the park tiles
 
@@ -664,7 +674,6 @@ because those are the park service's own pictures and the ones the design was dr
 header bar read as a page about the park rather than an arrival at it. It bleeds to the very
 top — under the status bar, around the island — and dissolves into the page, so the name below
 sits on the same sheet.
-
 
 ## 2.3.0 — Reachable
 
@@ -681,7 +690,6 @@ remove) — so the small × on a card is no longer the only way to act on it.
 **Feedback moves to `sensoryFeedback`**: a light impact when a day's item is ticked,
 selection when a park is saved, success when a stamp lands. The system decides what that
 means on the device rather than the app hard-coding a generator.
-
 
 ## 2.2.0 — Motion
 
@@ -709,7 +717,6 @@ tabular, so nothing shifts as the digits change.
 rather than on appearance, so the effect holds when you scroll back up. The near-you brief
 staggers its lines, and a landing tick uses SF Symbols' own bounce.
 
-
 ## 2.1.2 — The serif, in one place
 
 A national park's name is the one line in this app worth setting in the design system's
@@ -725,7 +732,6 @@ function the view calls, so it cannot drift back.
 
 One font file ships instead of eight.
 
-
 ## 2.1.1 — San Francisco
 
 The bundled serifs are gone. Cormorant Garamond and Lora are the design system's voice on
@@ -738,7 +744,6 @@ The design's sizes are kept. SF has the larger x-height, so headings are scaled 
 and the layout is unchanged. The font files and their `UIAppFonts` declaration are
 removed with the code that registered them; every size still routes through `WP.heading`,
 `WP.body` and `WP.mono`.
-
 
 ## 2.1.0 — A brief written on the phone
 
@@ -765,7 +770,6 @@ whose one rule is never to show an invented value, that cannot reach the screen.
 
 **When it cannot run** — no Apple Intelligence, not enabled, model still downloading, or
 an older iOS — the card says which of those it is and shows the ranked list anyway.
-
 
 ## 2.0.0 — The native app
 
@@ -808,7 +812,6 @@ parks with colours, August normals, gates, campgrounds, day plans and nearby sta
 four legs and ten days of the seed trip; the passport book — into `curated.json`. Panels
 say it is curated. The live services from 1.9.x are still in the repo and are re-wired
 onto these screens next; until then no panel claims to be today's measurement.
-
 
 ## 1.9.1 — First native pass
 

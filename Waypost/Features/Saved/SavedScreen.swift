@@ -9,7 +9,8 @@ struct SavedScreen: View {
 
         VStack(spacing: 0) {
             ScreenHeader {
-                Text("\(app.stamps.count) of 63 stamps").kickerStyle()
+                Text(app.stamps.count == 1 ? "1 stamp collected" : "\(app.stamps.count) stamps collected")
+                    .kickerStyle()
                     .rollingNumber(app.stamps.count)
                 Text("Saved").font(WP.displayBold(44)).tracking(-0.4).padding(.top, 2).padding(.bottom, 11)
                 SegmentedTrough(
@@ -179,8 +180,41 @@ struct SavedParkRow: View {
 }
 
 /// The passport: a grid of scalloped stamps, collected by standing in the park.
+///
+/// Two pages, because there are two kinds of stamp. The book is the units written into
+/// `curated.json` — a fixed page with a real denominator, and the only thing here a
+/// progress bar can honestly measure. Everything else was collected in the field, from the
+/// Nearby tab of whatever park was open, and there is no list to count those against: the
+/// park service runs four hundred units and any of them will do.
+///
+/// The field page is why this screen was rebuilt. A stamp collected out there was already
+/// being kept and counted, but the grid only ever drew the bundled page — so the header
+/// went up by one and nothing appeared. It had nowhere to appear.
 struct PassportBook: View {
     @Environment(AppState.self) private var app
+
+    /// Stamps from somewhere other than the bundled page, most recent first. One with no
+    /// date was carried over from a build that kept only codes, so it sorts to the back
+    /// rather than to today.
+    private var field: [CollectedStamp] {
+        let bundled = Set(app.library.passport.map(\.code))
+        return app.stampBook
+            .filter { !bundled.contains($0.code) }
+            .sorted { a, b in
+                switch (a.on, b.on) {
+                case let (x?, y?): return x > y
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default: return a.name < b.name
+                }
+            }
+    }
+
+    private var bundledCollected: Int {
+        app.library.passport.filter { app.isStamped($0.code) }.count
+    }
+
+    private var columns: [GridItem] { Array(repeating: GridItem(.flexible(), spacing: 11), count: 3) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -188,19 +222,82 @@ struct PassportBook: View {
                 .font(WP.body(13)).lineSpacing(3).opacity(0.8)
                 .padding(.bottom, 12)
 
-            ProgressTrack(fraction: Double(app.stamps.count) / 63)
-                .animation(Motion.counter, value: app.stamps.count)
+            ProgressTrack(fraction: Double(bundledCollected) / Double(max(1, app.library.passport.count)))
+                .animation(Motion.counter, value: bundledCollected)
+            Text("\(bundledCollected) of the \(app.library.passport.count) stops in the book.")
+                .font(WP.bodyItalic(11.5)).opacity(0.55).padding(.top, 7)
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 11), count: 3), spacing: 11) {
+            heading("In the book")
+            LazyVGrid(columns: columns, spacing: 11) {
                 ForEach(app.library.passport) { unit in
                     StampTile(unit: unit)
                 }
             }
-            .padding(.top, 18)
+
+            if !field.isEmpty {
+                heading("Collected in the field")
+                Text("Found from the Nearby tab of a park screen — anywhere the park service runs a visitor centre.")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 12)
+                LazyVGrid(columns: columns, spacing: 11) {
+                    ForEach(field) { stamp in
+                        CollectedTile(stamp: stamp)
+                    }
+                }
+            }
+
+            if app.unnamedStampCount > 0 {
+                Text(app.unnamedStampCount == 1
+                     ? "One stamp was collected before this book kept names. It still counts, but its name was never written down, so there is no page for it."
+                     : "\(app.unnamedStampCount) stamps were collected before this book kept names. They still count, but their names were never written down, so there are no pages for them.")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.top, 16)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             Text("The paper book still wants a rubber stamp at the visitor centre. This one just remembers where you were.")
                 .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3).padding(.top, 18)
         }
+    }
+
+    /// A band heading, ruled off — the same one the park screen's Nearby tab uses.
+    private func heading(_ title: String) -> some View {
+        HStack(spacing: 8) {
+            Text(title.uppercased())
+                .font(WP.body(11)).tracking(1.3)
+                .foregroundStyle(WP.accent700)
+            Rectangle().fill(WP.divider).frame(height: 1)
+        }
+        .padding(.top, 18)
+        .padding(.bottom, 10)
+    }
+}
+
+/// A stamp collected somewhere the app had no page waiting for it.
+///
+/// It does not toggle. A stamp is a claim about where the phone stood, and nothing in the
+/// app takes one back — the same reason the visited rail suppresses rather than deletes.
+/// The place sits under the face because, unlike the bundled page, nothing else on this
+/// screen says where the unit is.
+struct CollectedTile: View {
+    var stamp: CollectedStamp
+
+    var body: some View {
+        VStack(spacing: 5) {
+            StampFace(name: stamp.name, caption: stamp.caption)
+                .rotationEffect(.degrees(Double(stamp.code.first?.asciiValue ?? 0)
+                    .truncatingRemainder(dividingBy: 5) - 2))
+                .aspectRatio(1, contentMode: .fit)
+
+            if !stamp.place.isEmpty {
+                Text(stamp.place)
+                    .font(WP.bodyItalic(10.5)).opacity(0.6)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(stamp.name), \(stamp.caption)")
     }
 }
 
@@ -212,7 +309,7 @@ struct StampTile: View {
 
     var body: some View {
         Button {
-            app.collectStamp(unit.code, name: unit.name)
+            app.collectStamp(unit.code, name: unit.name, place: unit.city)
         } label: {
             ZStack {
                 if collected {

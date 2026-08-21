@@ -583,7 +583,8 @@ struct DetailSheet: View {
                 Spacer(minLength: 0)
                 Group {
                     if collected {
-                        StampFace(name: name, caption: "stamped · today", nameSize: 15, captionSize: 7.5)
+                        StampFace(name: name, caption: app.stamp(key)?.caption ?? "stamped",
+                                  nameSize: 15, captionSize: 7.5)
                             .frame(width: 152, height: 152)
                             .rotationEffect(.degrees(-4))
                     } else {
@@ -610,7 +611,7 @@ struct DetailSheet: View {
                 filled: !collected,
                 strongGlow: collected
             ) {
-                app.collectStamp(key, name: name)
+                app.collectStamp(key, name: name, place: city)
             }
 
             Text("The phone taps back when a stamp lands. Geofenced on device, so it only works when you are actually there.")
