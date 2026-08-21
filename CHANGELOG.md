@@ -16,6 +16,28 @@ followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of t
 so a tester can say which build they were looking at.
 
 
+## 2.29.1 — The search pill answers a tap anywhere on it
+
+Tapping the Explore search bar did nothing unless the tap landed on the text itself. The
+empty three-quarters of the pill — which is most of a search field, most of the time — was
+dead.
+
+It is the second time this fault has been fixed in this control, and the same fault the
+buttons had on iOS 26. A gesture on the field's *container* only fires if the container is
+hit-testable, and a container is hit-testable because something drew a background into it.
+`glassEffect` draws no such thing. The trip builder and profile fields wear a flat
+`neutral200` capsule and so were fine; Explore's wears glass, and had no region for
+`contentShape` to describe — the tap landed on nothing and the gesture never ran.
+
+So the tap target stops being a property of the container and becomes a view of its own: a
+`Color.clear` filling the pill, carrying the gesture itself. Always hit-testable, whatever
+drew the surface, competing with nothing.
+
+It sits in the `background` rather than an overlay, because these fields are not all bare —
+the origin field carries a clear button and the profile's carries *Done*, and an overlay
+would sit above them and eat the taps meant for them. Behind the content, the field and its
+buttons keep every tap that is theirs, and this catches only what would have hit nothing.
+
 ## 2.29.0 — A photograph to open on, and a list the traveller writes
 
 Two screens stop being catalogues the app assembled and start being things the reader
