@@ -78,7 +78,7 @@ struct NearbyCard: View {
             Text("What could I reach today?")
                 .font(WP.heading(21))
             Text(briefing.modelAvailability == nil
-                 ? "ParkHop measures the parks around you, reads the forecast and how busy they are this month, and writes the brief on the phone itself — the model never leaves the device."
+                 ? "ParkHop measures the parks around you and writes the brief on the phone. None of your location data leaves it for marketing."
                  : "ParkHop measures the parks around you and ranks them by real distance.")
                 .font(WP.body(12.5)).lineSpacing(2).opacity(0.72)
                 .fixedSize(horizontal: false, vertical: true)
@@ -103,7 +103,12 @@ struct NearbyCard: View {
             briefing.clock?.tooLateToday == true
                 ? "Too late to set out today — this is about tomorrow, with tomorrow's forecast."
                 : nil,
-            briefing.leadSwapReason
+            briefing.leadSwapReason,
+            // Only worth a line when the roads are actually against them. "Traffic is
+            // normal" is not news, and a panel that says it every time teaches people to
+            // stop reading the panel.
+            briefing.candidates.compactMap(\.delay).first(where: \.isWorthSaying)
+                .map { "Roads today: \($0.line). Apple's estimate for leaving now." }
         ].compactMap { $0 }
 
         if !lines.isEmpty {

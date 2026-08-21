@@ -34,6 +34,9 @@ struct NearbyCandidate: Identifiable, Hashable {
     /// Whether the traveller has already stood in this park — stamped it, saved it, or
     /// written it into a trip.
     var isVisited = false
+    /// What today's roads are costing over a clear one. Only ever set on the park the
+    /// brief leads with — see `NearbyBriefing.delayForLead`.
+    var delay: TravelDelay?
 
     var id: String { park.code }
 
@@ -50,10 +53,18 @@ struct NearbyCandidate: Identifiable, Hashable {
     /// off the bundled record — one August day, written down once for eight parks — so a
     /// card read "76°/40°" in February.
     var factLine: String {
-        let measured = "\(roadMiles) mi · \(driveLabel)"
-        guard park.wx.isPublished else { return measured }
-        return "\(measured) · \(park.wx.hi)°/\(park.wx.lo)°"
+        // Apple's time where it was asked for, the app's estimate otherwise. The two are
+        // not the same claim, and `delayLine` is what says which one this is.
+        let measured = "\(roadMiles) mi · \(delay?.driveLabel ?? driveLabel)"
+        // This used to read `park.wx`, which on a candidate built from the bundled tables
+        // is always `.unpublished` — so the temperatures never once printed. It is the
+        // fetched forecast now, and a park whose forecast did not answer still shows none.
+        guard let today else { return measured }
+        return "\(measured) · \(today.hi)°/\(today.lo)°"
     }
+
+    /// The roads, where they were asked about. Nil on every park but the recommended one.
+    var delayLine: String? { delay?.line }
 
     /// Exactly what the model is told about this park. Nothing here is invented and
     /// nothing here is written down: the distance is measured, the forecast is fetched.
@@ -80,6 +91,9 @@ struct NearbyCandidate: Identifiable, Hashable {
         if let tomorrow { lines.append(Self.weatherLine("tomorrow", tomorrow)) }
         if let crowds = crowdLabel {
             lines.append("  crowds: \(crowds)")
+        }
+        if let delay {
+            lines.append("  roads: \(delay.band)")
         }
         if isVisited {
             lines.append("  the traveller has already been to this one")
@@ -130,6 +144,52 @@ struct NearbyCandidate: Identifiable, Hashable {
               text.rangeOfCharacter(from: .decimalDigits) == nil,
               !text.isEmpty else { return nil }
         return text
+    }
+}
+
+/// What the drive costs today, as against the same road on a quiet night.
+///
+/// Apple predicts travel time for the hour you say you are leaving, so the difference
+/// between "leaving now" and "leaving at three tomorrow morning" is the traffic rather
+/// than the route. No single request returns both, which is why this holds two.
+///
+/// It is a prediction, not a measurement, and the wording says so wherever it is printed.
+struct TravelDelay: Hashable {
+    /// Apple's estimate for setting out now.
+    var nowSeconds: TimeInterval
+    /// The same road at an hour with nothing on it.
+    var clearSeconds: TimeInterval
+    var checkedAt: Date
+
+    var minutesLost: Int { max(0, Int(((nowSeconds - clearSeconds) / 60).rounded())) }
+
+    /// Below this the difference is inside the noise of a prediction, and saying anything
+    /// about it would be dressing up a rounding error as advice.
+    var isWorthSaying: Bool { minutesLost >= 15 }
+
+    /// Apple's drive time for leaving now, which is a better number than the app's own
+    /// estimate from straight-line miles at a flat speed.
+    var driveLabel: String {
+        let hours = Int(nowSeconds) / 3600
+        let minutes = (Int(nowSeconds) % 3600) / 60
+        return hours > 0 ? "\(hours) h \(minutes) m" : "\(minutes) m"
+    }
+
+    /// For the screen. The app prints the figure; the model never does.
+    var line: String {
+        isWorthSaying
+            ? "\(driveLabel) leaving now — about \(minutesLost) min more than a clear road"
+            : "\(driveLabel) leaving now, roads about as they usually are"
+    }
+
+    /// For the model, in words, because it may not write a figure.
+    var band: String {
+        switch minutesLost {
+        case 45...: return "the roads are badly against them today — the drive is much longer than usual"
+        case 25..<45: return "traffic is adding a fair bit to the drive today"
+        case 15..<25: return "traffic is adding a little to the drive today"
+        default: return "the roads are running about as they usually do"
+        }
     }
 }
 
@@ -304,13 +364,48 @@ final class NearbyBriefing {
         clock = reading
 
         state = .thinking
-        candidates = await withWeather(ranked, wantsTomorrow: reading.tooLateToday)
+        var enriched = await withWeather(ranked, wantsTomorrow: reading.tooLateToday)
+
+        // Traffic, for the one park being recommended, and only when the brief is about
+        // today. A leaving-now estimate says nothing about tomorrow morning — the same
+        // rule the leg sheet already follows — and asking for every candidate would be
+        // eight route requests to answer a question about one of them.
+        if !reading.tooLateToday,
+           let index = enriched.firstIndex(where: { $0.park.code == lead.park.code }) {
+            enriched[index].delay = await Self.delayForLead(
+                from: (fix.lat, fix.lon),
+                to: (enriched[index].park.lat, enriched[index].park.lon)
+            )
+        }
+        candidates = enriched
 
         if let reason = modelAvailability {
             state = .unavailable(reason)
             return
         }
         await generate()
+    }
+
+    /// What the drive to the recommended park is costing today.
+    ///
+    /// Two predictions of the same road: one for setting out now, one for three tomorrow
+    /// morning, which is as clear as a road gets. The difference is the traffic. Either
+    /// request failing gives up rather than guessing — a park with no answer here simply
+    /// keeps the app's own estimate and says nothing about the roads.
+    private static func delayForLead(from: (lat: Double, lon: Double),
+                                     to: (lat: Double, lon: Double)) async -> TravelDelay? {
+        var quiet = Calendar.current.dateComponents(
+            [.year, .month, .day], from: Date().addingTimeInterval(86_400))
+        quiet.hour = 3
+        guard let clearHour = Calendar.current.date(from: quiet) else { return nil }
+
+        guard let leavingNow = await LegStops.traffic(from: from, to: to),
+              let clearRoad = await LegStops.traffic(from: from, to: to, departing: clearHour)
+        else { return nil }
+
+        return TravelDelay(nowSeconds: leavingNow.seconds,
+                           clearSeconds: clearRoad.seconds,
+                           checkedAt: leavingNow.checkedAt)
     }
 
     /// Today's forecast for each park, and tomorrow's when today is already spent.
@@ -459,9 +554,12 @@ final class NearbyBriefing {
             - If you are told the traveller has already been somewhere, and the brief \
               leads with a different park because of it, say that out loud. Never quietly \
               drop a park they can see on the list.
-            - Weather and crowds are given to you as words, not figures. Use the words. \
-              Where a park has no forecast, say nothing about its weather rather than \
-              guessing at it.
+            - Weather, crowds and roads are given to you as words, not figures. Use the \
+              words. Where a park has no forecast, say nothing about its weather rather \
+              than guessing at it.
+            - Where you are told the roads are against them today, say so — it is the \
+              difference between setting out now and setting out after lunch, and it is \
+              the kind of thing a ranger would mention.
             """
         }
     }

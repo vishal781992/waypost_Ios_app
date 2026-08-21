@@ -411,9 +411,15 @@ final class LegStops {
 
     // MARK: Traffic
 
-    /// Apple's own estimate for leaving now, which unlike OSRM's accounts for conditions.
-    private static func traffic(from start: (lat: Double, lon: Double)?,
-                                to end: (lat: Double, lon: Double)?) async -> Traffic? {
+    /// Apple's own estimate for a drive, which unlike OSRM's accounts for conditions.
+    ///
+    /// `departing` is what makes it a conditions estimate rather than a road measurement:
+    /// Apple predicts the traffic for the hour you say you are leaving. Asking twice — once
+    /// for now and once for a deliberately quiet hour — is how the near-you brief works out
+    /// what today is costing over a clear road, since no single request returns both.
+    static func traffic(from start: (lat: Double, lon: Double)?,
+                        to end: (lat: Double, lon: Double)?,
+                        departing: Date = Date()) async -> Traffic? {
         guard let start, let end else { return nil }
         let request = MKDirections.Request()
         request.source = MKMapItem(placemark: MKPlacemark(
@@ -421,7 +427,7 @@ final class LegStops {
         request.destination = MKMapItem(placemark: MKPlacemark(
             coordinate: CLLocationCoordinate2D(latitude: end.lat, longitude: end.lon)))
         request.transportType = .automobile
-        request.departureDate = Date()
+        request.departureDate = departing
 
         guard let response = try? await MKDirections(request: request).calculate(),
               let route = response.routes.first else { return nil }

@@ -37,6 +37,10 @@ setting out now would reach the gate after four, the brief is about *tomorrow* �
 in as many words, and it is given tomorrow's forecast instead of today's. Tomorrow is only
 fetched when it is going to be used, so a morning brief costs half what an evening one does.
 
+**The cards print temperatures again.** `factLine` read `park.wx` too, so the same dead
+branch that starved the model also kept every figure off the shortlist. It reads the fetched
+forecast now.
+
 **The weather, in words.** Today at each park, and tomorrow when tomorrow is the subject.
 Passed as bands — *hot*, *mild*, *freezing* — never as figures: the model is forbidden to
 write a number and the guard drops any sentence carrying a digit, so handing it "high 84F"
@@ -51,6 +55,20 @@ no signal.
 answer to "where should I go today", so the brief leads with the next one along — and
 **says that it is doing so**. The ranked list keeps its measured order, because quietly
 reordering a list somebody can count is worse than not reordering it.
+
+**What today's roads are costing.** Apple predicts travel time for the hour you say you are
+leaving, so the drive is asked for twice — once for setting out now, once for three tomorrow
+morning, which is as clear as a road gets. The difference between the two is the traffic
+rather than the route, because no single request returns both.
+
+It is asked only for the park being recommended, and only when the brief is about today: a
+leaving-now estimate says nothing about tomorrow morning, which is the rule the leg sheet
+already follows. And it is only ever *said* when it is worth saying — under a quarter of an
+hour is inside the noise of a prediction, and a panel that reports normal traffic every time
+teaches people to stop reading the panel.
+
+Where it was asked for, Apple's figure also replaces the app's own drive estimate on the
+card, which was straight-line miles at a flat fifty-seven miles an hour.
 
 Both decisions are also written by the app, under the headline, so they survive a run where
 the model refuses or writes something the guard drops.
