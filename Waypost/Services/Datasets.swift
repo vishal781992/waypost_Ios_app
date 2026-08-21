@@ -12,6 +12,10 @@ final class Datasets: @unchecked Sendable {
     let airports: [Airport]
 
     private var _stateParks: [StateParkRow]?
+    private var _stateParkIndex: [String: StateParkRow]?
+    /// Not recursive. Nothing inside a locked section may reach a locked accessor — which
+    /// is why the loader below is separate and takes the lock as a precondition rather
+    /// than acquiring it.
     private let lock = NSLock()
 
     private init() {
@@ -27,14 +31,37 @@ final class Datasets: @unchecked Sendable {
     var stateParks: [StateParkRow] {
         lock.lock()
         defer { lock.unlock() }
+        return loaded()
+    }
+
+    /// Every shipped state park by the code the app gives it, built once.
+    ///
+    /// `statePark(code:)` used to answer by scanning: three thousand rows, each one slugged
+    /// through a regular expression and built into a whole `CuratedPark`, until one
+    /// matched. That is not a lookup, it is a linear search that allocates — and it ran on
+    /// the main thread from inside view bodies. `TripDetailScreen.parks`, every trip card
+    /// and the saved list all call `AppState.park(_:)`, which falls through to here, and a
+    /// view body runs on every redraw.
+    ///
+    /// One trip with one state park in it therefore paid three thousand regex substitutions
+    /// per frame. This pays them once.
+    var stateParkIndex: [String: StateParkRow] {
+        lock.lock()
+        defer { lock.unlock() }
+        if let _stateParkIndex { return _stateParkIndex }
+        let rows = loaded()
+        var index = [String: StateParkRow](minimumCapacity: rows.count)
+        for row in rows { index[CuratedPark.stateParkCode(for: row.n)] = row }
+        _stateParkIndex = index
+        return index
+    }
+
+    /// The rows themselves. **Call only with `lock` held.**
+    private func loaded() -> [StateParkRow] {
         if let _stateParks { return _stateParks }
         let rows = Self.load("state-parks", as: [StateParkRow].self) ?? []
         _stateParks = rows
         return rows
-    }
-
-    var seedParksByCode: [String: Park] {
-        Dictionary(uniqueKeysWithValues: seedParks.map { ($0.code, $0) })
     }
 
     private static func load<T: Decodable>(_ name: String, as type: T.Type) -> T? {

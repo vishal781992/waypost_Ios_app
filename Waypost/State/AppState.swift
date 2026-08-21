@@ -302,7 +302,7 @@ final class AppState {
         // between a finger going down and coming up, which cancels the gesture: the tap
         // is eaten and the one after it works because the cache is warm. Warm it off the
         // main thread instead, so the first tap is the one that counts.
-        Task.detached(priority: .utility) { _ = Datasets.shared.stateParks }
+        Task.detached(priority: .utility) { _ = Datasets.shared.stateParkIndex }
     }
 
     // MARK: Derived
