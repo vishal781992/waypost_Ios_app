@@ -322,8 +322,27 @@ extension View {
         .overlay {
             shape.stroke(focused ? WP.accent400 : Color.black.opacity(0.12),
                          lineWidth: focused ? 1.5 : 0.5)
+                .allowsHitTesting(false)
         }
         .clipShape(shape)
+        // The tap target is a view, not a property of the container.
+        //
+        // A gesture on the container only fires if the container is hit-testable, and it is
+        // hit-testable because something drew a background into it. `glassEffect` draws no
+        // such thing — the note on `ControlHitArea` is the same hole, and it is why every
+        // button went dead outside its own label on iOS 26. This surface made that worse
+        // before it made it better: the three fields that used to wear a flat `neutral200`
+        // capsule were hit-testable by accident, and moving them onto the system material
+        // took that away. So a `Color.clear` fills the pill and carries the gesture itself.
+        //
+        // In the `background`, not an overlay: the origin field carries a clear button and
+        // the profile's carries *Done*, and an overlay would sit above them and eat the taps
+        // meant for them. Behind the content, this catches only what would have hit nothing.
+        .background {
+            Color.clear
+                .contentShape(shape)
+                .onTapGesture { focus.wrappedValue = true }
+        }
         .contentShape(shape)
         .animation(Motion.panel, value: focused)
         .simultaneousGesture(TapGesture().onEnded { focus.wrappedValue = true })
