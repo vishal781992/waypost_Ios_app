@@ -199,7 +199,6 @@ struct DiscoverScreen: View {
                     .font(WP.body(16))
                     .padding(.horizontal, 16)
                     .frame(minHeight: 42)
-                    .liquidGlass(.pill, radius: 999)
                     .focused($searchFocused)
                     .searchFieldSurface(focus: $searchFocused)
                     .submitLabel(.search)
