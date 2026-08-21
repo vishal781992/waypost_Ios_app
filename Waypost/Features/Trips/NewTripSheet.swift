@@ -156,8 +156,6 @@ struct NewTripSheet: View {
                     .font(WP.body(16))
                     .padding(.horizontal, 15)
                     .frame(minHeight: 46)
-                    .background(WP.neutral200, in: Capsule())
-                    .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
                     .focused($parkFieldFocused)
                     .searchFieldSurface(focus: $parkFieldFocused)
 
@@ -299,8 +297,6 @@ struct NewTripSheet: View {
             }
             .padding(.horizontal, 15)
             .frame(minHeight: 46)
-            .background(WP.neutral200, in: Capsule())
-            .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
             .searchFieldSurface(focus: $originFocused)
             .onChange(of: originQuery) { _, new in cities.update(new) }
 

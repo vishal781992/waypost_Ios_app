@@ -16,6 +16,50 @@ followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of t
 so a tester can say which build they were looking at.
 
 
+## 2.31.0 — Controls that say which way they go
+
+Every control in the app sat at the same height. A search field and the button beside it
+wore the same material and cast the same shadow, so nothing but the label said which one you
+press and which one you type into. `pressedDepth(.raised)` and `pressedDepth(.recessed)` fix
+that, and the fix is one idea: the light source is above and never moves, so a raised control
+is lit along its top edge and shaded along its bottom, and a recessed one is exactly the
+other way round.
+
+**Nothing in the palette moved.** Every colour is the one that was already in
+`Design/Tokens.swift`. Lime is still the fill on every primary control, ink glass is still
+the secondary, type on lime is still `WP.text` — white on lime is 1.4:1 — and no contrast
+ratio changed, because no hue or lightness did. What changed is the material.
+
+**Buttons stand off the page.** A crown along the top edge, a floor along the bottom, a body
+gradient bending between them — one overlay, drawn as a single gradient rather than three
+stacked layers. `lift()` gives them two shadows instead of one: a soft eight-point ambient
+shadow reads as a glow around a control, and it is the tight one-and-a-half-point contact
+shadow underneath that says the control has an edge and the page is right behind it.
+
+**Fields and troughs sink into it.** The search field, the segmented trough, the switch track
+and the progress channel all invert the gradient. A selected segment then lifts out of its
+trough on a shorter shadow than a free-standing button gets, because it is rising three
+points out of a well rather than off the page.
+
+**The search field is one control now, not four.** Three of the four wore a flat
+`neutral200` capsule with a hairline; the fourth wore glass. The surface moves into
+`searchFieldSurface`, so all four are the same thing, and the field gains a focus ring in
+the accent — a recessed field has no shadow to brighten and no lift to take away, so nothing
+previously marked the field somebody was actually typing into.
+
+**On iOS 26 the system material does the lighting.** The glass controls already rendered
+through `.glassEffect`; the drawn depth now steps back to a fifth of its strength there,
+because painting a highlight over a material that has its own specular response gives every
+button two crowns, one of which moves with the device and one of which does not. Below 26
+there is nothing underneath, so the full drawn depth stands in. The search field takes the
+real material too, with the recess laid over it — iOS 26 publishes no sunken variant, so the
+direction of the light is still drawn, but what it lights is the system's glass.
+
+**The mark is untouched.** `markControl`, `MarkPill`, `GlassDisc` and the park screen's
+section rail keep the crown and the flat orange they already had. So does the home carousel,
+which sits over a full-bleed photograph and is the app's one dark-scheme surface — a pressed
+control over a photograph reads as a sticker.
+
 ## 2.29.0 — A photograph to open on, and a list the traveller writes
 
 Two screens stop being catalogues the app assembled and start being things the reader

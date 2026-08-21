@@ -76,6 +76,21 @@ enum GlassStyle {
     }
 }
 
+extension GlassStyle {
+    /// True where iOS supplies the real Liquid Glass material, and the drawn depth can
+    /// stand back and let it do the lighting.
+    ///
+    /// The two paths are not the same job. On 26 the system renders genuine refraction and
+    /// a specular response that tracks the device — painting a second highlight over that
+    /// gives every button two crowns, one of which moves and one of which does not. Below
+    /// 26 there is nothing underneath at all, and the drawn depth is the only thing making
+    /// a button read as a solid rather than as a tinted hole in the page.
+    static var systemMaterial: Bool {
+        if #available(iOS 26.0, *) { return true }
+        return false
+    }
+}
+
 /// The lit edge of a glass surface: a hairline border plus the inset highlights. Drawn on
 /// both the iOS 26 path and the fallback, because the system effect does not know about
 /// the design's specific edge treatment.
@@ -103,6 +118,95 @@ private struct GlassEdge: View {
     }
 }
 
+// MARK: - Depth
+
+/// Which way the light says a control is going.
+///
+/// Every control in the app used to sit at the same height. A search field and the button
+/// beside it wore the same material and cast the same shadow, so nothing but the label said
+/// which one you press and which one you type into. Depth is what separates them: a control
+/// you press stands off the page, and a field you fill sinks into it.
+///
+/// The light source is above and unmoved. What changes is the surface — so a raised control
+/// is lit along its top edge and shaded along its bottom, and a recessed one is exactly the
+/// other way round. That inversion is the whole of it.
+enum Depth {
+    /// Stands off the page: lit along the top edge, shaded along the bottom.
+    case raised
+    /// Sinks into it: shaded along the top edge, lit along the bottom.
+    case recessed
+}
+
+/// Three of the four depth layers in one pass.
+///
+/// A vertical gradient — white at one end, black at the other — lightens the crown, shades
+/// the floor, and bends the body between them. Drawing it as one gradient rather than three
+/// stacked layers is what keeps this to a single view per control; the fourth layer is the
+/// drop shadow underneath, which each control sets itself with `lift` because it depends on
+/// whether the control is glass or a solid fill.
+///
+/// The middle of the gradient is deliberately clear from about 40% to 75% of the height.
+/// A label sits centred in that band, so the tint never falls across type — which is what
+/// lets this be an overlay on the glass controls, where the material is applied to the
+/// content itself and there is no background layer to slip underneath.
+private struct PressedDepth: ViewModifier {
+    var shape: RoundedRectangle
+    var depth: Depth
+    /// Scales the whole gradient. Dark glass wants about half: at full strength its lit
+    /// edge reads as a rim of chrome around every button.
+    var strength: Double
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            shape.fill(gradient).allowsHitTesting(false)
+        }
+    }
+
+    private var gradient: LinearGradient {
+        let stops: [Gradient.Stop]
+        switch depth {
+        case .raised:
+            stops = [
+                .init(color: .white.opacity(0.58 * strength), location: 0),
+                .init(color: .white.opacity(0.15 * strength), location: 0.10),
+                .init(color: .clear, location: 0.42),
+                .init(color: .black.opacity(0.05 * strength), location: 0.78),
+                .init(color: .black.opacity(0.13 * strength), location: 1)
+            ]
+        case .recessed:
+            stops = [
+                .init(color: .black.opacity(0.15 * strength), location: 0),
+                .init(color: .black.opacity(0.05 * strength), location: 0.13),
+                .init(color: .clear, location: 0.48),
+                .init(color: .white.opacity(0.20 * strength), location: 0.86),
+                .init(color: .white.opacity(0.52 * strength), location: 1)
+            ]
+        }
+        return LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom)
+    }
+}
+
+extension View {
+    /// Lights a control as raised or recessed. See `Depth`.
+    func pressedDepth(_ depth: Depth, radius: CGFloat = 999, strength: Double = 1) -> some View {
+        modifier(PressedDepth(
+            shape: RoundedRectangle(cornerRadius: radius, style: .continuous),
+            depth: depth,
+            strength: strength
+        ))
+    }
+
+    /// The shadow a raised control casts: a tight contact shadow under a soft ambient one.
+    ///
+    /// One shadow at 8 points reads as a glow around the control rather than as a thing
+    /// resting above a page. It is the near shadow — 1.5 points, barely offset — that says
+    /// the control has an edge and the page is right behind it.
+    func lift(_ on: Bool = true) -> some View {
+        shadow(color: on ? Color(hex: 0x181008, opacity: 0.17) : .clear, radius: 8, y: 6)
+            .shadow(color: on ? Color(hex: 0x181008, opacity: 0.13) : .clear, radius: 1.5, y: 1)
+    }
+}
+
 extension View {
     /// A control: ink glass, white type, and the press shadow that lifts it off the page.
     ///
@@ -111,7 +215,9 @@ extension View {
     func glassControl(radius: CGFloat = 999, shadow: Bool = true) -> some View {
         foregroundStyle(.white)
             .liquidGlass(.control, radius: radius, interactive: true)
-            .shadow(color: shadow ? Color(hex: 0x181008, opacity: 0.22) : .clear, radius: 8, y: 5)
+            .pressedDepth(.raised, radius: radius,
+                          strength: GlassStyle.systemMaterial ? 0.22 : 0.5)
+            .lift(shadow)
     }
 
     /// A control in the brand's lime: the same shape and the same press shadow as
@@ -126,11 +232,14 @@ extension View {
     func limeControl(radius: CGFloat = 999, shadow: Bool = true) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         return foregroundStyle(WP.text)
-            .background(WP.lime, in: shape)
-            .overlay { shape.stroke(Color.black.opacity(0.12), lineWidth: 0.5) }
+            .background {
+                shape.fill(WP.lime)
+                    .pressedDepth(.raised, radius: radius)
+                    .overlay { shape.stroke(Color.black.opacity(0.14), lineWidth: 0.5) }
+            }
             .clipShape(shape)
             .contentShape(shape)
-            .shadow(color: shadow ? Color(hex: 0x181008, opacity: 0.22) : .clear, radius: 8, y: 5)
+            .lift(shadow)
     }
 
     /// A control in the mark's orange: the same shape and press shadow as `limeControl`,
@@ -199,8 +308,25 @@ extension View {
     /// `simultaneousGesture` rather than `onTapGesture`, so a tap that lands on the text
     /// still reaches the field itself and puts the caret where it was aimed.
     func searchFieldSurface(radius: CGFloat = 999, focus: FocusState<Bool>.Binding) -> some View {
-        contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .simultaneousGesture(TapGesture().onEnded { focus.wrappedValue = true })
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let focused = focus.wrappedValue
+        // The body is real glass — `.glassEffect` on 26, the material below it — rather
+        // than the flat `neutral200` three of these four fields used to wear. The recess
+        // is then laid over the top: iOS 26 has no sunken variant of its material, so the
+        // direction of the light is still ours to draw, but what it lights is the system's.
+        return liquidGlass(.pill, radius: radius)
+            .pressedDepth(.recessed, radius: radius)
+        // The focus ring is the accent, and it is the only thing on the field that moves.
+        // A recessed field has no shadow to brighten and no lift to take away, so without
+        // it nothing at all marked the field somebody was actually typing into.
+        .overlay {
+            shape.stroke(focused ? WP.accent400 : Color.black.opacity(0.12),
+                         lineWidth: focused ? 1.5 : 0.5)
+        }
+        .clipShape(shape)
+        .contentShape(shape)
+        .animation(Motion.panel, value: focused)
+        .simultaneousGesture(TapGesture().onEnded { focus.wrappedValue = true })
     }
 }
 
@@ -449,7 +575,11 @@ struct SegmentedTrough<T: Hashable>: View {
             }
         }
         .padding(3)
-        .background(WP.neutral200, in: Capsule())
+        .background {
+            Capsule().fill(WP.neutral200)
+                .pressedDepth(.recessed, strength: 0.85)
+                .overlay { Capsule().stroke(Color.black.opacity(0.10), lineWidth: 0.5) }
+        }
     }
 }
 
@@ -634,6 +764,7 @@ struct ProgressTrack: View {
                     .frame(width: max(0, min(1, fraction)) * geo.size.width)
                     .animation(.easeOut(duration: 0.26), value: fraction)
             }
+            .pressedDepth(.recessed, strength: 0.8)
         }
         .frame(height: height)
     }
@@ -647,11 +778,14 @@ struct WPSwitch: View {
         Capsule()
             .fill(isOn ? WP.accent : WP.neutral300)
             .frame(width: 40, height: 24)
+            .pressedDepth(.recessed, strength: 0.9)
+            .overlay { Capsule().stroke(Color.black.opacity(0.16), lineWidth: 0.5) }
             .overlay(alignment: isOn ? .trailing : .leading) {
                 Circle()
                     .fill(.white)
                     .frame(width: 20, height: 20)
-                    .shadow(color: .black.opacity(0.25), radius: 1, y: 1)
+                    .pressedDepth(.raised, strength: 0.7)
+                    .shadow(color: Color(hex: 0x181008, opacity: 0.30), radius: 2, y: 1.5)
                     .padding(2)
             }
             .animation(.snappy(duration: 0.2), value: isOn)
@@ -715,6 +849,12 @@ struct SelectedChip: ViewModifier {
         } else {
             content
                 .foregroundStyle(WP.text.opacity(0.62))
+                .background {
+                    Capsule().fill(Color.white.opacity(0.55))
+                        .pressedDepth(.raised, strength: 0.42)
+                        .overlay { Capsule().stroke(Color.black.opacity(0.09), lineWidth: 0.5) }
+                }
+                .clipShape(Capsule())
                 .contentShape(Capsule())
         }
     }
@@ -725,7 +865,10 @@ struct SelectedControl: ViewModifier {
 
     func body(content: Content) -> some View {
         if active {
+            // A shorter, tighter shadow than a free-standing button's: the segment is
+            // lifting three points out of its own trough, not off the page.
             content.limeControl(shadow: false)
+                .shadow(color: Color(hex: 0x181008, opacity: 0.20), radius: 3, y: 2)
         } else {
             // The active branch gets a hit-testable background from `glassControl`. Without
             // one here an *unselected* segment was tappable only on its letters — and an

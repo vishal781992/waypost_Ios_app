@@ -138,6 +138,40 @@ crown, a 0.5pt outline.
 
 ---
 
+## Depth
+
+`pressedDepth(_:radius:strength:)` with a `Depth`: `.raised` or `.recessed`. The light
+source is above and never moves — what changes is the surface, so a raised control is lit
+along its top edge and shaded along its bottom, and a recessed one is exactly the other way
+round.
+
+**Which way a control goes is not a style choice.** Press it, it is raised. Type into it or
+fill it, it is recessed. Everything used to sit at the same height, so a search field and
+the button beside it wore the same material and only the label said which was which.
+
+| Control | Depth |
+|---|---|
+| `limeControl`, `glassControl`, `markControl` | `.raised` + `lift()` |
+| A selected segment or chip | `.raised`, shorter shadow — it lifts out of its trough, not off the page |
+| `searchFieldSurface`, a `SegmentedTrough` trough, `WPSwitch` track, `ProgressTrack` | `.recessed`, no shadow |
+
+`lift()` is the shadow a raised control casts: **two** shadows, a soft 8pt ambient one and
+a tight 1.5pt contact one. A single 8pt shadow reads as a glow around the control; it is
+the near shadow that says the control has an edge and the page is right behind it.
+
+`strength` scales the whole gradient. Dark glass takes about `0.5` — at full strength its
+lit edge reads as a rim of chrome around every button.
+
+The gradient is deliberately clear from about 40% to 78% of the height, where a centred
+label sits, so the tint never falls across type. That is what lets it be an overlay on the
+glass controls, where the material is applied to the content itself and there is no
+background layer to slip underneath. On a solid fill, put it in the `background` anyway.
+
+**The home carousel is exempt.** It sits over a full-bleed photograph and is the app's one
+dark-scheme surface; a pressed control over a photograph reads as a sticker.
+
+---
+
 ## Motion
 
 | Token | Curve | Use |

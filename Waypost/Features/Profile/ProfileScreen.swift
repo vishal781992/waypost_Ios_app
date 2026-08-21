@@ -272,8 +272,6 @@ struct ProfileScreen: View {
             }
             .padding(.horizontal, 15)
             .frame(minHeight: 46)
-            .background(WP.neutral200, in: Capsule())
-            .overlay(Capsule().stroke(WP.divider, lineWidth: 1))
             .searchFieldSurface(focus: $parkFieldFocused)
 
             if parkQuery.trimmingCharacters(in: .whitespaces).count == 1 {
