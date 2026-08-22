@@ -15,6 +15,38 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.34.1 — The park screen holds still while it waits
+
+Opening a park fired six requests and then rearranged itself around each answer as it
+landed. The fee and hours block was the worst of it: one twenty-point line reading *Pulling
+NPS data…*, and then two stacked facts where the park service's hours run to three or four
+sentences. Everything below — the chips, the caption, the whole overview — dropped about
+ninety points the moment NPS replied, usually while a thumb was already on its way
+somewhere.
+
+**The wait is drawn in the shape of the answer.** Both labels are there from the first
+frame, because *Entrance fee* and *Park hours* are this app's own words and it knows it is
+about to show them before it asks anybody. Under each, a pending line — and the hours slot
+holds the three lines they usually take, measured from the font by `reservesSpace` rather
+than from a number typed in once against one phone, so the reservation stays right at every
+Dynamic Type size.
+
+**The contact row keeps its place.** Site, phone and Maps all come out of one Apple Maps
+lookup, so until it answers the row is empty and then suddenly forty-eight points tall.
+How many chips arrive is not knowable in advance, so none are drawn — only the height one
+row of them takes, which is the same whether one lands or four.
+
+**The nightly availability chip stays on one line.** *Checking…* is one short word and
+*First-come, no calendar* is four; compressed against a long campground name the chip
+wrapped when the answer landed and took the row's height with it. The chip holds its width
+now and the name, which can wrap without changing what it says, gives instead.
+
+Nothing here makes a request faster, and nothing new is claimed while one is out: a pending
+field says it is pending, and where the number of things coming back is genuinely unknown —
+alerts, campgrounds, nearby units, roadside stops — the screen still says a sentence and
+draws nothing. A grey placeholder for five campgrounds that resolve to none would be an
+invented value with a shape instead of a number.
+
 ## 2.34.0 — The drive from the airport is a leg
 
 Landing is not arriving. Salt Lake City to Yellowstone is 327 miles and the better part of
