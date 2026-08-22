@@ -15,6 +15,17 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.37.1 — The sliding pill compiles
+
+`SegmentedTrough` is generic over the type of thing it is choosing between, and the
+identity the sliding pill keeps between segments was written as a `static let` inside it.
+Swift does not allow stored type properties on a generic type — there would be one per
+specialisation, with nothing to say when each is initialised — so the app did not build.
+
+The constant is a file-level one now, beside the control rather than inside it, which is
+the shape it should have had: the value has nothing to do with what is being chosen, and
+each control matches within its own `@Namespace` anyway.
+
 ## 2.37.0 — The shape of an answer, before it arrives
 
 `ParkImage` has always drawn the park's own colour field the instant a screen appears and

@@ -580,6 +580,15 @@ extension RuledHeading where Trailing == EmptyView {
     }
 }
 
+/// The identity the sliding pill keeps as it moves between segments.
+///
+/// Outside the control rather than a `static let` inside it: `SegmentedTrough` is generic
+/// over the option type, and Swift does not allow stored type properties on a generic type
+/// — there would be one per specialisation, with no answer as to when each is initialised.
+/// The value has nothing to do with `T` anyway, and each control matches within its own
+/// `@Namespace`, so one constant for the whole file is the honest shape.
+private let segmentedPillID = "segmented.pill"
+
 /// The design's inset segmented control: a neutral trough, the active option lifted onto
 /// the page colour with a hairline and a soft shadow.
 struct SegmentedTrough<T: Hashable>: View {
@@ -596,8 +605,6 @@ struct SegmentedTrough<T: Hashable>: View {
     /// Where the pill lives while it is between segments.
     @Namespace private var trough
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private static let pillID = "segmented.pill"
 
     var body: some View {
         HStack(spacing: 3) {
@@ -659,7 +666,7 @@ struct SegmentedTrough<T: Hashable>: View {
         if reduceMotion {
             face.transition(.opacity)
         } else {
-            face.matchedGeometryEffect(id: Self.pillID, in: trough)
+            face.matchedGeometryEffect(id: segmentedPillID, in: trough)
         }
     }
 }
