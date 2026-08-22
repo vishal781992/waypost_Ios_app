@@ -316,6 +316,14 @@ struct TripDetailScreen: View {
         }
     }
 
+    /// Whether OSRM is still working on this trip's legs.
+    private var isRouting: Bool {
+        switch app.routing.phase(for: trip) {
+        case .idle, .routing: return true
+        case .routed, .unrouted: return false
+        }
+    }
+
     /// For a trip the app composed, the legs are estimated from coordinates — and the
     /// stat row says "est." so the number is never read as a routed one.
     private var estimatedMiles: Int {
@@ -445,6 +453,13 @@ struct TripDetailScreen: View {
                                 app.sheet = .routedLeg(arrival, label: label)
                             }
                         }
+                    } else if isRouting {
+                        // One leg is asked for per park, in order, before the router is
+                        // called — so the count here is not a guess about what will come
+                        // back but the number of answers this screen is waiting on. The
+                        // park rows used to sit directly on top of one another until OSRM
+                        // replied and then a drive pushed in above each one.
+                        awaitedLeg(index: index)
                     }
                     parkRow(park, date: trip.dates, days: 2, numeral: ["I", "II", "III", "IV", "V"][min(index, 4)])
                 }
@@ -504,7 +519,8 @@ struct TripDetailScreen: View {
     private func legWeather(_ index: Int, to park: CuratedPark?) -> some View {
         Group {
             if let park, let date = travelDate(index) {
-                WeatherGlyph(day: TripWeather.shared.day(lat: park.lat, lon: park.lon, date: date))
+                WeatherGlyph(day: TripWeather.shared.day(lat: park.lat, lon: park.lon, date: date),
+                             awaiting: TripWeather.shared.isAsking(lat: park.lat, lon: park.lon, date: date))
                     .task(id: park.code + date.description) {
                         TripWeather.shared.load(lat: park.lat, lon: park.lon, date: date)
                     }
@@ -583,6 +599,34 @@ struct TripDetailScreen: View {
     }
 
 
+    /// A leg the router has been asked for and has not returned.
+    ///
+    /// The kicker is real — "LEG II" is this screen's own numbering and does not come from
+    /// OSRM — and so is the rule beside it. Only the two lines the router actually answers
+    /// with are grey: where the drive runs, and how far and how long it is.
+    ///
+    /// No skeleton is drawn for the drive home. Whether a trip has one depends on the
+    /// origin having a name, which is not settled until the router has run, and a row that
+    /// might never arrive is the one thing a placeholder must not promise. Under-drawing
+    /// costs one row of movement; over-drawing states something untrue.
+    private func awaitedLeg(index: Int) -> some View {
+        DividedRow(vertical: 13) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 9) {
+                    Text("Leg \(["I", "II", "III", "IV"][min(index, 3)])".uppercased())
+                        .font(WP.body(10)).tracking(1.4).foregroundStyle(WP.accent.opacity(0.5))
+                    Rectangle().fill(WP.divider).frame(height: 1)
+                }
+                VStack(alignment: .leading, spacing: 7) {
+                    SkeletonBar(width: 168, height: 13)
+                    SkeletonBar(width: 210, height: 11)
+                }
+                .padding(.top, 5)
+                .skeletonBreath()
+            }
+        }
+    }
+
     /// A park's sky for the days actually spent in it.
     ///
     /// One day, one symbol. More than one, a symbol each with the weekday over it — a
@@ -596,7 +640,8 @@ struct TripDetailScreen: View {
             ForEach(Array(dates.prefix(3).enumerated()), id: \.offset) { _, date in
                 WeatherGlyph(
                     day: TripWeather.shared.day(lat: park.lat, lon: park.lon, date: date),
-                    caption: dates.count > 1 ? Self.weekday.string(from: date) : nil
+                    caption: dates.count > 1 ? Self.weekday.string(from: date) : nil,
+                    awaiting: TripWeather.shared.isAsking(lat: park.lat, lon: park.lon, date: date)
                 )
             }
         }
@@ -704,6 +749,15 @@ struct TripDetailScreen: View {
                 Text("Working out the days — the roads, and what the park service has near them…")
                     .font(WP.bodyItalic(12.5)).opacity(0.7).lineSpacing(3)
             }
+            // The day count is arithmetic on what is already in hand — the parks, the
+            // legs the router returned, the nights the trip was saved with — so the tab
+            // can hold exactly the rows that are coming, and say which of them are drives.
+            // Empty until the legs land: before that the count genuinely is not known, and
+            // this tab keeps to its sentence.
+            let shape = TripDays.plannedShape(trip, parks: parks, legs: app.routing.legs(for: trip))
+            ForEach(Array(shape.enumerated()), id: \.offset) { _, isTravel in
+                awaitedDay(isTravel: isTravel)
+            }
         case .failed(let why):
             Text(why).font(WP.bodyItalic(13)).opacity(0.7).lineSpacing(3)
         case .ready(let days):
@@ -714,6 +768,24 @@ struct TripDetailScreen: View {
 
             SourceLine("Stops from the National Park Service, detours measured by OSRM against the same drive without them. Things to do are the park service's own list, in its own order — NPS publishes no rating to sort by.")
                 .padding(.top, 14)
+        }
+    }
+
+    /// A day the builder is composing. A drive and a day in a park are laid out the same
+    /// way and read differently — a short kicker over a long line for "Denver → Zion", a
+    /// long kicker over a short one for "Zion National Park · day 1 of 2" — and which of
+    /// the two this row will be is known, so the bars say it.
+    private func awaitedDay(isTravel: Bool) -> some View {
+        DividedRow(vertical: 13) {
+            HStack(alignment: .top, spacing: 12) {
+                SkeletonBar(width: 46, height: 11)
+                VStack(alignment: .leading, spacing: 6) {
+                    SkeletonBar(width: isTravel ? 74 : 138, height: 9)
+                    SkeletonBar(width: isTravel ? 186 : 146, height: 16)
+                }
+                Spacer(minLength: 0)
+            }
+            .skeletonBreath()
         }
     }
 

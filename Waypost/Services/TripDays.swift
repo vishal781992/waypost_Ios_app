@@ -123,6 +123,29 @@ final class TripDays {
 
     // MARK: Composing
 
+    /// How many days `compose` is about to lay out, and which of them are driven.
+    ///
+    /// It mirrors the loop below exactly, and lives directly above it for that reason: it
+    /// exists so the days tab can hold the rows that are coming while the build runs, and
+    /// a shape that disagreed with what arrived would be worse than no shape at all.
+    ///
+    /// Nothing here is asked of anybody. The count falls out of the parks, the legs the
+    /// router already returned and the nights the trip was saved with — all of it in hand
+    /// before `build` is called. Given no legs it returns nothing, which is the honest
+    /// answer while the roads are still being measured: until they land, the number of
+    /// days really is unknown.
+    static func plannedShape(_ trip: SavedTrip, parks: [CuratedPark],
+                             legs: [TripRouting.Leg]) -> [Bool] {
+        guard !parks.isEmpty, !legs.isEmpty else { return [] }
+        var isTravel: [Bool] = []
+        for (position, park) in parks.enumerated() {
+            if position < legs.count { isTravel.append(true) }
+            for _ in 0 ..< max(1, trip.days?[park.code] ?? 2) { isTravel.append(false) }
+        }
+        if legs.count > parks.count { isTravel.append(true) }
+        return isTravel
+    }
+
     private func compose(_ trip: SavedTrip, parks: [CuratedPark], legs: [TripRouting.Leg]) async -> [Day] {
         var days: [Day] = []
         var cursor = trip.startDate

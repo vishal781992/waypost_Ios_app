@@ -15,11 +15,17 @@ struct AIBriefSection: View {
 
             switch ParkBrief.shared.state(for: park) {
             case .idle, .gathering:
+                // Three points come back, always, with these glyphs and these labels —
+                // they are the overview's own structure, not the model's, so they are
+                // drawn from the first frame and only the prose is left grey. What was
+                // here before was a single spinner line, and the tab grew by the better
+                // part of a screen the moment the model finished.
                 HStack(spacing: 9) {
                     ProgressView().controlSize(.small)
                     Text("Reading the fees, the forecast and the crowds…")
                         .font(WP.bodyItalic(12.5)).opacity(0.7)
                 }
+                awaitedPoints
             case .failed(let why):
                 Text(why).font(WP.bodyItalic(12.5)).opacity(0.6)
             case .ready(let brief):
@@ -78,6 +84,38 @@ struct AIBriefSection: View {
     /// given one, and this month otherwise.
     private var monthIndex: Int {
         Calendar.current.component(.month, from: date ?? Date()) - 1
+    }
+
+    /// The three points, in their own shape, before the model has written them.
+    ///
+    /// Two lines of prose each: the model is instructed to keep every point short, and
+    /// two is what they run to. The chart below them is not drawn — whether this park has
+    /// a visitation curve is known from the bundle rather than from any request, so the
+    /// loaded state answers that question itself and a placeholder could only get it wrong.
+    private var awaitedPoints: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            awaitedPoint("exclamationmark.triangle", "Warnings")
+            awaitedPoint("calendar.badge.clock", "Reservations")
+            awaitedPoint("book.closed", "Why it matters")
+        }
+        .skeletonBreath()
+    }
+
+    private func awaitedPoint(_ glyph: String, _ label: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: glyph)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(WP.accent700.opacity(0.45))
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(label.uppercased())
+                    .font(WP.body(12)).tracking(1.3)
+                    .foregroundStyle(WP.accent800.opacity(0.45))
+                SkeletonBar(height: 11).padding(.top, 4)
+                SkeletonBar(width: 190, height: 11)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func point(_ glyph: String, _ label: String, _ text: String) -> some View {
