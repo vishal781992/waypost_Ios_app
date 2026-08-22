@@ -593,6 +593,12 @@ struct SegmentedTrough<T: Hashable>: View {
     /// worth feeling, which so far is one control: the vehicle.
     var haptic: ((T) -> Void)? = nil
 
+    /// Where the pill lives while it is between segments.
+    @Namespace private var trough
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private static let pillID = "segmented.pill"
+
     var body: some View {
         HStack(spacing: 3) {
             ForEach(options, id: \.value) { option in
@@ -601,13 +607,22 @@ struct SegmentedTrough<T: Hashable>: View {
                     // Only on a change. Re-tapping the segment already showing is not a
                     // choice, and answering it would make the control feel jumpy.
                     if option.value != selection { haptic?(option.value) }
-                    withAnimation(.snappy(duration: 0.2)) { selection = option.value }
+                    withAnimation(reduceMotion ? Motion.segmentReduced : Motion.segment) {
+                        selection = option.value
+                    }
                 } label: {
                     Text(option.label)
                         .font(WP.body(13))
+                        // Animated rather than swapped, so the word arrives at full ink as
+                        // the pill reaches it instead of flicking dark before it gets there.
+                        .foregroundStyle(active ? WP.text : WP.text.opacity(0.62))
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: 34)
-                        .modifier(SelectedControl(active: active))
+                        .background { if active { pill } }
+                        // Every segment, not only the unselected ones. The pill used to
+                        // bring a hit-testable background with it; it is drawn behind the
+                        // label now, so the target is stated here for all of them.
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -617,6 +632,34 @@ struct SegmentedTrough<T: Hashable>: View {
             Capsule().fill(WP.neutral200)
                 .pressedDepth(.recessed, strength: 0.85)
                 .overlay { Capsule().stroke(Color.black.opacity(0.10), lineWidth: 0.5) }
+        }
+    }
+
+    /// One pill, moved — not one pill per segment, appearing and disappearing in place.
+    ///
+    /// It was the latter, which is why the selection jumped: each segment drew its own
+    /// background when it became active, so there was nothing for SwiftUI to carry from
+    /// the old position to the new one. `matchedGeometryEffect` gives the two appearances
+    /// the same identity, and the frame between them is interpolated — which is the whole
+    /// of the slide.
+    ///
+    /// Under Reduce Motion it goes back to appearing where it belongs. Sliding a pill the
+    /// width of the screen is exactly the movement that setting exists to stop, and making
+    /// the slide merely *fast* would be worse than not sliding at all.
+    @ViewBuilder
+    private var pill: some View {
+        let face = Capsule()
+            .fill(WP.lime)
+            .pressedDepth(.raised)
+            .overlay { Capsule().stroke(Color.black.opacity(0.14), lineWidth: 0.5) }
+            // Shorter and tighter than a free-standing button's: the pill is lifting three
+            // points out of its own trough, not off the page.
+            .shadow(color: Color(hex: 0x181008, opacity: 0.20), radius: 3, y: 2)
+
+        if reduceMotion {
+            face.transition(.opacity)
+        } else {
+            face.matchedGeometryEffect(id: Self.pillID, in: trough)
         }
     }
 }

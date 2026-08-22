@@ -102,6 +102,35 @@ expensive half and the whole point of that detached task is to pay it off the ma
 `Datasets.seedParksByCode` went with it: a dictionary rebuilt on every access, with no
 callers left.
 
+## 2.34.2 — The segment pill slides
+
+Choosing a section made the pill vanish from one segment and appear on another. It never
+travelled, because there was nothing to travel: every segment drew its own background when
+it became the selected one, so at the moment of the change SwiftUI had one view being
+removed and a different view being inserted, and no reason to connect them.
+
+There is one pill now, and it moves. `matchedGeometryEffect` gives the two appearances the
+same identity and the frame between them is interpolated — which is the whole of the slide.
+`Motion.segment` carries it: a spring quick enough to arrive rather than be watched, with
+just enough settle to read as a thing sliding in a trough rather than a rectangle being
+teleported.
+
+The label's ink animates with it, so a word arrives at full strength as the pill reaches it
+instead of flicking dark while the pill is still on its way.
+
+**Under Reduce Motion it does not slide at all.** It fades in where it belongs. A pill
+crossing the width of the screen is exactly the movement that setting exists to stop, and a
+slide made merely *fast* would be worse than no slide — so the geometry effect is dropped
+rather than hurried, and `Motion.segmentReduced` fades instead.
+
+One thing had to be restated: the hit target. The pill used to bring a hit-testable
+background with it, so a selected segment was tappable because it was selected. The pill is
+drawn behind the label now, so every segment states its own `contentShape` — including the
+selected one, which is the only kind nobody taps and the easiest to leave broken.
+
+`SelectedControl` stays where it is: `SegmentRail` still uses it, and a rail that scrolls
+cannot slide a pill across itself the way a fixed trough can.
+
 
 ## 2.34.0 — The drive from the airport is a leg
 
