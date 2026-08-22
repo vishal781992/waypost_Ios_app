@@ -288,6 +288,12 @@ private struct WaveFill: View {
 
     private func wave(_ size: CGSize, top: CGFloat, phase: Double, amplitude: CGFloat) -> Path {
         var path = Path()
+        // A loop bounded by a width it does not check is a loop that runs forever if the
+        // width is ever infinite, appending to a path until the app is killed. A `Canvas`
+        // takes whatever size layout hands it, and an unbounded proposal reaching one is
+        // not something this view can rule out from in here — so it is ruled out here.
+        guard size.width.isFinite, size.height.isFinite, size.width > 0 else { return path }
+
         path.move(to: CGPoint(x: 0, y: size.height))
         path.addLine(to: CGPoint(x: 0, y: top))
         var x: CGFloat = 0
