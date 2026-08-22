@@ -30,6 +30,16 @@ enum Motion {
 
     /// A value ticking over — a countdown, a day number, a stamp count. Paired with
     /// `.contentTransition(.numericText())` so digits roll rather than cross-fade.
+    /// A segmented control's pill, travelling from one segment to the next.
+    ///
+    /// Quicker than `panel` and barely bouncy: the pill is following a finger that has
+    /// already landed, so it wants to arrive rather than to be watched. Enough settle that
+    /// it reads as a physical thing sliding in a trough, not a rectangle being teleported.
+    static let segment: Animation = .spring(response: 0.30, dampingFraction: 0.82)
+
+    /// The same choice with Reduce Motion on: a fade where it lands, and no travel at all.
+    static let segmentReduced: Animation = .easeInOut(duration: 0.16)
+
     static let counter: Animation = .snappy(duration: 0.32)
 
     /// The toast, matching `wp-toast`: 12pt up, fading.
