@@ -15,6 +15,31 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.34.1 — A state park is a lookup, not a search
+
+`Datasets.statePark(code:)` answered by scanning. Three thousand rows, each one slugged
+through a regular expression and built into a whole `CuratedPark` — palette, region,
+designation, URL validation — until one matched. That is not a lookup; it is a linear search
+that allocates on every step.
+
+**And it ran from inside view bodies.** `AppState.park(_:)` falls through to it, and
+`TripDetailScreen.parks`, every card in the trips list and the saved list all call
+`AppState.park(_:)` in a computed property that a view body reads. A body runs on every
+redraw. One trip with one state park saved in it therefore paid three thousand regular
+expression substitutions and three thousand struct constructions *per frame*, on the main
+thread, under a lock.
+
+It is a dictionary now, built once and held. The code a state park is filed under also moves
+into one function, `CuratedPark.stateParkCode(for:)`, used by both the record and the index —
+two copies of a slugging rule drift, and when they drift a lookup does not fail loudly, it
+simply stops matching and a saved park stops opening.
+
+`AppState.init` warms the index rather than the rows, because building the index is the
+expensive half and the whole point of that detached task is to pay it off the main thread.
+
+`Datasets.seedParksByCode` went with it: a dictionary rebuilt on every access, with no
+callers left.
+
 ## 2.34.0 — The drive from the airport is a leg
 
 Landing is not arriving. Salt Lake City to Yellowstone is 327 miles and the better part of

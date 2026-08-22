@@ -113,9 +113,7 @@ extension CuratedPark {
         let site = safeURL(row.w)
         let short = CuratedPark.shortName(row.n)
         self.init(
-            code: "sp-" + row.n.lowercased()
-                .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "-")),
+            code: CuratedPark.stateParkCode(for: row.n),
             name: short,
             full: row.n,
             state: row.s,
@@ -139,10 +137,23 @@ extension CuratedPark {
     }
 }
 
+extension CuratedPark {
+    /// The code a shipped state park is filed under.
+    ///
+    /// One implementation, used by both the record and the index that finds it. Two copies
+    /// of a slugging rule drift, and when they drift the lookup does not fail loudly — it
+    /// simply never matches, and a saved park stops opening.
+    static func stateParkCode(for name: String) -> String {
+        "sp-" + name.lowercased()
+            .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
+}
+
 extension Datasets {
-    /// A shipped state park by the code the app gives it.
+    /// A shipped state park by the code the app gives it. A dictionary hit now, not a scan.
     func statePark(code: String) -> CuratedPark? {
         guard code.hasPrefix("sp-") else { return nil }
-        return stateParks.lazy.map(CuratedPark.init(stateRow:)).first { $0.code == code }
+        return stateParkIndex[code].map(CuratedPark.init(stateRow:))
     }
 }
