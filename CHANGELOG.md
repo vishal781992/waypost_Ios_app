@@ -15,6 +15,43 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.35.0 — A trip opens on its map
+
+Tapping a trip showed you a route map and then took it away. The map lived only on the card
+in the list; the screen behind it was a push header, a title, and five labelled figures in a
+two-column grid. The picture you tapped to get there was the one thing the destination did
+not have.
+
+**The route is the title page now.** Full-bleed, running under the status bar, dissolving
+into the page rather than stopping at an edge — the same three moves `ParkScreen.hero` has
+made with a photograph since the app got its shape: drawn taller than its box by the status
+bar, pulled back up by the same amount so the scroll view keeps its safe area, and faded to
+the page colour over the bottom hundred and thirty points. It works over a basemap for free,
+because the basemap is already desaturated toward the page. Three hundred points rather than
+the park screen's three seventy — a trip has a segmented control and a list under it, and
+pushing those off the display is the thing this is meant to fix.
+
+**And the grid becomes one line.** *3 days · 218 mi by road · Electric · 0 of 1 packs.* The
+park count goes, because the route line names the parks directly above it. The packs go to a
+chip, because a pack is not a fact about the trip — it is a state you can act on, and it
+turns lime when it is done so "all downloaded" reads without being read.
+
+What survives the compression is `milesAreRouted`. A routed number and a great-circle guess
+are different claims, and the line carries the italic *est.* that says which one you are
+looking at. Losing that was the only reason to reject the prettier version of this line.
+
+**A trip with no map keeps the page it had.** Offline on a first open, with nothing cached,
+the hero collapses to nothing rather than reserving three hundred points of empty plate, and
+the masthead starts under the floating back control exactly as it used to.
+
+Three things moved rather than being written twice: `WP.statusBarInset`, which both heroes
+need; `FloatingBack`, the ink-glass control that sits over one; and `TripRouteGeometry`,
+which turns routed legs into the stretches and pins a plate draws — the rules for splitting
+a flown leg into three are fiddly enough that two copies would disagree within a release.
+
+`PushHeader` is no longer used anywhere. It is left in place rather than deleted, in case
+another screen wants it.
+
 ## 2.34.0 — The drive from the airport is a leg
 
 Landing is not arriving. Salt Lake City to Yellowstone is 327 miles and the better part of

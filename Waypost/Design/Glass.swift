@@ -963,6 +963,31 @@ struct MarkPill: View {
     }
 }
 
+/// Back, floating on ink glass over a full-bleed hero — the only chrome above the fold.
+///
+/// Ink rather than pale, deliberately. The park screen's hero is a photograph and this one
+/// is a desaturated basemap; a pale control reads on one and vanishes on the other, and the
+/// app's button language is ink glass anyway.
+struct FloatingBack: View {
+    var label: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 3) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                Text(label).font(WP.body(18))
+            }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 17)
+            .frame(minHeight: 44)
+            .glassControl()
+        }
+        .buttonStyle(PressStyle(scale: 0.96))
+    }
+}
+
 struct GlassDisc: View {
     var icon: String
     var size: CGFloat = 52

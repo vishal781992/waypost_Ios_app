@@ -47,11 +47,7 @@ struct ParkScreen: View {
     /// The status bar's height. Asked of the window rather than of a `GeometryReader`:
     /// this screen's scroll view ignores the top safe area, and the proxy inside it
     /// reports zero — which put the pinned header under the clock.
-    static var statusBarInset: CGFloat {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let inset = scenes.flatMap(\.windows).first { $0.isKeyWindow }?.safeAreaInsets.top
-        return inset ?? 47
-    }
+    static var statusBarInset: CGFloat { WP.statusBarInset }
 
     private var packState: PackState { app.packState(park.code) }
     private var isSaved: Bool { app.saved.contains(park.code) }

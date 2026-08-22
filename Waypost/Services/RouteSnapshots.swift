@@ -51,6 +51,64 @@ struct RouteLeg: Sendable {
     }
 }
 
+/// A routed trip, as the stretches and pins a plate draws.
+///
+/// Both the card in the trips list and the hero on the trip screen draw the same journey,
+/// and the rules for turning a flown leg into three stretches are fiddly enough that two
+/// copies of them would disagree within a release.
+@MainActor
+enum TripRouteGeometry {
+    /// A driven leg is one road. A flown leg is three: the drive to the airport, the
+    /// flight, and the drive from the far airport to the park.
+    static func stretches(_ routed: [TripRouting.Leg]) -> [RouteLeg] {
+        guard !routed.isEmpty else { return [] }
+
+        var out: [RouteLeg] = []
+        for leg in routed {
+            guard let path = leg.flightPath else {
+                out.append(RouteLeg(.road, leg.coordinates.map(coordinate)))
+                continue
+            }
+            let departure = CLLocationCoordinate2D(latitude: path.departure.lat,
+                                                   longitude: path.departure.lon)
+            let arrival = CLLocationCoordinate2D(latitude: path.arrival.lat,
+                                                 longitude: path.arrival.lon)
+            if path.drawsOriginStub {
+                out.append(drive(path.toAirport?.coordinates ?? [], from: path.origin,
+                                 to: (path.departure.lat, path.departure.lon)))
+            }
+            out.append(RouteLeg(.air, [departure, arrival]))
+            if path.drawsArrivalStub {
+                out.append(drive(path.fromAirport?.coordinates ?? [],
+                                 from: (path.arrival.lat, path.arrival.lon),
+                                 to: path.destination))
+            }
+        }
+        return out
+    }
+
+    /// Every airport the trip passes through, in order.
+    static func airports(_ routed: [TripRouting.Leg]) -> [(lat: Double, lon: Double)] {
+        routed.compactMap(\.flightPath).flatMap {
+            [($0.departure.lat, $0.departure.lon), ($0.arrival.lat, $0.arrival.lon)]
+        }
+    }
+
+    /// A drive as the router gave it, or the straight line the app already uses to say a
+    /// road has not been measured. Never a straight line drawn as though it were a road.
+    private static func drive(_ routed: [(lat: Double, lon: Double)],
+                              from: (lat: Double, lon: Double),
+                              to: (lat: Double, lon: Double)) -> RouteLeg {
+        routed.count > 1
+            ? RouteLeg(.road, routed.map(coordinate))
+            : RouteLeg(.provisional, [coordinate(from), coordinate(to)])
+    }
+
+    private static func coordinate(_ point: (lat: Double, lon: Double)) -> CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon)
+    }
+}
+
 actor RouteSnapshotStore {
     static let shared = RouteSnapshotStore()
 
