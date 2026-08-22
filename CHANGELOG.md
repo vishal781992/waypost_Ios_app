@@ -15,7 +15,7 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
-## 2.36.0 — The shape of an answer, before it arrives
+## 2.37.0 — The shape of an answer, before it arrives
 
 `ParkImage` has always drawn the park's own colour field the instant a screen appears and
 laid the photograph over it when it lands, so the frame never changes and nothing below it
@@ -57,6 +57,123 @@ skeleton either — whether a trip has one is not settled until the router has r
 Reduce Motion freezes the breathe flat, the way `WaveFill` freezes. Nothing shimmers: a
 sweep is a second animation running at the display's rate on every row at once, and the
 park screen already keeps a `Canvas` redrawing twenty-four times a second.
+
+## 2.36.1 — The park screen holds still while it waits
+
+Opening a park fired six requests and then rearranged itself around each answer as it
+landed. The fee and hours block was the worst of it: one twenty-point line reading *Pulling
+NPS data…*, and then two stacked facts where the park service's hours run to three or four
+sentences. Everything below — the chips, the caption, the whole overview — dropped about
+ninety points the moment NPS replied, usually while a thumb was already on its way
+somewhere.
+
+**The wait is drawn in the shape of the answer.** Both labels are there from the first
+frame, because *Entrance fee* and *Park hours* are this app's own words and it knows it is
+about to show them before it asks anybody. Under each, a pending line — and the hours slot
+holds the three lines they usually take, measured from the font by `reservesSpace` rather
+than from a number typed in once against one phone, so the reservation stays right at every
+Dynamic Type size.
+
+**The contact row keeps its place.** Site, phone and Maps all come out of one Apple Maps
+lookup, so until it answers the row is empty and then suddenly forty-eight points tall.
+How many chips arrive is not knowable in advance, so none are drawn — only the height one
+row of them takes, which is the same whether one lands or four.
+
+**The nightly availability chip stays on one line.** *Checking…* is one short word and
+*First-come, no calendar* is four; compressed against a long campground name the chip
+wrapped when the answer landed and took the row's height with it. The chip holds its width
+now and the name, which can wrap without changing what it says, gives instead.
+
+Nothing here makes a request faster, and nothing new is claimed while one is out: a pending
+field says it is pending, and where the number of things coming back is genuinely unknown —
+alerts, campgrounds, nearby units, roadside stops — the screen still says a sentence and
+draws nothing. A grey placeholder for five campgrounds that resolve to none would be an
+invented value with a shape instead of a number.
+
+## 2.36.0 — A trip opens on its map
+
+Tapping a trip showed you a route map and then took it away. The map lived only on the card
+in the list; the screen behind it was a push header, a title, and five labelled figures in a
+two-column grid. The picture you tapped to get there was the one thing the destination did
+not have.
+
+**The route is the title page now.** Full-bleed, running under the status bar, dissolving
+into the page rather than stopping at an edge — the same three moves `ParkScreen.hero` has
+made with a photograph since the app got its shape: drawn taller than its box by the status
+bar, pulled back up by the same amount so the scroll view keeps its safe area, and faded to
+the page colour over the bottom hundred and thirty points. It works over a basemap for free,
+because the basemap is already desaturated toward the page. Three hundred points rather than
+the park screen's three seventy — a trip has a segmented control and a list under it, and
+pushing those off the display is the thing this is meant to fix.
+
+**And the grid becomes one line.** *3 days · 218 mi by road · Electric · 0 of 1 packs.* The
+park count goes, because the route line names the parks directly above it. The packs go to a
+chip, because a pack is not a fact about the trip — it is a state you can act on, and it
+turns lime when it is done so "all downloaded" reads without being read.
+
+What survives the compression is `milesAreRouted`. A routed number and a great-circle guess
+are different claims, and the line carries the italic *est.* that says which one you are
+looking at. Losing that was the only reason to reject the prettier version of this line.
+
+**A trip with no map keeps the page it had.** Offline on a first open, with nothing cached,
+the hero collapses to nothing rather than reserving three hundred points of empty plate, and
+the masthead starts under the floating back control exactly as it used to.
+
+**Back is one control, and it carries its own placement.** The first version of this had
+each screen position its own, and they drifted immediately: the park's sat six points under
+the status bar, the trip's a whole status bar lower, because the trip added the inset by hand
+to a view that was already inside the safe area. `FloatingBack` owns the padding now and the
+call sites add nothing — which is the only arrangement in which two screens cannot disagree.
+
+**Choosing a section scrolls it to the top, and the control stays there.** Pinned section
+headers, so the segmented control is still on the display after the page has moved under it,
+and the same scroll-to-top the park screen's rail makes — `.snappy(duration: 0.34)`,
+transcribed rather than chosen again.
+
+**The hero is 260, not 300.** Shorter, so more of the section shows before the fold.
+
+Three things moved rather than being written twice: `WP.statusBarInset`, which both heroes
+need; `FloatingBack`, the ink-glass control that sits over one; and `TripRouteGeometry`,
+which turns routed legs into the stretches and pins a plate draws — the rules for splitting
+a flown leg into three are fiddly enough that two copies would disagree within a release.
+
+`PushHeader` is no longer used anywhere. It is left in place rather than deleted, in case
+another screen wants it.
+
+**And `tools/design-lint.py` exists now**, because none of the above was caught by anything.
+It checks that the shared components are actually shared: that no screen hand-rolls a
+floating back control, that call sites add no placement of their own, that both heroes
+dissolve on the same gradient stops, and that no view hard-codes a number that is already a
+token. It found a hard-coded gutter in `DiscoverScreen` on its first run.
+
+## 2.35.1 — The segment pill slides
+
+Choosing a section made the pill vanish from one segment and appear on another. It never
+travelled, because there was nothing to travel: every segment drew its own background when
+it became the selected one, so at the moment of the change SwiftUI had one view being
+removed and a different view being inserted, and no reason to connect them.
+
+There is one pill now, and it moves. `matchedGeometryEffect` gives the two appearances the
+same identity and the frame between them is interpolated — which is the whole of the slide.
+`Motion.segment` carries it: a spring quick enough to arrive rather than be watched, with
+just enough settle to read as a thing sliding in a trough rather than a rectangle being
+teleported.
+
+The label's ink animates with it, so a word arrives at full strength as the pill reaches it
+instead of flicking dark while the pill is still on its way.
+
+**Under Reduce Motion it does not slide at all.** It fades in where it belongs. A pill
+crossing the width of the screen is exactly the movement that setting exists to stop, and a
+slide made merely *fast* would be worse than no slide — so the geometry effect is dropped
+rather than hurried, and `Motion.segmentReduced` fades instead.
+
+One thing had to be restated: the hit target. The pill used to bring a hit-testable
+background with it, so a selected segment was tappable because it was selected. The pill is
+drawn behind the label now, so every segment states its own `contentShape` — including the
+selected one, which is the only kind nobody taps and the easiest to leave broken.
+
+`SelectedControl` stays where it is: `SegmentRail` still uses it, and a rail that scrolls
+cannot slide a pill across itself the way a fixed trough can.
 
 ## 2.35.0 — A brief that knows what day it is
 
@@ -144,124 +261,6 @@ expensive half and the whole point of that detached task is to pay it off the ma
 
 `Datasets.seedParksByCode` went with it: a dictionary rebuilt on every access, with no
 callers left.
-
-## 2.34.2 — The segment pill slides
-
-Choosing a section made the pill vanish from one segment and appear on another. It never
-travelled, because there was nothing to travel: every segment drew its own background when
-it became the selected one, so at the moment of the change SwiftUI had one view being
-removed and a different view being inserted, and no reason to connect them.
-
-There is one pill now, and it moves. `matchedGeometryEffect` gives the two appearances the
-same identity and the frame between them is interpolated — which is the whole of the slide.
-`Motion.segment` carries it: a spring quick enough to arrive rather than be watched, with
-just enough settle to read as a thing sliding in a trough rather than a rectangle being
-teleported.
-
-The label's ink animates with it, so a word arrives at full strength as the pill reaches it
-instead of flicking dark while the pill is still on its way.
-
-**Under Reduce Motion it does not slide at all.** It fades in where it belongs. A pill
-crossing the width of the screen is exactly the movement that setting exists to stop, and a
-slide made merely *fast* would be worse than no slide — so the geometry effect is dropped
-rather than hurried, and `Motion.segmentReduced` fades instead.
-
-One thing had to be restated: the hit target. The pill used to bring a hit-testable
-background with it, so a selected segment was tappable because it was selected. The pill is
-drawn behind the label now, so every segment states its own `contentShape` — including the
-selected one, which is the only kind nobody taps and the easiest to leave broken.
-
-`SelectedControl` stays where it is: `SegmentRail` still uses it, and a rail that scrolls
-cannot slide a pill across itself the way a fixed trough can.
-
-## 2.35.0 — A trip opens on its map
-
-Tapping a trip showed you a route map and then took it away. The map lived only on the card
-in the list; the screen behind it was a push header, a title, and five labelled figures in a
-two-column grid. The picture you tapped to get there was the one thing the destination did
-not have.
-
-**The route is the title page now.** Full-bleed, running under the status bar, dissolving
-into the page rather than stopping at an edge — the same three moves `ParkScreen.hero` has
-made with a photograph since the app got its shape: drawn taller than its box by the status
-bar, pulled back up by the same amount so the scroll view keeps its safe area, and faded to
-the page colour over the bottom hundred and thirty points. It works over a basemap for free,
-because the basemap is already desaturated toward the page. Three hundred points rather than
-the park screen's three seventy — a trip has a segmented control and a list under it, and
-pushing those off the display is the thing this is meant to fix.
-
-**And the grid becomes one line.** *3 days · 218 mi by road · Electric · 0 of 1 packs.* The
-park count goes, because the route line names the parks directly above it. The packs go to a
-chip, because a pack is not a fact about the trip — it is a state you can act on, and it
-turns lime when it is done so "all downloaded" reads without being read.
-
-What survives the compression is `milesAreRouted`. A routed number and a great-circle guess
-are different claims, and the line carries the italic *est.* that says which one you are
-looking at. Losing that was the only reason to reject the prettier version of this line.
-
-**A trip with no map keeps the page it had.** Offline on a first open, with nothing cached,
-the hero collapses to nothing rather than reserving three hundred points of empty plate, and
-the masthead starts under the floating back control exactly as it used to.
-
-**Back is one control, and it carries its own placement.** The first version of this had
-each screen position its own, and they drifted immediately: the park's sat six points under
-the status bar, the trip's a whole status bar lower, because the trip added the inset by hand
-to a view that was already inside the safe area. `FloatingBack` owns the padding now and the
-call sites add nothing — which is the only arrangement in which two screens cannot disagree.
-
-**Choosing a section scrolls it to the top, and the control stays there.** Pinned section
-headers, so the segmented control is still on the display after the page has moved under it,
-and the same scroll-to-top the park screen's rail makes — `.snappy(duration: 0.34)`,
-transcribed rather than chosen again.
-
-**The hero is 260, not 300.** Shorter, so more of the section shows before the fold.
-
-Three things moved rather than being written twice: `WP.statusBarInset`, which both heroes
-need; `FloatingBack`, the ink-glass control that sits over one; and `TripRouteGeometry`,
-which turns routed legs into the stretches and pins a plate draws — the rules for splitting
-a flown leg into three are fiddly enough that two copies would disagree within a release.
-
-`PushHeader` is no longer used anywhere. It is left in place rather than deleted, in case
-another screen wants it.
-
-**And `tools/design-lint.py` exists now**, because none of the above was caught by anything.
-It checks that the shared components are actually shared: that no screen hand-rolls a
-floating back control, that call sites add no placement of their own, that both heroes
-dissolve on the same gradient stops, and that no view hard-codes a number that is already a
-token. It found a hard-coded gutter in `DiscoverScreen` on its first run.
-
-## 2.34.1 — The park screen holds still while it waits
-
-Opening a park fired six requests and then rearranged itself around each answer as it
-landed. The fee and hours block was the worst of it: one twenty-point line reading *Pulling
-NPS data…*, and then two stacked facts where the park service's hours run to three or four
-sentences. Everything below — the chips, the caption, the whole overview — dropped about
-ninety points the moment NPS replied, usually while a thumb was already on its way
-somewhere.
-
-**The wait is drawn in the shape of the answer.** Both labels are there from the first
-frame, because *Entrance fee* and *Park hours* are this app's own words and it knows it is
-about to show them before it asks anybody. Under each, a pending line — and the hours slot
-holds the three lines they usually take, measured from the font by `reservesSpace` rather
-than from a number typed in once against one phone, so the reservation stays right at every
-Dynamic Type size.
-
-**The contact row keeps its place.** Site, phone and Maps all come out of one Apple Maps
-lookup, so until it answers the row is empty and then suddenly forty-eight points tall.
-How many chips arrive is not knowable in advance, so none are drawn — only the height one
-row of them takes, which is the same whether one lands or four.
-
-**The nightly availability chip stays on one line.** *Checking…* is one short word and
-*First-come, no calendar* is four; compressed against a long campground name the chip
-wrapped when the answer landed and took the row's height with it. The chip holds its width
-now and the name, which can wrap without changing what it says, gives instead.
-
-Nothing here makes a request faster, and nothing new is claimed while one is out: a pending
-field says it is pending, and where the number of things coming back is genuinely unknown —
-alerts, campgrounds, nearby units, roadside stops — the screen still says a sentence and
-draws nothing. A grey placeholder for five campgrounds that resolve to none would be an
-invented value with a shape instead of a number.
-
 
 ## 2.34.0 — The drive from the airport is a leg
 
