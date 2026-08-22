@@ -119,9 +119,19 @@ struct ParkScreen: View {
     private var factsRow: some View {
         switch ParkFacts.shared.state(for: park) {
         case .loading:
-            HStack(spacing: 9) {
-                ProgressView().controlSize(.small)
-                Text("Pulling NPS data…").font(WP.bodyItalic(12.5)).opacity(0.7)
+            // The labels are this app's own words, not the park service's — the screen
+            // knows it is about to show a fee and an opening time before it asks anybody.
+            // So the wait is drawn in the shape of the answer: both labels, and a pending
+            // line under each, the hours slot holding the three lines they usually run to.
+            //
+            // This was one twenty-point spinner line, and the loaded row is two stacked
+            // facts — so the moment NPS answered, the chips, the caption and everything
+            // below them dropped about ninety points, out from under whatever your thumb
+            // was already reaching for. Reserving the height does not make the request any
+            // faster. It stops the page moving while it runs.
+            VStack(alignment: .leading, spacing: 11) {
+                awaitedFact("Entrance fee", reservingLines: 1)
+                awaitedFact("Park hours", reservingLines: 3)
             }
         case .failed:
             factsUnavailable
@@ -157,6 +167,29 @@ struct ParkScreen: View {
                 .font(WP.body(12.5)).opacity(0.85).lineSpacing(2)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// One fact still in flight, holding the space its answer will want.
+    ///
+    /// `reservesSpace` takes the height from the font rather than from a number measured
+    /// once on one phone, so the reservation stays right at every Dynamic Type size and
+    /// cannot drift when the type scale changes underneath it.
+    ///
+    /// A pending field says it is pending. "Asking the park service…" is the sentence the
+    /// reservation note below already uses for the same state, and the app is careful
+    /// everywhere else to keep a question in flight apart from an answer that came back
+    /// empty — a blank slot here would read as the second when it is the first.
+    private func awaitedFact(_ label: String, reservingLines: Int) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label.uppercased())
+                .font(WP.body(10)).tracking(1.4)
+                .foregroundStyle(WP.accent800)
+            Text("Asking the park service…")
+                .font(WP.bodyItalic(12.5)).opacity(0.55).lineSpacing(2)
+                .lineLimit(reservingLines, reservesSpace: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -203,6 +236,34 @@ struct ParkScreen: View {
                 }
             }
             .padding(.top, 12)
+        } else if isFindingContacts {
+            // Every chip on this row comes from a lookup that has not answered yet, so the
+            // row is empty and then, a moment later, forty-eight points tall — with the
+            // caption and the whole overview under it moving down to make room. How many
+            // chips arrive is not knowable in advance (a park may have a site, a number,
+            // both or neither), so nothing is drawn here: only the height one row of them
+            // takes is held, which is the same whether one chip lands or four.
+            //
+            // Fixed height rather than a minimum: `Color` is flexible in both directions,
+            // and a flexible child in this column would be handed the slack instead of the
+            // thirty-six points asked for.
+            Color.clear
+                .frame(height: 36)
+                .padding(.top, 12)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// Whether the lookups behind the chip row are still out.
+    ///
+    /// Only Apple Maps is asked about: the website, the phone number and the map item all
+    /// arrive together from that one lookup, and the park service's directions chip is an
+    /// extra that may never come. Once Maps has answered — with a place or with nothing —
+    /// this row is as full as it is ever going to be.
+    private var isFindingContacts: Bool {
+        switch ParkWebsite.shared.state(for: park) {
+        case .idle, .looking: return true
+        case .found, .none: return false
         }
     }
 
@@ -1830,6 +1891,13 @@ struct LiveCampgroundRow: View {
                     if camp.facilityID != nil {
                         Text(tonight)
                             .font(WP.body(10))
+                            // "Checking…" is one short word and "First-come, no calendar"
+                            // is four; left to compress against a long campground name the
+                            // chip wrapped to two lines when the answer landed and took the
+                            // row's height with it. The chip holds its own width and the
+                            // name, which can wrap without changing what it says, gives.
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                             .padding(.horizontal, 9).padding(.vertical, 2)
                             .background(chipColour, in: Capsule())
                             .foregroundStyle(WP.accent800)
