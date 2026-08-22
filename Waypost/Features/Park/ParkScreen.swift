@@ -683,22 +683,7 @@ struct ParkScreen: View {
     }
 
     /// Back, floating on glass over the photograph — the only chrome above the fold.
-    private var backControl: some View {
-        Button { app.pop() } label: {
-            HStack(spacing: 3) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                Text("Back").font(WP.body(18))
-            }
-            .padding(.vertical, 11)
-            .padding(.horizontal, 17)
-            .frame(minHeight: 44)
-            .glassControl()
-        }
-        .buttonStyle(PressStyle(scale: 0.94))
-        .padding(.leading, WP.gutter)
-        .padding(.top, 6)
-    }
+    private var backControl: some View { FloatingBack(label: "Back") { app.pop() } }
 
     private var actions: some View {
         VStack(alignment: .leading, spacing: 0) {

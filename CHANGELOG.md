@@ -44,6 +44,19 @@ looking at. Losing that was the only reason to reject the prettier version of th
 the hero collapses to nothing rather than reserving three hundred points of empty plate, and
 the masthead starts under the floating back control exactly as it used to.
 
+**Back is one control, and it carries its own placement.** The first version of this had
+each screen position its own, and they drifted immediately: the park's sat six points under
+the status bar, the trip's a whole status bar lower, because the trip added the inset by hand
+to a view that was already inside the safe area. `FloatingBack` owns the padding now and the
+call sites add nothing — which is the only arrangement in which two screens cannot disagree.
+
+**Choosing a section scrolls it to the top, and the control stays there.** Pinned section
+headers, so the segmented control is still on the display after the page has moved under it,
+and the same scroll-to-top the park screen's rail makes — `.snappy(duration: 0.34)`,
+transcribed rather than chosen again.
+
+**The hero is 260, not 300.** Shorter, so more of the section shows before the fold.
+
 Three things moved rather than being written twice: `WP.statusBarInset`, which both heroes
 need; `FloatingBack`, the ink-glass control that sits over one; and `TripRouteGeometry`,
 which turns routed legs into the stretches and pins a plate draws — the rules for splitting
@@ -51,6 +64,12 @@ a flown leg into three are fiddly enough that two copies would disagree within a
 
 `PushHeader` is no longer used anywhere. It is left in place rather than deleted, in case
 another screen wants it.
+
+**And `tools/design-lint.py` exists now**, because none of the above was caught by anything.
+It checks that the shared components are actually shared: that no screen hand-rolls a
+floating back control, that call sites add no placement of their own, that both heroes
+dissolve on the same gradient stops, and that no view hard-codes a number that is already a
+token. It found a hard-coded gutter in `DiscoverScreen` on its first run.
 
 ## 2.34.0 — The drive from the airport is a leg
 

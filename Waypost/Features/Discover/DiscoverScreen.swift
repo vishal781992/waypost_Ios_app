@@ -464,7 +464,7 @@ struct NothingByThatName: View {
             } label: {
                 Text("Try state parks")
                     .font(WP.headingUI(15))
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, WP.gutter)
                     .frame(minHeight: 44)
                     .glassControl()
             }

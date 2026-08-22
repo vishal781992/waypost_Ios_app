@@ -19,8 +19,12 @@ struct TripDetailScreen: View {
         // trip keeps the picture that was tapped to get here rather than replacing it with
         // a header. Only the scroll view ignores the safe area; back floats inside it.
         ZStack(alignment: .topLeading) {
+            ScrollViewReader { scroller in
             ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 0) {
+                // Pinned section headers, so the control stays on the display once the page
+                // has scrolled past it. Choosing a section and then having to scroll back up
+                // to choose another is the fault this fixes.
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                     hero
 
                     // The gutter belongs to the page, not to the hero — so everything
@@ -32,10 +36,12 @@ struct TripDetailScreen: View {
                         Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.65).padding(.top, 5)
 
                         statLine.padding(.top, 13)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, WP.gutter)
 
-                        SegmentedTrough(options: TripSegment.allCases.map { ($0, $0.label) }, selection: $segment)
-                            .padding(.top, 18)
-
+                    Section {
+                    VStack(alignment: .leading, spacing: 0) {
                         Group {
                             switch segment {
                             case .route: routeList
@@ -53,6 +59,16 @@ struct TripDetailScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, WP.gutter)
+                    } header: {
+                        SegmentedTrough(options: TripSegment.allCases.map { ($0, $0.label) },
+                                        selection: $segment)
+                            .padding(.horizontal, WP.gutter)
+                            .padding(.top, 16)
+                            .padding(.bottom, 12)
+                            // Opaque, or the page scrolls through the pinned control.
+                            .background(WP.bg)
+                            .id(Self.segmentAnchor)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 // Enough for the floating share disc to clear the last line of the page.
@@ -77,10 +93,19 @@ struct TripDetailScreen: View {
             }
             .animation(Motion.panel, value: segment)
             .ignoresSafeArea(edges: .top)
+            // Choosing a section puts its first line under the control rather than leaving
+            // it below the fold. The same move the park screen's rail makes, at the same
+            // speed — `.snappy(duration: 0.34)`, transcribed rather than re-chosen.
+            .onChange(of: segment) { _, _ in
+                withAnimation(.snappy(duration: 0.34)) {
+                    scroller.scrollTo(Self.segmentAnchor, anchor: .top)
+                }
+            }
+            }
 
+            // No padding here. `FloatingBack` carries its own, which is the only way the
+            // two screens can be guaranteed to put it in the same place.
             FloatingBack(label: "Trips") { app.pop() }
-                .padding(.leading, WP.gutter - 3)
-                .padding(.top, WP.statusBarInset + 4)
         }
         .background(WP.bg)
         .onAppear {
@@ -245,9 +270,12 @@ struct TripDetailScreen: View {
         }
     }
 
+    /// Where the segmented control sits, and where choosing a section scrolls back to.
+    private static let segmentAnchor = "trip.segments"
+
     /// Shorter than the park screen's 372. A trip has a segmented control and a list under
     /// it, and pushing those off the display is the thing the hero is meant to fix.
-    private static let heroHeight: CGFloat = 300
+    private static let heroHeight: CGFloat = 260
 
     // MARK: Stats
 
