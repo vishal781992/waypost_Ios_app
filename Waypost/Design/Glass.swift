@@ -1006,6 +1006,39 @@ struct MarkPill: View {
     }
 }
 
+/// Back, floating on ink glass over a full-bleed hero — the only chrome above the fold.
+///
+/// **This is the one back control.** The park screen and the trip screen both open on a
+/// full-bleed hero with this floating over it, and when each screen owned its own copy they
+/// drifted immediately: one sat six points under the status bar and the other a whole status
+/// bar lower, because one of them added the inset by hand to a view that was already inside
+/// the safe area.
+///
+/// So the placement lives here too, not at the call site. A screen adds this to a
+/// `ZStack(alignment: .topLeading)` and adds nothing else — no padding, no inset. The
+/// `ZStack` must sit inside the safe area even where the scroll view under it does not.
+struct FloatingBack: View {
+    var label: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 3) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                Text(label).font(WP.body(18))
+            }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 17)
+            .frame(minHeight: 44)
+            .glassControl()
+        }
+        .buttonStyle(PressStyle(scale: 0.94))
+        .padding(.leading, WP.gutter)
+        .padding(.top, 6)
+    }
+}
+
 struct GlassDisc: View {
     var icon: String
     var size: CGFloat = 52

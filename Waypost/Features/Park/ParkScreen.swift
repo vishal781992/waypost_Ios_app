@@ -47,11 +47,7 @@ struct ParkScreen: View {
     /// The status bar's height. Asked of the window rather than of a `GeometryReader`:
     /// this screen's scroll view ignores the top safe area, and the proxy inside it
     /// reports zero — which put the pinned header under the clock.
-    static var statusBarInset: CGFloat {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let inset = scenes.flatMap(\.windows).first { $0.isKeyWindow }?.safeAreaInsets.top
-        return inset ?? 47
-    }
+    static var statusBarInset: CGFloat { WP.statusBarInset }
 
     private var packState: PackState { app.packState(park.code) }
     private var isSaved: Bool { app.saved.contains(park.code) }
@@ -687,22 +683,7 @@ struct ParkScreen: View {
     }
 
     /// Back, floating on glass over the photograph — the only chrome above the fold.
-    private var backControl: some View {
-        Button { app.pop() } label: {
-            HStack(spacing: 3) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                Text("Back").font(WP.body(18))
-            }
-            .padding(.vertical, 11)
-            .padding(.horizontal, 17)
-            .frame(minHeight: 44)
-            .glassControl()
-        }
-        .buttonStyle(PressStyle(scale: 0.94))
-        .padding(.leading, WP.gutter)
-        .padding(.top, 6)
-    }
+    private var backControl: some View { FloatingBack(label: "Back") { app.pop() } }
 
     private var actions: some View {
         VStack(alignment: .leading, spacing: 0) {

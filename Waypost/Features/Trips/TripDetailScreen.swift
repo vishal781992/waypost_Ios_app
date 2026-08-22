@@ -15,39 +15,62 @@ struct TripDetailScreen: View {
     private var isSeed: Bool { trip.id == "seed" }
 
     var body: some View {
-        VStack(spacing: 0) {
-            PushHeader(backLabel: "Trips", title: trip.title) { app.pop() }
-
+        // The route runs to the very top of the display, under the status bar, so opening a
+        // trip keeps the picture that was tapped to get here rather than replacing it with
+        // a header. Only the scroll view ignores the safe area; back floats inside it.
+        ZStack(alignment: .topLeading) {
+            ScrollViewReader { scroller in
             ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(trip.tag).kickerStyle()
-                    Text(trip.title).font(WP.display(34)).padding(.top, 7)
-                        .multilineTextAlignment(.leading)
-                    Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.65).padding(.top, 5)
+                // Pinned section headers, so the control stays on the display once the page
+                // has scrolled past it. Choosing a section and then having to scroll back up
+                // to choose another is the fault this fixes.
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    hero
 
-                    stats.padding(.top, 16)
+                    // The gutter belongs to the page, not to the hero — so everything
+                    // below the map is inset together and the map alone runs full bleed.
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(trip.tag).kickerStyle()
+                        Text(trip.title).font(WP.display(34)).padding(.top, 7)
+                            .multilineTextAlignment(.leading)
+                        Text(trip.route).font(WP.bodyItalic(12.5)).opacity(0.65).padding(.top, 5)
 
-                    SegmentedTrough(options: TripSegment.allCases.map { ($0, $0.label) }, selection: $segment)
-                        .padding(.top, 18)
-
-                    Group {
-                        switch segment {
-                        case .route: routeList
-                        case .days: dayList
-                        case .list: TripPlanList(trip: trip)
-                        }
+                        statLine.padding(.top, 13)
                     }
-                    .padding(.top, 20)
-                    .panelTransition(id: segment)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, WP.gutter)
 
-                    // Share is a disc now, and it floats. Full width at the foot of the
-                    // scroll it was the largest thing on the screen and the last thing
-                    // anybody wanted — on a trip with a fortnight of days it also sat
-                    // below all of them. See `shareDisc`.
+                    Section {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Group {
+                            switch segment {
+                            case .route: routeList
+                            case .days: dayList
+                            case .list: TripPlanList(trip: trip)
+                            }
+                        }
+                        .padding(.top, 20)
+                        .panelTransition(id: segment)
+
+                        // Share is a disc now, and it floats. Full width at the foot of the
+                        // scroll it was the largest thing on the screen and the last thing
+                        // anybody wanted — on a trip with a fortnight of days it also sat
+                        // below all of them. See `shareDisc`.
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, WP.gutter)
+                    } header: {
+                        SegmentedTrough(options: TripSegment.allCases.map { ($0, $0.label) },
+                                        selection: $segment)
+                            .padding(.horizontal, WP.gutter)
+                            .padding(.top, 16)
+                            .padding(.bottom, 12)
+                            // Opaque, or the page scrolls through the pinned control.
+                            .background(WP.bg)
+                            .id(Self.segmentAnchor)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, WP.gutter)
-                .padding(.top, 18)
                 // Enough for the floating share disc to clear the last line of the page.
                 .padding(.bottom, segment == .list ? WP.tabBarClearance : 82)
             }
@@ -69,6 +92,20 @@ struct TripDetailScreen: View {
                 }
             }
             .animation(Motion.panel, value: segment)
+            .ignoresSafeArea(edges: .top)
+            // Choosing a section puts its first line under the control rather than leaving
+            // it below the fold. The same move the park screen's rail makes, at the same
+            // speed — `.snappy(duration: 0.34)`, transcribed rather than re-chosen.
+            .onChange(of: segment) { _, _ in
+                withAnimation(.snappy(duration: 0.34)) {
+                    scroller.scrollTo(Self.segmentAnchor, anchor: .top)
+                }
+            }
+            }
+
+            // No padding here. `FloatingBack` carries its own, which is the only way the
+            // two screens can be guaranteed to put it in the same place.
+            FloatingBack(label: "Trips") { app.pop() }
         }
         .background(WP.bg)
         .onAppear {
@@ -195,6 +232,51 @@ struct TripDetailScreen: View {
         return item
     }
 
+    // MARK: The hero
+
+    /// Where the route starts, stops and ends — the origin, then the parks in order.
+    private var points: [(lat: Double, lon: Double)] {
+        let origin = trip.resolvedOrigin(app.library)
+        return ([origin.map { (lat: $0.lat, lon: $0.lon) }].compactMap { $0 })
+            + parks.map { (lat: $0.lat, lon: $0.lon) }
+    }
+
+    private var routeLegs: [RouteLeg] { TripRouteGeometry.stretches(app.routing.legs(for: trip)) }
+    private var airports: [(lat: Double, lon: Double)] { TripRouteGeometry.airports(app.routing.legs(for: trip)) }
+
+    /// The trip's route map, full-bleed, dissolving into the page.
+    ///
+    /// The same three moves the park screen's photograph makes: drawn taller than its box
+    /// by the status bar, pulled back up by the same amount so it runs under the clock
+    /// while the scroll view keeps its safe area, and faded into the page colour at the
+    /// bottom rather than stopping at an edge.
+    ///
+    /// It collapses to nothing when there is no map to draw — offline on a first open, with
+    /// nothing cached. An empty three-hundred-point rectangle is worse than no hero, and
+    /// growing the height in when the picture lands moves nothing that was already read.
+    @ViewBuilder
+    private var hero: some View {
+        if points.count > 1 {
+            RouteMapPlate(id: trip.id, points: points, legs: routeLegs,
+                          airports: airports, hero: true)
+                .frame(height: Self.heroHeight + WP.statusBarInset)
+                .padding(.top, -WP.statusBarInset)
+                // The masthead sits up into the dissolve, where the map has already given
+                // way to the page.
+                .padding(.bottom, -34)
+        } else {
+            // No map: the page starts where it always did, under the floating back control.
+            Color.clear.frame(height: WP.statusBarInset + 52)
+        }
+    }
+
+    /// Where the segmented control sits, and where choosing a section scrolls back to.
+    private static let segmentAnchor = "trip.segments"
+
+    /// Shorter than the park screen's 372. A trip has a segmented control and a list under
+    /// it, and pushing those off the display is the thing the hero is meant to fix.
+    private static let heroHeight: CGFloat = 260
+
     // MARK: Stats
 
     /// The miles this trip is actually driven.
@@ -255,32 +337,61 @@ struct TripDetailScreen: View {
         return 2 * 3959 * asin(sqrt(h))
     }
 
-    private var statRows: [(label: String, value: String)] {
+    /// The shape of the trip, in one line.
+    ///
+    /// Five labelled cells in a two-column grid was three rows of chrome above the control
+    /// somebody opened the screen to use, and most of what it said the map now says better.
+    /// What survives is what the map cannot: how long, how far, and what is driving it.
+    ///
+    /// The park count goes, because the route line names the parks directly above this. The
+    /// packs go to a chip, because a pack is not a fact about the trip — it is a state you
+    /// can act on, and it turns lime when it is done so "all downloaded" reads without
+    /// being read.
+    ///
+    /// `milesAreRouted` is the one thing that must survive the compression. A routed number
+    /// and a great-circle guess are different claims, and the italic *est.* is where the
+    /// screen says which one is on it.
+    private var statLine: some View {
         let days = isSeed ? app.library.days.count : parks.count * 2 + parks.count
-        return [
-            ("Parks", "\(parks.count)"),
-            ("Days", "\(days)"),
-            (milesAreRouted ? "Miles by road" : "Miles, est.", totalMiles.formatted(.number)),
-            ("Vehicle", app.vehicleIsElectric ? "Electric" : "Gasoline"),
-            ("Packs", "\(parks.filter { app.packState($0.code) == .ready }.count) of \(parks.count) ready"),
-        ]
+        let ready = parks.filter { app.packState($0.code) == .ready }.count
+        return HStack(alignment: .firstTextBaseline, spacing: 7) {
+            figure("\(days)", "days")
+            separator
+            figure(totalMiles.formatted(.number), milesAreRouted ? "mi by road" : "mi")
+            if !milesAreRouted {
+                Text("est.").font(WP.bodyItalic(11.5)).opacity(0.6)
+            }
+            separator
+            Text(app.vehicleIsElectric ? "Electric" : "Gasoline")
+                .font(WP.body(12.5)).opacity(0.66)
+            separator
+            packChip(ready: ready, of: parks.count)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 9)
+        .overlay(alignment: .top) { Hairline() }
+        .overlay(alignment: .bottom) { Hairline() }
     }
 
-    private var stats: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 0), GridItem(.flexible(), spacing: 0)], spacing: 0) {
-            ForEach(statRows, id: \.label) { row in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(row.label.uppercased())
-                        .font(WP.body(10)).tracking(1.4).opacity(0.55)
-                    Text(row.value).font(WP.statValue(20)).tnum()
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, 12)
-                .padding(.vertical, 10)
-                .overlay(alignment: .bottom) { Hairline() }
-            }
+    private func figure(_ value: String, _ unit: String) -> some View {
+        HStack(spacing: 4) {
+            Text(value).font(WP.body(12.5, semibold: true)).tnum()
+            Text(unit).font(WP.body(12.5)).opacity(0.66)
         }
-        .overlay(alignment: .top) { Hairline() }
+    }
+
+    private var separator: some View {
+        Text("·").font(WP.body(12.5)).opacity(0.36)
+    }
+
+    private func packChip(ready: Int, of total: Int) -> some View {
+        let done = total > 0 && ready == total
+        return Text("\(ready) of \(total) packs")
+            .font(WP.body(10.5, semibold: true)).tnum()
+            .padding(.horizontal, 9).padding(.vertical, 2)
+            .background(done ? WP.lime : WP.accent100, in: Capsule())
+            .overlay(Capsule().stroke(done ? Color.black.opacity(0.12) : WP.accent400, lineWidth: 1))
+            .foregroundStyle(done ? WP.text : WP.accent800)
     }
 
     // MARK: Route

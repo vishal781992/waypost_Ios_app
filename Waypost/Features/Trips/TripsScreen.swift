@@ -173,65 +173,8 @@ struct TripCard: View {
             + parks.map { (lat: $0.lat, lon: $0.lon) }
     }
 
-    /// The trip as stretches, each knowing how it is travelled.
-    ///
-    /// This used to flatten every leg into one continuous line, dropping the repeated point
-    /// where legs meet at a park so the path did not double back. Each stretch is stroked
-    /// separately now, so a shared endpoint costs nothing and the flattening is gone with
-    /// the thing that needed it.
-    ///
-    /// A driven leg is one road. A flown leg is three: the drive to the airport, the
-    /// flight, and the drive from the far airport to the park — which on a leg like
-    /// Chicago to Yellowstone is 327 miles and most of a day, and was previously drawn as
-    /// part of one unbroken road line running the whole way.
-    private var routeLegs: [RouteLeg] {
-        let legs = app.routing.legs(for: trip)
-        guard !legs.isEmpty else { return [] }
-
-        var out: [RouteLeg] = []
-        for leg in legs {
-            guard let path = leg.flightPath else {
-                out.append(RouteLeg(.road, leg.coordinates.map(Self.coordinate)))
-                continue
-            }
-            let departure = CLLocationCoordinate2D(latitude: path.departure.lat,
-                                                   longitude: path.departure.lon)
-            let arrival = CLLocationCoordinate2D(latitude: path.arrival.lat,
-                                                 longitude: path.arrival.lon)
-            if path.drawsOriginStub {
-                out.append(Self.drive(path.toAirport?.coordinates ?? [], from: path.origin,
-                                      to: (path.departure.lat, path.departure.lon)))
-            }
-            out.append(RouteLeg(.air, [departure, arrival]))
-            if path.drawsArrivalStub {
-                out.append(Self.drive(path.fromAirport?.coordinates ?? [],
-                                      from: (path.arrival.lat, path.arrival.lon),
-                                      to: path.destination))
-            }
-        }
-        return out
-    }
-
-    /// A drive as the router gave it, or the straight line the app already uses to say a
-    /// road has not been measured. Never a straight line drawn as though it were a road.
-    private static func drive(_ routed: [(lat: Double, lon: Double)],
-                              from: (lat: Double, lon: Double),
-                              to: (lat: Double, lon: Double)) -> RouteLeg {
-        routed.count > 1
-            ? RouteLeg(.road, routed.map(coordinate))
-            : RouteLeg(.provisional, [coordinate(from), coordinate(to)])
-    }
-
-    private static func coordinate(_ point: (lat: Double, lon: Double)) -> CLLocationCoordinate2D {
-        CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon)
-    }
-
-    /// Every airport this trip actually passes through, in order.
-    private var airports: [(lat: Double, lon: Double)] {
-        app.routing.legs(for: trip).compactMap(\.flightPath).flatMap {
-            [($0.departure.lat, $0.departure.lon), ($0.arrival.lat, $0.arrival.lon)]
-        }
-    }
+    private var routeLegs: [RouteLeg] { TripRouteGeometry.stretches(app.routing.legs(for: trip)) }
+    private var airports: [(lat: Double, lon: Double)] { TripRouteGeometry.airports(app.routing.legs(for: trip)) }
 
     @State private var confirmingDelete = false
 
@@ -418,6 +361,9 @@ struct RouteMapPlate: View {
     /// The airports a flown trip passes through. Drawn as diamonds, and counted in the
     /// framing — an arc whose far end is off the plate reads as a line to nowhere.
     var airports: [(lat: Double, lon: Double)] = []
+    /// The full-bleed form the trip screen opens on. A card's plate is an object on a page
+    /// — rounded, ruled, inset — and a hero is the page's own top edge, so it wears neither.
+    var hero = false
 
     /// The straight line between the places, for while the road is still being asked for.
     private var straightCoordinates: [CLLocationCoordinate2D] {
@@ -516,9 +462,29 @@ struct RouteMapPlate: View {
                 )
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .stroke(WP.divider, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: hero ? 0 : 12, style: .continuous))
+        .overlay {
+            if !hero {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(WP.divider, lineWidth: 1)
+            }
+        }
+        // The hero dissolves into the page rather than stopping at an edge, so the title
+        // below it reads as being written on the same sheet. Same stops as the park
+        // screen's photograph, over a basemap that is already desaturated toward the page.
+        .overlay(alignment: .bottom) {
+            if hero {
+                LinearGradient(
+                    stops: [
+                        .init(color: WP.bg, location: 0),
+                        .init(color: WP.bg.opacity(0.72), location: 0.38),
+                        .init(color: WP.bg.opacity(0), location: 1),
+                    ],
+                    startPoint: .bottom, endPoint: .top
+                )
+                .frame(height: 130)
+            }
+        }
         .allowsHitTesting(false)
     }
 

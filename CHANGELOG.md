@@ -131,6 +131,62 @@ selected one, which is the only kind nobody taps and the easiest to leave broken
 `SelectedControl` stays where it is: `SegmentRail` still uses it, and a rail that scrolls
 cannot slide a pill across itself the way a fixed trough can.
 
+## 2.35.0 — A trip opens on its map
+
+Tapping a trip showed you a route map and then took it away. The map lived only on the card
+in the list; the screen behind it was a push header, a title, and five labelled figures in a
+two-column grid. The picture you tapped to get there was the one thing the destination did
+not have.
+
+**The route is the title page now.** Full-bleed, running under the status bar, dissolving
+into the page rather than stopping at an edge — the same three moves `ParkScreen.hero` has
+made with a photograph since the app got its shape: drawn taller than its box by the status
+bar, pulled back up by the same amount so the scroll view keeps its safe area, and faded to
+the page colour over the bottom hundred and thirty points. It works over a basemap for free,
+because the basemap is already desaturated toward the page. Three hundred points rather than
+the park screen's three seventy — a trip has a segmented control and a list under it, and
+pushing those off the display is the thing this is meant to fix.
+
+**And the grid becomes one line.** *3 days · 218 mi by road · Electric · 0 of 1 packs.* The
+park count goes, because the route line names the parks directly above it. The packs go to a
+chip, because a pack is not a fact about the trip — it is a state you can act on, and it
+turns lime when it is done so "all downloaded" reads without being read.
+
+What survives the compression is `milesAreRouted`. A routed number and a great-circle guess
+are different claims, and the line carries the italic *est.* that says which one you are
+looking at. Losing that was the only reason to reject the prettier version of this line.
+
+**A trip with no map keeps the page it had.** Offline on a first open, with nothing cached,
+the hero collapses to nothing rather than reserving three hundred points of empty plate, and
+the masthead starts under the floating back control exactly as it used to.
+
+**Back is one control, and it carries its own placement.** The first version of this had
+each screen position its own, and they drifted immediately: the park's sat six points under
+the status bar, the trip's a whole status bar lower, because the trip added the inset by hand
+to a view that was already inside the safe area. `FloatingBack` owns the padding now and the
+call sites add nothing — which is the only arrangement in which two screens cannot disagree.
+
+**Choosing a section scrolls it to the top, and the control stays there.** Pinned section
+headers, so the segmented control is still on the display after the page has moved under it,
+and the same scroll-to-top the park screen's rail makes — `.snappy(duration: 0.34)`,
+transcribed rather than chosen again.
+
+**The hero is 260, not 300.** Shorter, so more of the section shows before the fold.
+
+Three things moved rather than being written twice: `WP.statusBarInset`, which both heroes
+need; `FloatingBack`, the ink-glass control that sits over one; and `TripRouteGeometry`,
+which turns routed legs into the stretches and pins a plate draws — the rules for splitting
+a flown leg into three are fiddly enough that two copies would disagree within a release.
+
+`PushHeader` is no longer used anywhere. It is left in place rather than deleted, in case
+another screen wants it.
+
+**And `tools/design-lint.py` exists now**, because none of the above was caught by anything.
+It checks that the shared components are actually shared: that no screen hand-rolls a
+floating back control, that call sites add no placement of their own, that both heroes
+dissolve on the same gradient stops, and that no view hard-codes a number that is already a
+token. It found a hard-coded gutter in `DiscoverScreen` on its first run.
+
 
 ## 2.34.0 — The drive from the airport is a leg
 

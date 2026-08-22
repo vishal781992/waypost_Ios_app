@@ -224,6 +224,18 @@ enum WP {
         min(sheetCorner - discSize / 2, gutter)
     }
     /// Status-bar clearance the design bakes into each header (`padding-top: 57px`).
+    /// The status bar's height.
+    ///
+    /// Asked of the window rather than of a `GeometryReader`: a screen whose scroll view
+    /// ignores the top safe area gets zero from the proxy inside it, which is what put the
+    /// park screen's pinned header under the clock. Both full-bleed heroes need the same
+    /// number, so there is one of it.
+    static var statusBarInset: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let inset = scenes.flatMap(\.windows).first { $0.isKeyWindow }?.safeAreaInsets.top
+        return inset ?? 47
+    }
+
     static let headerTop: CGFloat = 14
     /// Breathing room at the end of a scroll on a screen with no bar over it — a pushed
     /// screen. Just the design's trailing margin.
