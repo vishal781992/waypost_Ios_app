@@ -17,6 +17,11 @@ final class TripWeather {
 
     private var days: [String: WeatherDay] = [:]
     private var asked: Set<String> = []
+    /// Places and dates nothing answered about. Kept apart from `asked`, which is emptied
+    /// of a failed key so the next launch can try again — without this second set, given
+    /// up and never-asked are the same state, and the row cannot tell a forecast that is
+    /// coming from one that is not.
+    private var gaveUp: Set<String> = []
     private let failures = FailureLog()
 
     private init() {}
@@ -38,12 +43,31 @@ final class TripWeather {
         days[key(lat, lon, date)]
     }
 
+    /// Whether a forecast for this place and date is still expected.
+    ///
+    /// True before the row has even asked, which is the point: `.task` runs a frame after
+    /// the row is first drawn, so a reservation that waited for `asked` to fill would
+    /// still let the column go from nothing to thirty-four points — the jump it exists to
+    /// prevent, one frame later. Every row that draws a glyph asks for it on appear, so
+    /// not-yet-asked and in-flight are the same thing to the layout.
+    ///
+    /// False once something has come back, and false once nothing has: a request that
+    /// failed collapses the column rather than leaving a grey block breathing on the row
+    /// for the rest of the session.
+    func isAsking(lat: Double, lon: Double, date: Date) -> Bool {
+        let id = key(lat, lon, date)
+        return days[id] == nil && !gaveUp.contains(id)
+    }
+
     /// Asks once per place-and-date, ever. Repeat calls — and there are many, because
     /// every redraw of the route calls this for every row — cost nothing.
     func load(lat: Double, lon: Double, date: Date) {
         let id = key(lat, lon, date)
         guard days[id] == nil, !asked.contains(id) else { return }
         asked.insert(id)
+        // Asking again after a failure. Until this answers, the row is waiting rather
+        // than given up on, and its column holds its place again.
+        gaveUp.remove(id)
 
         Task { [weak self] in
             guard let self else { return }
@@ -51,8 +75,10 @@ final class TripWeather {
             if let day = await WeatherService(failures: failures).forecast(lat: lat, lon: lon, iso: iso) {
                 self.days[id] = day
             } else {
-                // Nothing answered. Let it be asked again next launch rather than never.
+                // Nothing answered. Let it be asked again next launch rather than never —
+                // and stop the row holding a column open for an answer that is not coming.
                 self.asked.remove(id)
+                self.gaveUp.insert(id)
             }
         }
     }
@@ -70,6 +96,9 @@ struct WeatherGlyph: View {
     /// The weekday letter over the symbol, for a park being spent more than one day in.
     var caption: String?
     var size: CGFloat = 19
+    /// Whether the forecast is still on its way. The column holds its width while it is,
+    /// and holds nothing when the answer was that there is no answer.
+    var awaiting: Bool = false
 
     var body: some View {
         // A `Group` with a real else-branch, rather than a bare `if`. A view that renders
@@ -81,10 +110,30 @@ struct WeatherGlyph: View {
         Group {
             if let day, let condition = day.condition {
                 loaded(day, condition)
+            } else if awaiting {
+                // One forecast per row, asked for the moment the row appears — a count
+                // this screen knows before it asks. Without the reservation the glyph
+                // arrives thirty-four points wide into a row whose text column then has
+                // that much less to wrap in, so the sentence under the leg reflows and
+                // the row changes height a second after it was drawn.
+                waiting
             } else {
                 Color.clear.frame(width: 0, height: 0)
             }
         }
+    }
+
+    /// The glyph's own footprint, in the page's paper. Sized off `size` rather than off a
+    /// measured number, so the two stay together if the glyph is ever drawn larger.
+    private var waiting: some View {
+        VStack(spacing: 1) {
+            if caption != nil { SkeletonBar(width: 14, height: 8, corner: 2) }
+            SkeletonBar(width: 21, height: size - 2, corner: 5)
+                .frame(height: size + 3)
+            SkeletonBar(width: 17, height: 8, corner: 2)
+        }
+        .frame(minWidth: 34)
+        .skeletonBreath()
     }
 
     private func loaded(_ day: WeatherDay, _ condition: WeatherCondition) -> some View {

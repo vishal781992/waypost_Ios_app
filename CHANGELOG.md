@@ -15,6 +15,49 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.36.0 — The shape of an answer, before it arrives
+
+`ParkImage` has always drawn the park's own colour field the instant a screen appears and
+laid the photograph over it when it lands, so the frame never changes and nothing below it
+moves. Four other places now do the same thing with the shapes they are waiting for.
+
+**A trip's legs.** The route tab drew its parks stacked directly on one another until OSRM
+answered, and then a drive pushed in above each of them. One leg is asked for per park, in
+order, before the router is called — so this is not a guess about what will come back but
+the number of answers the screen is waiting on. The kicker is real (*LEG II* is the app's
+own numbering) and only the two lines the router actually answers with are grey.
+
+**A trip's days.** The day count is arithmetic on what is already in hand: the parks, the
+legs, and the nights the trip was saved with. `TripDays.plannedShape` does that arithmetic
+against the same loop that composes the days, and sits directly above it so the two cannot
+drift. It also knows which rows are drives, and a drive reads differently from a day in a
+park — a short kicker over a long line rather than the other way round — so the bars say
+which is which.
+
+**The overview's three points.** Warnings, reservations and why the place matters, with
+their glyphs and their labels: that is the section's own structure, not the model's, so it
+is drawn from the first frame and only the prose is left waiting.
+
+**The weather column on a leg.** A glyph arriving thirty-four points wide left the text
+beside it that much less room to wrap in, so a leg's sentence reflowed and the row changed
+height a second after it was drawn. The column holds its width from the first frame now —
+including before the row has asked, because `.task` runs a frame late and a reservation
+that waited for it would just move the jump. `TripWeather` now keeps failed lookups apart
+from ones it has never made, so a forecast nothing answered about collapses the column
+instead of leaving a grey block breathing there for the rest of the session.
+
+**Where nothing is drawn, and why.** Near-you keeps its sentence: it ranks whatever is
+inside the radius, which is between zero and four parks, and four grey rows resolving to
+one would be exactly the invented value this app refuses to print, in a shape rather than
+a figure. Link cards keep theirs: a page may or may not have a picture, and reserving a
+hundred points for one that never comes is the same mistake. Alerts, campgrounds, nearby
+units and roadside stops were already right and are untouched. The drive home gets no
+skeleton either — whether a trip has one is not settled until the router has run.
+
+Reduce Motion freezes the breathe flat, the way `WaveFill` freezes. Nothing shimmers: a
+sweep is a second animation running at the display's rate on every row at once, and the
+park screen already keeps a `Canvas` redrawing twenty-four times a second.
+
 ## 2.34.0 — The drive from the airport is a leg
 
 Landing is not arriving. Salt Lake City to Yellowstone is 327 miles and the better part of
