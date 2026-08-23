@@ -38,37 +38,52 @@ final class StateShapes {
 
     private init() {}
 
-    /// Reads the file once per launch. Cheap enough to call from a `.task` on every
-    /// appearance — the second call returns immediately.
+    /// Reads the file once per launch, off the main thread.
+    ///
+    /// A quarter of a megabyte of JSON is a few tens of milliseconds to decode and turn
+    /// into coordinates — nothing in the abstract, and a visible stall if it happens while
+    /// the atlas is being pushed, which is the only moment it would ever be asked for. So
+    /// the map opens first and the fills arrive a beat later; there is nothing to see in
+    /// between but the state that has not been filled yet.
+    ///
+    /// Cheap enough to call from a `.task` on every appearance — the second call returns
+    /// on the first line.
     func load() {
         guard !didLoad else { return }
         didLoad = true
-
         guard let url = Bundle.main.url(forResource: "us-states", withExtension: "json") else {
             // Not bundled. Deliberately not a failure: the atlas works without it.
             return
         }
-        do {
-            let data = try Data(contentsOf: url)
-            let raw = try JSONDecoder().decode([String: [[[Double]]]].self, from: data)
-            var out: [String: [[CLLocationCoordinate2D]]] = [:]
-            out.reserveCapacity(raw.count)
-            for (code, shape) in raw {
-                let converted = shape.compactMap { ring -> [CLLocationCoordinate2D]? in
-                    // A ring of fewer than three points is not a polygon, and MapKit will
-                    // draw a hairline artefact rather than refuse it.
-                    guard ring.count >= 3 else { return nil }
-                    return ring.compactMap { pair in
-                        guard pair.count == 2 else { return nil }
-                        return CLLocationCoordinate2D(latitude: pair[1], longitude: pair[0])
-                    }
-                }
-                if !converted.isEmpty { out[code.uppercased()] = converted }
+        Task { [weak self] in
+            do {
+                let decoded = try await Self.decode(url)
+                self?.rings = decoded
+            } catch {
+                self?.failures.note("state-shapes", error)
             }
-            rings = out
-        } catch {
-            failures.note("state-shapes", error)
         }
+    }
+
+    /// Off the actor, because none of this touches it.
+    private nonisolated static func decode(_ url: URL) async throws -> [String: [[CLLocationCoordinate2D]]] {
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
+        let raw = try JSONDecoder().decode([String: [[[Double]]]].self, from: data)
+        var out: [String: [[CLLocationCoordinate2D]]] = [:]
+        out.reserveCapacity(raw.count)
+        for (code, shape) in raw {
+            let converted = shape.compactMap { ring -> [CLLocationCoordinate2D]? in
+                // A ring of fewer than three points is not a polygon, and MapKit draws a
+                // hairline artefact rather than refusing it.
+                guard ring.count >= 3 else { return nil }
+                return ring.compactMap { pair in
+                    guard pair.count == 2 else { return nil }
+                    return CLLocationCoordinate2D(latitude: pair[1], longitude: pair[0])
+                }
+            }
+            if !converted.isEmpty { out[code.uppercased()] = converted }
+        }
+        return out
     }
 
     func polygons(for state: String) -> [[CLLocationCoordinate2D]] {

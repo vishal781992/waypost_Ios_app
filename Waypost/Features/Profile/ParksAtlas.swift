@@ -126,8 +126,7 @@ struct AtlasCard: View {
     /// looks: the lower forty-eight is about 1.86 times as wide as it is tall once the
     /// longitude is narrowed for latitude, and a snapshotter fits a region into whatever
     /// frame it is handed by widening the short side. At the trip plate's proportions the
-    /// country would sit small between two stripes of ocean. At the gutter, this is close
-    /// enough to the shape of the thing being drawn that almost none of the card is sea.
+    /// country would sit small between two stripes of ocean.
     ///
     /// Fixed, so the profile does not move when the picture lands — the discipline
     /// `ParkImage` keeps by drawing its colour field first.
@@ -153,7 +152,7 @@ struct AtlasCard: View {
             Haptics.tap()
         } label: {
             VStack(alignment: .leading, spacing: 0) {
-                plateView(visited: counts.visited)
+                plateView(counts.visited)
                     .frame(height: Self.plateHeight)
                     .clipShape(UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 0,
                                                       bottomTrailingRadius: 0, topTrailingRadius: 14,
@@ -169,34 +168,35 @@ struct AtlasCard: View {
         .accessibilityLabel("\(counts.visited.count) of \(NationalParks.all.count) national parks visited. Open the atlas.")
     }
 
-    private func plateView(visited: Set<String>) -> some View {
-        GeometryReader { geo in
-            let size = geo.size
-            let scale = UIScreen.main.scale
-
-            ZStack {
-                // Never a hole. A card whose picture has not been drawn yet, on a phone
-                // with no signal to draw it, shows the plate.
-                WP.surface.opacity(0.5)
-
+    /// The picture, asked for the moment the card appears.
+    ///
+    /// No `GeometryReader` and no settle. The frame is the lower forty-eight and never
+    /// changes, so the drawing does not depend on the card's width — only its sharpness
+    /// does, and that is what `AtlasSnapshot.plateSize` is for. Measuring the card first
+    /// cost the two hundred milliseconds the trip plates spend waiting for `GeometryReader`
+    /// to stop changing its mind, and then a second render when it did, before the
+    /// snapshotter had even been asked. Now the request goes out on appear and the picture
+    /// is filed under the collection alone, so opening the profile a second time is a read
+    /// from disk.
+    private func plateView(_ visited: Set<String>) -> some View {
+        // The picture is an overlay on the plate rather than a sibling in a `ZStack`:
+        // `scaledToFill` reports a size larger than the space it was offered, so as a
+        // sibling it would widen the card it is meant to fit inside. The same trap
+        // `ParkImage` documents.
+        WP.surface.opacity(0.5)
+            .overlay {
                 if let plate {
                     Image(uiImage: plate)
                         .resizable()
-                        .frame(width: size.width, height: size.height)
+                        .scaledToFill()
                         .transition(.opacity)
                 }
             }
-            .animation(.easeOut(duration: 0.35), value: plate != nil)
-            .task(id: "\(Int(size.width))x\(Int(size.height))|\(visited.sorted().joined(separator: ","))") {
-                // The same settle the trip plates take. `GeometryReader` reports a card's
-                // width twice — an intermediate one and then the real one — and the size is
-                // part of what the picture is filed under, so both passes would render and
-                // each overwrite the other's file.
-                try? await Task.sleep(for: .milliseconds(200))
-                guard !Task.isCancelled else { return }
-                plate = await AtlasSnapshot.shared.card(visited: visited, size: size, scale: scale)
+            .clipped()
+            .animation(.easeOut(duration: 0.28), value: plate != nil)
+            .task(id: visited.sorted().joined(separator: ",")) {
+                plate = await AtlasSnapshot.shared.card(visited: visited)
             }
-        }
     }
 
     /// Parks first, states second — and thirty as the denominator, never fifty. Twenty
@@ -286,9 +286,16 @@ struct AtlasScreen: View {
         // checks — one control, one placement, owned by the control.
         return ZStack(alignment: .topLeading) {
             map(reading).ignoresSafeArea()
-            FloatingBack(label: "Profile") { app.pop() }
+
+            // Back, then the counts, then the filter — in that order and at the top,
+            // because that is where the park screen and the trip screen keep theirs. It
+            // was a floating cuff at the foot of the map, which is the one place in the
+            // app a segmented control does not appear.
+            VStack(alignment: .leading, spacing: 0) {
+                FloatingBack(label: "Profile") { app.pop() }
+                cuff(reading).padding(.top, 10)
+            }
         }
-        .overlay(alignment: .bottom) { cuff(reading) }
         .task { StateShapes.shared.load() }
     }
 
@@ -312,9 +319,13 @@ struct AtlasScreen: View {
                 Annotation(coordinate: entry.coordinate) {
                     if tiledIDs.contains(entry.id) {
                         ParkTile(entry: entry) { app.openPark(entry.park.code) }
+                            // Out of the pin it replaces rather than on top of it.
+                            .transition(.scale(scale: 0.7, anchor: .bottom)
+                                .combined(with: .opacity))
                     } else {
                         ParkPin(visited: entry.visited)
                             .onTapGesture { zoom(to: entry) }
+                            .transition(.scale(scale: 0.5).combined(with: .opacity))
                     }
                 } label: {
                     Text(entry.park.name)
@@ -324,13 +335,34 @@ struct AtlasScreen: View {
         // The map's own surface, quietened: this screen's colours are the app's, and a
         // basemap arguing with them makes the lit pins harder to find rather than easier.
         .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
-        // `.onEnd`, not `.continuous`. The frame is read to decide which pins have room to
-        // become tiles, and reading it every frame of a pinch would rebuild sixty-two
-        // annotations sixty times a second to answer a question that only matters once the
-        // hand has stopped.
-        .onMapCameraChange(frequency: .onEnd) { context in
-            visible = context.region
+        // Continuous, but filtered. `.onEnd` meant a pinch did nothing at all until the
+        // hand came off and then every tile arrived at once, which is what made opening
+        // and closing them feel like a jump rather than a zoom. Writing the frame on every
+        // gesture tick instead would rebuild sixty-two annotations sixty times a second,
+        // so `hasMoved` lets through only the changes that could alter the answer — the
+        // tile threshold being crossed, or a pan or zoom big enough to bring different
+        // parks into view.
+        .onMapCameraChange(frequency: .continuous) { context in
+            let next = context.region
+            guard Self.hasMoved(from: visible, to: next) else { return }
+            withAnimation(.easeInOut(duration: 0.22)) { visible = next }
         }
+        // Changing what is drawn is a change of subject, not a jump. The pins that leave
+        // and the tiles that arrive cross-fade at the same speed the panels do.
+        .animation(Motion.panel, value: filter)
+    }
+
+    /// Whether the frame moved enough for the tile answer to be worth working out again.
+    ///
+    /// Three ways it can: there was no frame before, the span crossed the threshold a tile
+    /// needs, or the map moved or zoomed by more than a fifth of what is on screen.
+    private static func hasMoved(from old: MKCoordinateRegion?, to new: MKCoordinateRegion) -> Bool {
+        guard let old else { return true }
+        if (old.span.latitudeDelta < tileSpan) != (new.span.latitudeDelta < tileSpan) { return true }
+        if abs(old.span.latitudeDelta - new.span.latitudeDelta) > old.span.latitudeDelta * 0.2 { return true }
+        if abs(old.center.latitude - new.center.latitude) > old.span.latitudeDelta * 0.2 { return true }
+        if abs(old.center.longitude - new.center.longitude) > old.span.longitudeDelta * 0.2 { return true }
+        return false
     }
 
     /// The states with every park collected, as rings to fill.
@@ -377,7 +409,7 @@ struct AtlasScreen: View {
     // MARK: The cuff
 
     private func cuff(_ reading: Reading) -> some View {
-        VStack(spacing: 9) {
+        VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Text("\(reading.visited.count)").font(WP.statValue(20)).tnum()
                 Text("of \(NationalParks.all.count) parks").font(WP.body(12.5)).opacity(0.62)
@@ -408,7 +440,6 @@ struct AtlasScreen: View {
                 .shadow(color: Color(hex: 0x181008, opacity: 0.18), radius: 14, y: 6)
         }
         .padding(.horizontal, WP.gutter)
-        .padding(.bottom, WP.tabBarHeight + 12)
         .accessibilityElement(children: .contain)
     }
 
@@ -446,14 +477,21 @@ private struct ParkPin: View {
     var visited: Bool
 
     var body: some View {
+        // Two rings rather than a shadow. A drop shadow is an offscreen pass per view, and
+        // there are sixty-two of these on the map at once — the pale outer ring does the
+        // same job of lifting the mark off whatever the basemap put underneath it, and
+        // costs a stroke.
         Circle()
-            .fill(visited ? WP.lime : WP.onInk.opacity(0.8))
-            .frame(width: visited ? 14 : 11, height: visited ? 14 : 11)
+            .fill(visited ? WP.lime : WP.onInk.opacity(0.9))
+            .frame(width: visited ? 13 : 10, height: visited ? 13 : 10)
             .overlay {
-                Circle().stroke(visited ? WP.accent800 : WP.text.opacity(0.45),
+                Circle().stroke(visited ? WP.accent800 : WP.text.opacity(0.5),
                                 lineWidth: visited ? 1.6 : 1.3)
             }
-            .shadow(color: Color(hex: 0x181008, opacity: visited ? 0.28 : 0.12), radius: 3, y: 1)
+            .padding(2)
+            .overlay {
+                Circle().stroke(WP.onInk.opacity(visited ? 0.85 : 0.5), lineWidth: 1.6)
+            }
             // A fourteen-point dot is a nine-point tap target once a thumb is involved.
             // The mark keeps its size; the frame around it is what answers the tap.
             .frame(width: 30, height: 30)
@@ -485,8 +523,13 @@ private struct ParkTile: View {
     var body: some View {
         Button(action: open) {
             VStack(alignment: .leading, spacing: 0) {
-                ParkImage(park: entry.park, blur: 3,
-                          saturation: entry.visited ? 1.1 : 0.3,
+                // No blur. The tile is a hundred and thirty two points wide and the
+                // photograph is the reason to open it — three points of blur was borrowed
+                // from the tiny thumbnails on the near-you card, where the name is set
+                // over the picture and has to stay legible. Here the name sits underneath
+                // it on its own plate, so the photograph can just be the photograph.
+                ParkImage(park: entry.park, blur: 0,
+                          saturation: entry.visited ? 1.04 : 0.62,
                           showsScrim: false, topLight: false)
                     .frame(width: Self.width, height: 64)
 
@@ -513,7 +556,10 @@ private struct ParkTile: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(entry.visited ? WP.accent300 : WP.divider, lineWidth: 1)
             }
-            .opacity(entry.visited ? 1 : 0.66)
+            // Dimmed, not washed out. Two thirds opacity over a desaturated picture left
+            // an unvisited park as grey mush; the picture is most of the way to its own
+            // colour now and the plate under it does the quietening.
+            .opacity(entry.visited ? 1 : 0.82)
             .shadow(color: Color(hex: 0x181008, opacity: 0.24), radius: 7, y: 3)
         }
         .buttonStyle(PressStyle(scale: 0.96))

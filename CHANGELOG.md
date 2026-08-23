@@ -15,6 +15,45 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.38.2 — The atlas, snappier and in focus
+
+Six things about the parks atlas, all of them mine from 2.38.0.
+
+**The card no longer waits to be measured.** It asked `GeometryReader` for its width,
+waited two hundred milliseconds for that width to stop changing, and only then asked the
+snapshotter — so the profile showed an empty plate for the better part of a second before
+the request had even gone out, and a second render when the first measurement turned out to
+be wrong. The picture is of a fixed region, so its width was only ever about sharpness:
+it is drawn at one size for every phone now, filed under the collection alone, and asked
+for the moment the card appears. Opening the profile a second time is a read from disk.
+
+**The photographs are photographs.** The tiles carried three points of blur, borrowed from
+the tiny thumbnails on the near-you card where the park's name is set over the picture and
+has to stay legible. On a tile the name sits underneath on its own plate, so the blur was
+doing nothing but softening the one thing worth opening a tile for. Gone — and an
+unvisited park is dimmed rather than washed out, at four fifths opacity over a picture most
+of the way to its own colour instead of two thirds over a grey one.
+
+**Tiles open and close as you zoom, not after.** The map only asked where it was once your
+hand came off the glass, so a pinch did nothing at all and then every tile arrived at once.
+It reads the frame continuously now, filtered down to the changes that could alter the
+answer — the tile threshold being crossed, or a pan or zoom of more than a fifth of what is
+on screen — and the pins that leave and the tiles that arrive cross-fade out of and into
+each other rather than being swapped.
+
+**The filter bar moved to the top**, under the back control, which is where the park screen
+and the trip screen keep their segments. It was floating at the foot of the map, the one
+place in the app a segmented control does not appear. Changing filters animates at the same
+speed the panels do.
+
+**Sixty-two shadows came off.** Every pin drew a drop shadow, which is an offscreen pass
+each, on a map that has all sixty-two on screen at once. A pale outer ring lifts the mark
+off the basemap just as well and costs a stroke.
+
+**The boundary file decodes off the main thread.** A quarter of a megabyte of JSON is a
+visible stall if it happens while the atlas is being pushed, which is the only moment it
+would ever be asked for. The map opens first; the fills arrive a beat later.
+
 ## 2.38.1 — One line where the app meant one line
 
 Eleven horizontal rules came off the app, all of them the second rule in a place that

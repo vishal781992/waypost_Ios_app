@@ -45,6 +45,16 @@ final class AtlasSnapshot {
         try? manager.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
+    /// One size for every phone, drawn at three times it.
+    ///
+    /// The picture is of a fixed region, so its width was only ever about sharpness — and
+    /// making it depend on the card's measured width meant waiting for the layout before
+    /// the snapshotter could be asked, and re-rendering when the first measurement turned
+    /// out to be wrong. 1200 by 645 covers the widest phone at 3× and scales down cleanly
+    /// on the rest; the aspect is the lower forty-eight's own.
+    nonisolated static var plateSize: CGSize { CGSize(width: 400, height: 215) }
+    nonisolated static var plateScale: CGFloat { 3 }
+
     private var image: URL { directory.appendingPathComponent("card.jpg") }
     private var receipt: URL { directory.appendingPathComponent("card.fp") }
 
@@ -52,24 +62,27 @@ final class AtlasSnapshot {
 
     /// The card's picture: from disk while it is still of this collection, and from MapKit
     /// when it is not. Nil only when the snapshot itself failed with nothing cached.
-    func card(visited: Set<String>, size: CGSize, scale: CGFloat) async -> UIImage? {
-        guard size.width > 1, size.height > 1 else { return nil }
-        let key = Self.key(visited: visited, size: size, scale: scale)
+    func card(visited: Set<String>) async -> UIImage? {
+        let key = Self.key(visited: visited)
         if let stored = cached(key) { return stored }
 
         if let running = inFlight { return await running.value }
-        let task = Task<UIImage?, Never> { await render(key: key, visited: visited, size: size, scale: scale) }
+        let task = Task<UIImage?, Never> {
+            await render(key: key, visited: visited,
+                         size: Self.plateSize, scale: Self.plateScale)
+        }
         inFlight = task
         let result = await task.value
         inFlight = nil
         return result
     }
 
-    /// The collection and the frame it was drawn in. Sorted, because a set has no order
-    /// and two runs of the same parks must produce the same receipt.
-    private static func key(visited: Set<String>, size: CGSize, scale: CGFloat) -> String {
-        let parks = visited.sorted().joined(separator: ",")
-        return "\(Int(size.width))x\(Int(size.height))@\(scale)|\(parks)"
+    /// The collection, and nothing else. Sorted, because a set has no order and two runs
+    /// of the same parks must produce the same receipt. The size is no longer part of it:
+    /// there is only one, so a picture drawn on any phone is the right picture on every
+    /// other — and collecting a park is the only thing that can make it wrong.
+    private static func key(visited: Set<String>) -> String {
+        "v2|" + visited.sorted().joined(separator: ",")
     }
 
     private func cached(_ key: String) -> UIImage? {
@@ -112,7 +125,9 @@ final class AtlasSnapshot {
                 let point = shot.point(for: CLLocationCoordinate2D(latitude: entry.park.lat,
                                                                   longitude: entry.park.lon))
                 guard CGRect(origin: .zero, size: size).insetBy(dx: -6, dy: -6).contains(point) else { continue }
-                let r: CGFloat = entry.visited ? 4.4 : 3.2
+                // In the 400-point drawing space, shown at about 353 — so a touch bigger
+                // than they want to look, or they arrive on the card smaller than drawn.
+                let r: CGFloat = entry.visited ? 5.0 : 3.6
                 let box = CGRect(x: point.x - r, y: point.y - r, width: r * 2, height: r * 2)
                 if entry.visited {
                     cg.setFillColor(UIColor(WP.lime).cgColor)
