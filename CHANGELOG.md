@@ -15,6 +15,51 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.38.0 — The parks atlas
+
+The profile showed the last few parks you had been to in a rail you scroll sideways and
+nobody reaches the end of, and said nothing at all about the register those visits are a
+share of. Sixty-two national parks exist. The rail could not tell you that, or which ones
+were near you, or which state you were one park away from finishing.
+
+**Every park in the country, on a map.** `AtlasCard` sits where the rail did: the lower
+forty-eight drawn once and kept, a lit mark on every park you have stood in and a hollow one
+on every park you have not, with the count under it. Tap it and `AtlasScreen` opens on a
+whole display — a real map, so Alaska and Hawai‘i are a pan away rather than an inset the
+card has no room for.
+
+**A pin becomes a tile when there is room for one.** Close in — about three degrees of
+latitude, a little under the height of Colorado — the nearest marks open into tiles carrying
+the park's photograph, its name and its state: *Rocky Mountain · Colorado · August 2026*. A
+park you have not been to gets the same tile at two thirds strength, desaturated, reading
+*Colorado · not visited yet*. Three at a time at most, nearest the middle of the frame: Utah
+holds five parks within two hundred miles of each other and five photographs in one frame is
+a wall rather than a map. Tapping a pin flies to it, because pinching to a three-degree frame
+with one thumb is a lot to ask.
+
+**A state fills when its last park is collected.** In `WP.lime` — the app's own fill, the
+colour on every control and on the selected tab, so a filled state reads as *done* in a
+language the app already speaks. Four states are open on the count and thirty is the
+denominator, never fifty: twenty states hold no national park at all, and counting them would
+make it a figure about geography rather than about anywhere anybody could go.
+
+**One thing is waiting on an asset.** No map SDK vends administrative boundaries, so filling
+Colorado needs the shape of Colorado on disk. `tools/build-state-shapes.mjs` turns the Census
+Bureau's own cartographic boundary file into `Resources/us-states.json`; until that file is
+bundled the atlas draws its pins and its tiles exactly as it does with it, and fills nothing.
+An absent outline is a shape this app has not been given — not a state nobody has finished —
+and the two must not look alike.
+
+**Add a park by hand moved.** It was a dashed tile at the far end of the rail, and a map has
+no far end to flick to. It is a control in the heading now, top right under the title, where
+a section's control sits everywhere else in the app.
+
+The picture is drawn rather than live, for the reason the trip plates are: a `Map` in a card
+re-streams its basemap on every appearance and comes up blank with no signal, which is
+precisely where somebody is most likely to be looking at it. The visited set is the receipt —
+the region never changes, so the only thing that can make the stored picture wrong is having
+stood somewhere new.
+
 ## 2.37.1 — The sliding pill compiles
 
 `SegmentedTrough` is generic over the type of thing it is choosing between, and the

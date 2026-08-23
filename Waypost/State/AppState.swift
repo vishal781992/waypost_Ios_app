@@ -53,12 +53,19 @@ enum PushedScreen: Hashable, Identifiable {
     /// wander in. Pushing keeps the back-swipe and lets a park open on top of it, exactly
     /// as it did when Discover was a tab.
     case explore
+    /// Every national park in the country, and which of them have been stood in.
+    ///
+    /// Pushed rather than presented, for the same reason `explore` is: it is a place to
+    /// look around in, and it wants the back-swipe and the room to open a park on top of
+    /// itself. The profile carries a picture of it and nothing more.
+    case atlas
 
     var id: String {
         switch self {
         case .park(let code, _, _, _): return "park:" + code
         case .trip(let id): return "trip:" + id
         case .explore: return "explore"
+        case .atlas: return "atlas"
         }
     }
 }

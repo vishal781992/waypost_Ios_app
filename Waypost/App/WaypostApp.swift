@@ -215,6 +215,8 @@ struct RootShell: View {
             }
         case .explore:
             DiscoverScreen()
+        case .atlas:
+            AtlasScreen()
         }
     }
 }

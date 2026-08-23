@@ -151,10 +151,14 @@ struct ProfileScreen: View {
 
     // MARK: Parks visited
 
-    /// Everywhere they have been, newest first, with the control to add one by hand at the
-    /// end of the same rail. The rail always renders — with nothing in it there is a single
-    /// empty tile beside the add control, so the empty state and the full one are the same
-    /// shape.
+    /// Everywhere they have been, as one picture rather than a rail of tiles.
+    ///
+    /// The rail showed the last few parks and hid the rest behind a sideways scroll nobody
+    /// reaches the end of — and it said nothing at all about the sixty-two-park register
+    /// those visits are a share of. `AtlasCard` is the whole country at a glance and a door
+    /// to the screen where it can be read properly; the control to add a park by hand comes
+    /// out of the rail and sits in this heading, which is the only place left with room for
+    /// it and the place a heading's control belongs.
     private var visited: some View {
         let visits = app.visitRail
         return VStack(alignment: .leading, spacing: 0) {
@@ -165,26 +169,12 @@ struct ProfileScreen: View {
                 Text("\(visits.count) \(visits.count == 1 ? "park" : "parks")")
                     .font(WP.display(17))
                     .foregroundStyle(WP.accent700)
+                addControl
             }
             .padding(.top, 22)
             .padding(.bottom, 12)
 
-            ScrollView(.horizontal) {
-                HStack(spacing: 10) {
-                    ForEach(visits) { visit in
-                        Button { app.openPark(visit.park.code) } label: {
-                            visitTile(visit)
-                        }
-                        .buttonStyle(PressStyle(scale: 0.97))
-                    }
-                    if visits.isEmpty { emptyTile }
-                    addControl
-                }
-                .padding(.horizontal, WP.gutter)
-            }
-            .scrollIndicators(.hidden)
-            .scrollBounceBehavior(.basedOnSize)
-            .padding(.horizontal, -WP.gutter)
+            AtlasCard()
 
             if adding {
                 addField.padding(.top, 12)
@@ -192,65 +182,30 @@ struct ProfileScreen: View {
         }
     }
 
-    private func visitTile(_ visit: AppState.Visit) -> some View {
-        ParkImage(park: visit.park, showsScrim: false, topLight: false)
-            .frame(width: 132, height: 104)
-            .overlay(alignment: .bottom) {
-                LinearGradient(colors: [.black.opacity(0.62), .clear],
-                               startPoint: .bottom, endPoint: .top)
-                    .frame(height: 74)
-                    .allowsHitTesting(false)
-            }
-            .overlay(alignment: .bottomLeading) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(visit.park.name)
-                        .font(WP.display(17))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                    // Only where it is known. A park added by hand has no date and says so
-                    // by saying nothing, rather than by claiming today.
-                    if let when = visit.when {
-                        Text(when)
-                            .font(WP.body(11.5))
-                            .foregroundStyle(.white.opacity(0.8))
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.bottom, 9)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .accessibilityElement(children: .combine)
-    }
-
-    private var emptyTile: some View {
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .stroke(WP.divider, style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-            .frame(width: 132, height: 104)
-            .overlay {
-                Text("No parks yet")
-                    .font(WP.bodyItalic(12)).opacity(0.5)
-            }
-    }
-
+    /// Add a park by hand, at the top right of its own heading.
+    ///
+    /// It was a dashed tile at the far end of the rail, which a deck or a map has no
+    /// equivalent of — there is no end to flick to. Here it is where a section's control
+    /// goes everywhere else in the app, and it says what it does rather than what it is.
     private var addControl: some View {
         Button {
             withAnimation(.snappy(duration: 0.2)) { adding.toggle() }
             if !adding { parkQuery = "" }
         } label: {
-            VStack(spacing: 6) {
-                Image(systemName: "plus").font(.system(size: 17, weight: .medium))
-                Text("Add manually").font(WP.body(12))
+            HStack(spacing: 4) {
+                Image(systemName: adding ? "xmark" : "plus")
+                    .font(.system(size: 10, weight: .semibold))
+                Text(adding ? "Close" : "Add").font(WP.headingUI(12.5))
             }
             .foregroundStyle(WP.accent700)
-            .frame(width: 132, height: 104)
-            .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(WP.accent.opacity(0.55), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(.horizontal, 11)
+            .frame(minHeight: 30)
+            .background(WP.accent100, in: Capsule())
+            .overlay(Capsule().stroke(WP.accent.opacity(0.34), lineWidth: 1))
+            .contentShape(Capsule())
         }
-        .buttonStyle(PressStyle(scale: 0.97))
+        .buttonStyle(PressStyle(scale: 0.94))
+        .accessibilityLabel(adding ? "Close the park search" : "Add a park you have visited")
     }
 
     /// The search that appears under the rail once the add control is tapped.
