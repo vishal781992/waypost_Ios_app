@@ -766,7 +766,9 @@ struct TripDetailScreen: View {
                     .environment(\.planningTrip, trip.id)
             }
 
-            SourceLine("Stops from the National Park Service, detours measured by OSRM against the same drive without them. Things to do are the park service's own list, in its own order — NPS publishes no rating to sort by.")
+            // `PlannedDayRow` is a `DividedRow`: the last day drew the closing rule.
+            SourceLine("Stops from the National Park Service, detours measured by OSRM against the same drive without them. Things to do are the park service's own list, in its own order — NPS publishes no rating to sort by.",
+                       ruled: false)
                 .padding(.top, 14)
         }
     }

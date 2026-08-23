@@ -24,8 +24,7 @@ struct NearbyRail: View {
 
     private var neighbours: [(park: CuratedPark, miles: Int)] {
         guard let origin else { return [] }
-        let all = app.library.orderedParks
-            + NationalParks.all.map(CuratedPark.init(bundled:))
+        let all = app.library.orderedParks + NationalParks.allCurated
         // The same park carries different codes in the curated library and the on-device
         // list — "romo" and "np-rocky-mountain" — so the park on screen was appearing
         // again as the first tile under itself. Names are what a reader compares.
@@ -41,13 +40,18 @@ struct NearbyRail: View {
     /// Computed from the farthest park actually in the rail, rounded up to the nearest
     /// twenty-five — a radius, not a constant. The old rounding was to five, which put a
     /// number like "within 235 miles" in a line that is meant to read as a rule of thumb.
-    private var radiusLabel: String {
-        guard let farthest = neighbours.last?.miles, farthest > 0 else { return "" }
+    /// Takes the rail rather than asking for it again. `neighbours` builds the whole
+    /// register, measures every park against where you are and sorts it, and the label and
+    /// the rail below it both read it — so the home screen did all of that twice on every
+    /// redraw to print one line and eight tiles from the same answer.
+    private func radiusLabel(_ rail: [(park: CuratedPark, miles: Int)]) -> String {
+        guard let farthest = rail.last?.miles, farthest > 0 else { return "" }
         return "within \(Int((Double(farthest) / 25).rounded(.up)) * 25) miles"
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let rail = neighbours
+        return VStack(alignment: .leading, spacing: 0) {
             Button {
                 app.push(.explore)
             } label: {
@@ -60,7 +64,7 @@ struct NearbyRail: View {
                             .font(WP.body(13))
                             .foregroundStyle(Color(hex: 0xF7F0E5, opacity: 0.82))
                     }
-                    Text(radiusLabel)
+                    Text(radiusLabel(rail))
                         .font(WP.bodyItalic(12.5))
                         .foregroundStyle(Color(hex: 0xF7F0E5, opacity: 0.45))
                         .lineLimit(1)
@@ -76,7 +80,7 @@ struct NearbyRail: View {
 
             ScrollView(.horizontal) {
                 HStack(spacing: 9) {
-                    ForEach(neighbours, id: \.park.code) { neighbour in
+                    ForEach(rail, id: \.park.code) { neighbour in
                         NearbyTile(park: neighbour.park, miles: neighbour.miles)
                     }
                 }

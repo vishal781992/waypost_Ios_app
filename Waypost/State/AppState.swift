@@ -591,7 +591,7 @@ final class AppState {
     /// in. Empty until the first is collected, and the screens that show it show nothing
     /// rather than a placeholder.
     var visitedParks: [CuratedPark] {
-        let all = library.orderedParks + NationalParks.all.map(CuratedPark.init(bundled:))
+        let all = library.orderedParks + NationalParks.allCurated
         var seen = Set<String>()
         return all
             .filter { stamps.contains(stampKey(forName: $0.name)) && seen.insert($0.name).inserted }
@@ -1121,7 +1121,7 @@ final class AppState {
         for unit in library.passport {
             named[unit.code] = (unit.name, unit.city)
         }
-        for park in library.orderedParks + NationalParks.all.map(CuratedPark.init(bundled:)) {
+        for park in library.orderedParks + NationalParks.allCurated {
             let key = stampKey(forName: park.name)
             if named[key] == nil { named[key] = (park.name, park.stateName) }
         }
@@ -1346,7 +1346,7 @@ final class TripBuilder {
         }
 
         if q.isEmpty {
-            add(NationalParks.all.map(CuratedPark.init(bundled:)))
+            add(NationalParks.allCurated)
             // With nothing typed this was a fixed list — the same eight in the same order
             // whether the phone was in Denver or in Maine, then the other fifty-four in the
             // order they happen to sit in the file. The first thing anybody plans a trip

@@ -263,8 +263,15 @@ private struct WaveFill: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// A dry day has nothing to move, and `draw` already returns without touching the
+    /// context below this. The `TimelineView` did not know that: it woke twenty-four times
+    /// a second to invalidate a `Canvas` that then drew nothing, for as long as the weather
+    /// tab was on screen. Most days in most parks are dry, so most of the time this was the
+    /// only thing in the app keeping the display busy.
+    private var isMoving: Bool { level > 0.01 }
+
     var body: some View {
-        if reduceMotion {
+        if reduceMotion || !isMoving {
             Canvas { ctx, size in draw(&ctx, size, phase: 0) }
         } else {
             TimelineView(.animation(minimumInterval: 1.0 / 24)) { timeline in

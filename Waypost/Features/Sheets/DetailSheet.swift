@@ -252,6 +252,19 @@ struct DetailSheet: View {
 
     /// Fuel, charging and today's traffic, for the day it is actually driven.
     ///
+    /// Whether the lists above the roads line closed themselves.
+    ///
+    /// `legStops` is the last thing drawn before the roads, so it answers first: rows mean
+    /// a trailing rule, and every other state of it ends in a sentence. With no stop list
+    /// at all the question falls to the park service's own row list above it.
+    private func stopsDrewTheirOwnRule(_ leg: TripRouting.Leg) -> Bool {
+        switch LegStops.shared.state(for: leg) {
+        case .ready(let stops, _): return !stops.isEmpty
+        case .idle: return !(TripDays.shared.legStops[leg.id] ?? []).isEmpty
+        case .loading, .failed: return false
+        }
+    }
+
     /// Only on the day: Apple's traffic estimate for a drive three weeks out is not a
     /// forecast of anything, and neither is a list of petrol stations that may not be open.
     /// Stops come every eighty miles along the route the app already holds — roughly an
@@ -418,7 +431,9 @@ struct DetailSheet: View {
                         .overlay(alignment: .top) { Hairline() }
                 }
 
-                SourceLine("Airports from the OurAirports table of large US hubs. The two drives are measured by OSRM over the roads named; the hours in the air are modelled. No airline schedule is published to this app, so this names the airports the leg would be flown between rather than a flight — check fares and times with an airline before planning around it.")
+                // The branch above this drew the rule that closes the sheet, either over
+                // the driving-either-side kicker or over the paragraph.
+                SourceLine("Airports from the OurAirports table of large US hubs. The two drives are measured by OSRM over the roads named; the hours in the air are modelled. No airline schedule is published to this app, so this names the airports the leg would be flown between rather than a flight — check fares and times with an airline before planning around it.", ruled: false)
                     .padding(.top, 16)
             } else {
                 // Places first, then the roadside. A long leg lists thirty petrol stations
@@ -430,11 +445,17 @@ struct DetailSheet: View {
 
                 // Distance, wheel time and the button now live in the pinned footer; the
                 // roads stay here, under the stops they are driven between.
+                // Only where nothing above it has already drawn one. The stop lists are
+                // built from `DividedRow` and each ends in a rule; with a rule here as
+                // well, the roads line sat in a band of its own and the sheet carried
+                // three lines inside seventy points. Where no stops came back there is no
+                // rule above, and this one is what separates the roads from the sentence
+                // saying so.
                 Text(leg.road).font(WP.body(13)).lineSpacing(3).opacity(0.8)
                     .padding(.top, 14)
-                    .overlay(alignment: .top) { Hairline() }
+                    .overlay(alignment: .top) { if !stopsDrewTheirOwnRule(leg) { Hairline() } }
 
-                SourceLine("Distance and wheel time from OSRM over the roads listed. Fuel, charging, food and somewhere to sleep along the way from Apple Maps — add any of them and they are handed to Maps as stops on the drive. Traffic is added on the day of the drive, when a leaving-now time means something.")
+                SourceLine("Distance and wheel time from OSRM over the roads listed. Fuel, charging, food and somewhere to sleep along the way from Apple Maps — add any of them and they are handed to Maps as stops on the drive. Traffic is added on the day of the drive, when a leaving-now time means something.", ruled: false)
                     .padding(.top, 16)
             }
         }

@@ -44,11 +44,12 @@ enum Atlas {
     static func parks(_ rail: [AppState.Visit]) -> [AtlasPark] {
         var stood: [String: AppState.Visit] = [:]
         for visit in rail { stood[visit.id] = visit }
-        return NationalParks.all.map { park in
+        // `allCurated` rather than sixty-two fresh `CuratedPark`s: this is read from the
+        // card's body and from four computed properties on the atlas screen, so building
+        // the register here meant building it several times per redraw.
+        return NationalParks.allCurated.map { park in
             let visit = stood[park.code]
-            return AtlasPark(park: CuratedPark(bundled: park),
-                             visited: visit != nil,
-                             when: visit?.when)
+            return AtlasPark(park: park, visited: visit != nil, when: visit?.when)
         }
     }
 
@@ -134,23 +135,30 @@ struct AtlasCard: View {
 
     @State private var plate: UIImage?
 
-    private var visited: Set<String> { Set(app.visitRail.map(\.id)) }
-    private var parks: [AtlasPark] { Atlas.parks(app.visitRail) }
-    private var filledStates: Int { Atlas.states(parks).filter(\.isFilled).count }
-    private var openStates: Int { Atlas.states(parks).count }
+    /// Counted once and handed to both figures.
+    ///
+    /// This was four computed properties, and `filledStates` and `openStates` each walked
+    /// the register and grouped it again — so a redraw of the card marked sixty-two parks
+    /// against the rail twice and grouped them by state twice, to print two numbers.
+    private var tally: (visited: Set<String>, filled: Int, open: Int) {
+        let rail = app.visitRail
+        let states = Atlas.states(Atlas.parks(rail))
+        return (Set(rail.map(\.id)), states.filter(\.isFilled).count, states.count)
+    }
 
     var body: some View {
-        Button {
+        let counts = tally
+        return Button {
             app.push(.atlas)
             Haptics.tap()
         } label: {
             VStack(alignment: .leading, spacing: 0) {
-                plateView
+                plateView(visited: counts.visited)
                     .frame(height: Self.plateHeight)
                     .clipShape(UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 0,
                                                       bottomTrailingRadius: 0, topTrailingRadius: 14,
                                                       style: .continuous))
-                summary
+                summary(counts)
             }
             .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(WP.divider, lineWidth: 1))
@@ -158,10 +166,10 @@ struct AtlasCard: View {
         }
         .buttonStyle(PressStyle(scale: 0.985))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(visited.count) of \(NationalParks.all.count) national parks visited. Open the atlas.")
+        .accessibilityLabel("\(counts.visited.count) of \(NationalParks.all.count) national parks visited. Open the atlas.")
     }
 
-    private var plateView: some View {
+    private func plateView(visited: Set<String>) -> some View {
         GeometryReader { geo in
             let size = geo.size
             let scale = UIScreen.main.scale
@@ -194,15 +202,15 @@ struct AtlasCard: View {
     /// Parks first, states second — and thirty as the denominator, never fifty. Twenty
     /// states hold no national park at all, and counting them would make this a figure
     /// about geography rather than about anywhere anybody could go.
-    private var summary: some View {
+    private func summary(_ tally: (visited: Set<String>, filled: Int, open: Int)) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("\(visited.count)").font(WP.statValue(20)).tnum()
+            Text("\(tally.visited.count)").font(WP.statValue(20)).tnum()
             Text("of \(NationalParks.all.count) parks").font(WP.body(12.5)).opacity(0.62)
 
             Text("·").font(WP.body(12.5)).opacity(0.36)
 
-            Text("\(filledStates)").font(WP.statValue(20)).tnum()
-            Text("of \(openStates) states").font(WP.body(12.5)).opacity(0.62)
+            Text("\(tally.filled)").font(WP.statValue(20)).tnum()
+            Text("of \(tally.open) states").font(WP.body(12.5)).opacity(0.62)
 
             Spacer(minLength: 0)
 
@@ -246,39 +254,63 @@ struct AtlasScreen: View {
     @State private var filter: AtlasFilter = .all
     @State private var visible: MKCoordinateRegion?
 
-    private var visited: Set<String> { Set(app.visitRail.map(\.id)) }
-    private var parks: [AtlasPark] { Atlas.parks(app.visitRail) }
-    private var states: [AtlasState] { Atlas.states(parks) }
-    private var filled: Set<String> { Set(states.filter(\.isFilled).map(\.code)) }
-    private var shown: [AtlasPark] { parks.filter { filter.matches($0, filled: filled) } }
+    /// The register, its states and the filter applied — worked out once per redraw.
+    ///
+    /// These were five computed properties reading each other: `shown` asked for `parks`
+    /// and for `filled`, `filled` asked for `states`, and `states` asked for `parks` again.
+    /// A single pass of `body` marked sixty-two parks against the rail four times over and
+    /// grouped them by state twice, and every annotation on the map read `shown` again on
+    /// top of that.
+    private struct Reading {
+        var visited: Set<String>
+        var states: [AtlasState]
+        var filled: Set<String>
+        var shown: [AtlasPark]
+    }
+
+    private func read() -> Reading {
+        let rail = app.visitRail
+        let parks = Atlas.parks(rail)
+        let states = Atlas.states(parks)
+        let filled = Set(states.filter(\.isFilled).map(\.code))
+        return Reading(visited: Set(rail.map(\.id)),
+                       states: states,
+                       filled: filled,
+                       shown: parks.filter { filter.matches($0, filled: filled) })
+    }
 
     var body: some View {
+        let reading = read()
         // Only the map ignores the safe area. The back control sits in a `ZStack` that
         // does not, which is the arrangement `FloatingBack` documents and the design lint
         // checks — one control, one placement, owned by the control.
-        ZStack(alignment: .topLeading) {
-            map.ignoresSafeArea()
+        return ZStack(alignment: .topLeading) {
+            map(reading).ignoresSafeArea()
             FloatingBack(label: "Profile") { app.pop() }
         }
-        .overlay(alignment: .bottom) { cuff }
+        .overlay(alignment: .bottom) { cuff(reading) }
         .task { StateShapes.shared.load() }
     }
 
     // MARK: The map
 
-    private var map: some View {
-        Map(position: $camera, interactionModes: [.pan, .zoom]) {
+    private func map(_ reading: Reading) -> some View {
+        // Worked out before the builder rather than inside it: which pins have earned a
+        // tile is one answer for the whole map, and asking per annotation walked the
+        // register once for every one of the sixty-two.
+        let tiledIDs = tiled(reading.shown)
+        return Map(position: $camera, interactionModes: [.pan, .zoom]) {
             // A state fills when its last park is collected. Drawn under the pins, so the
             // achievement is the ground rather than something on top of it.
-            ForEach(filledRings) { ring in
+            ForEach(filledRings(reading.states)) { ring in
                 MapPolygon(coordinates: ring.coordinates)
                     .foregroundStyle(WP.lime.opacity(0.40))
                     .stroke(WP.accent800.opacity(0.5), lineWidth: 1)
             }
 
-            ForEach(shown) { entry in
+            ForEach(reading.shown) { entry in
                 Annotation(coordinate: entry.coordinate) {
-                    if tiled.contains(entry.id) {
+                    if tiledIDs.contains(entry.id) {
                         ParkTile(entry: entry) { app.openPark(entry.park.code) }
                     } else {
                         ParkPin(visited: entry.visited)
@@ -306,7 +338,7 @@ struct AtlasScreen: View {
     /// Empty when no boundary file is bundled, and the map simply draws no fills. An
     /// absent outline is a shape this app has not been given — not a state nobody has
     /// finished — so nothing is claimed either way.
-    private var filledRings: [AtlasRing] {
+    private func filledRings(_ states: [AtlasState]) -> [AtlasRing] {
         guard StateShapes.shared.isAvailable else { return [] }
         var out: [AtlasRing] = []
         for state in states where state.isFilled {
@@ -319,7 +351,7 @@ struct AtlasScreen: View {
 
     /// Which pins have earned a tile: only when the frame is close enough for one to fit,
     /// only those actually on screen, and never more than three.
-    private var tiled: Set<String> {
+    private func tiled(_ shown: [AtlasPark]) -> Set<String> {
         guard let visible, visible.span.latitudeDelta < Self.tileSpan else { return [] }
         let inFrame = shown.filter { Self.region(visible, contains: $0.coordinate) }
         guard inFrame.count > Self.tileCap else { return Set(inFrame.map(\.id)) }
@@ -344,17 +376,17 @@ struct AtlasScreen: View {
 
     // MARK: The cuff
 
-    private var cuff: some View {
+    private func cuff(_ reading: Reading) -> some View {
         VStack(spacing: 9) {
             HStack(alignment: .firstTextBaseline, spacing: 7) {
-                Text("\(visited.count)").font(WP.statValue(20)).tnum()
+                Text("\(reading.visited.count)").font(WP.statValue(20)).tnum()
                 Text("of \(NationalParks.all.count) parks").font(WP.body(12.5)).opacity(0.62)
                 Text("·").font(WP.body(12.5)).opacity(0.36)
-                Text("\(filled.count)").font(WP.statValue(20)).tnum()
+                Text("\(reading.filled.count)").font(WP.statValue(20)).tnum()
                 // Thirty, not fifty. Twenty states hold no national park at all, and a
                 // denominator that counted them would be a figure about geography rather
                 // than about anywhere anybody could go.
-                Text("of \(states.count) states filled").font(WP.body(12.5)).opacity(0.62)
+                Text("of \(reading.states.count) states filled").font(WP.body(12.5)).opacity(0.62)
                 Spacer(minLength: 0)
             }
 

@@ -280,8 +280,7 @@ struct ProfileScreen: View {
         let q = parkQuery.trimmingCharacters(in: .whitespaces).lowercased()
         guard q.count >= 2 else { return [] }
 
-        var out = NationalParks.all
-            .map(CuratedPark.init(bundled:))
+        var out = NationalParks.allCurated
             .filter { $0.name.lowercased().contains(q) || $0.state.lowercased().contains(q) }
         var seen = Set(out.map { $0.name.lowercased() })
         for park in app.directory.hits.map(\.park)
@@ -333,7 +332,6 @@ struct ProfileScreen: View {
             Spacer(minLength: 0)
         }
         .padding(.bottom, 18)
-        .overlay(alignment: .bottom) { Hairline() }
     }
 
     private func sectionLabel(_ text: String) -> some View {

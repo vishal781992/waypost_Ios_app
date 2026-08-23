@@ -33,6 +33,19 @@ struct NationalPark: Decodable, Hashable, Identifiable {
 }
 
 enum NationalParks {
+    /// The register as `CuratedPark`s, built once for the whole launch.
+    ///
+    /// `CuratedPark(bundled:)` is not free: it lowercases the full name and scans it for a
+    /// terrain word, hashes the code into three OKLCH strings, and allocates four arrays.
+    /// Sixty-two of those is nothing once — and the home screen, Discover, Profile and the
+    /// atlas were each doing it inside a computed property read from `body`, so it happened
+    /// on every redraw of every one of them, several times over on a screen that reads the
+    /// list from more than one place. `Discover` built it three times per keystroke.
+    ///
+    /// Safe to hold, because it is a pure function of a file that cannot change while the
+    /// app is running.
+    static let allCurated: [CuratedPark] = all.map(CuratedPark.init(bundled:))
+
     static let all: [NationalPark] = {
         guard let url = Bundle.main.url(forResource: "national-parks", withExtension: "json"),
               let data = try? Data(contentsOf: url),

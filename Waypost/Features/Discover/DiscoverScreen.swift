@@ -32,9 +32,7 @@ struct DiscoverScreen: View {
 
         if query.isEmpty {
             let seen = Set(list.map { $0.name.lowercased() })
-            list += NationalParks.all
-                .map(CuratedPark.init(bundled:))
-                .filter { !seen.contains($0.name.lowercased()) }
+            list += NationalParks.allCurated.filter { !seen.contains($0.name.lowercased()) }
             if let fix = nearby ?? app.recommender.fix {
                 list.sort {
                     Geo.haversine(fix, ($0.lat, $0.lon)) < Geo.haversine(fix, ($1.lat, $1.lon))
@@ -76,9 +74,7 @@ struct DiscoverScreen: View {
     private var allNational: [CuratedPark] {
         let shelf = app.library.orderedParks
         let seen = Set(shelf.map { $0.name.lowercased() })
-        return shelf + NationalParks.all
-            .map(CuratedPark.init(bundled:))
-            .filter { !seen.contains($0.name.lowercased()) }
+        return shelf + NationalParks.allCurated.filter { !seen.contains($0.name.lowercased()) }
     }
 
     /// The city the words name, once Apple Maps has put it on the map.

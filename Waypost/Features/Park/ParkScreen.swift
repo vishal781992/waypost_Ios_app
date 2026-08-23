@@ -1446,7 +1446,9 @@ struct StaySection: View {
                 PlaceRows(park: park, kind: .food, limit: 5)
             }
 
-            SourceLine(staySource)
+            // `PlaceRows` are `DividedRow`s: the list has already drawn the line that
+            // closes this panel.
+            SourceLine(staySource, ruled: false)
         }
     }
 
@@ -1585,9 +1587,12 @@ struct PlansSection: View {
                 .padding(.top, 6)
             }
 
+            // Ruled only where no list drew its own line: with nothing published for this
+            // park there are no rows above this, and the rule is what closes the panel.
             SourceLine(thingsToDo.isEmpty
                        ? "Day plans written around the light and the crowds."
-                       : "Day plans written around the light and the crowds; the list under them is what the National Park Service publishes for this park.")
+                       : "Day plans written around the light and the crowds; the list under them is what the National Park Service publishes for this park.",
+                       ruled: thingsToDo.isEmpty)
         }
     }
 }
@@ -1631,7 +1636,9 @@ struct NearbySection: View {
                 group("Further out", further)
             }
 
-            SourceLine("Units from the National Park Service, state parks from the table on this phone. Drive times from OSRM for the nearest ten; the rest are straight-line miles.")
+            // The bands are lists of `DividedRow`s and each ends in a rule of its own.
+            SourceLine("Units from the National Park Service, state parks from the table on this phone. Drive times from OSRM for the nearest ten; the rest are straight-line miles.",
+                       ruled: false)
                 .padding(.top, 16)
         }
         .task(id: park.code) { NearbyUnits.shared.load(park) }
@@ -1769,9 +1776,18 @@ struct SectionTitle: View {
 }
 
 /// Every panel names where its rows came from — the discipline the web app keeps.
+/// The rule above it closes the panel, and is drawn only where nothing else has. A list
+/// built out of `DividedRow` already ends in one, and a second rule twelve points under
+/// the first is the commonest way this app was drawing two lines where it meant one — so
+/// those panels pass `ruled: false` and the line they already have does the closing.
 struct SourceLine: View {
     var text: String
-    init(_ text: String) { self.text = text }
+    var ruled: Bool
+
+    init(_ text: String, ruled: Bool = true) {
+        self.text = text
+        self.ruled = ruled
+    }
 
     var body: some View {
         Text(text)
@@ -1779,7 +1795,7 @@ struct SourceLine: View {
             .lineSpacing(3)
             .opacity(0.5)
             .padding(.top, 12)
-            .overlay(alignment: .top) { Hairline() }
+            .overlay(alignment: .top) { if ruled { Hairline() } }
     }
 }
 

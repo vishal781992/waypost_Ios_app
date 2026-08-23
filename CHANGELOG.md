@@ -15,6 +15,61 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.38.1 — One line where the app meant one line
+
+Eleven horizontal rules came off the app, all of them the second rule in a place that
+needed one. None of them were deleted for tidiness: every one had another line doing the
+same job within about twenty points of it.
+
+**The commonest one was the source note.** `SourceLine` drew a rule above itself to close
+its panel — and a list built out of `DividedRow` already ends in one, so five panels drew
+the closing line twice, twelve points apart: the trip's days, the park screen's stay,
+things-to-do and nearby tabs, and the trip's own list. It takes `ruled:` now, and those
+five pass `false`. Where nothing precedes it — the overview, the weather panel, the AI
+brief, a park with no activities published — it still draws the line, because there it is
+the only one.
+
+**A leg's sheet carried three rules inside seventy points.** The stop list closed itself,
+then the roads paragraph opened a band of its own, then the source note opened another.
+The roads line draws its rule only when nothing above it has, which depends on whether any
+stops came back — so a leg with a roadside now shows one line where it showed three, and a
+leg with none still gets the line that separates the roads from the sentence saying so.
+
+**The profile was ruled twice under the monogram** — once below the block itself and again
+in the *Parks visited* heading forty points down. The heading's rule stays; it carries the
+count.
+
+**Two trailing rules went**, both under the last row of a list with nothing beneath them:
+the near-you shortlist's last park, and the trip list's final day.
+
+## Faster
+
+The app had been getting slower, and most of it was one habit.
+
+**`CuratedPark(bundled:)` is not free** — it lowercases a park's full name and scans it for
+a terrain word, hashes the code into three OKLCH strings and allocates four arrays. Sixty
+two of those is nothing once. The home screen, Discover, Profile and the atlas were each
+building the whole register inside a computed property read from `body`, so it happened on
+every redraw of every one of them, and more than once per redraw where two properties both
+wanted the list. Discover built it three times per keystroke. `NationalParks.allCurated`
+builds it once per launch; nothing else changes, because it is a pure function of a file
+that cannot change while the app is running.
+
+**The home screen measured the parks near you twice per redraw** — once for the rail and
+once for the *within 200 miles* label above it, each time building the register, running a
+haversine over every park and sorting. Measured once now, and handed to both.
+
+**The atlas card counted its own collection four times** and the atlas screen read the
+register four times per pass — five computed properties that each asked the one below.
+Both take a single reading now.
+
+**A dry day stopped animating.** The rain gauge on the weather tab ran a `TimelineView` at
+twenty-four frames a second whenever it was on screen, and its `Canvas` drew nothing at all
+when there was no rain to draw — which is most days in most parks. It holds still now, and
+still moves when there is water in it.
+
+Nothing was removed in any of this. Every figure, row, list and animation is what it was.
+
 ## 2.38.0 — The parks atlas
 
 The profile showed the last few parks you had been to in a rail you scroll sideways and

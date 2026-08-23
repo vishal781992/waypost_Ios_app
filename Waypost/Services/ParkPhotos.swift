@@ -107,7 +107,7 @@ final class ParkPhotos {
             }
             guard Network.isUnmetered else { return }
 
-            let parks = await MainActor.run { NationalParks.all.map { CuratedPark(bundled: $0) } }
+            let parks = await MainActor.run { NationalParks.allCurated }
             await withTaskGroup(of: Void.self) { group in
                 var running = 0
                 for park in parks {

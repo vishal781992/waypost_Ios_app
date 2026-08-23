@@ -72,7 +72,9 @@ struct TripPlanList: View {
                     }
                 }
 
-                SourceLine(count)
+                // Every day group ends in a rule, so the last one has already closed the
+                // list. A ruled source note under it was the second line in twenty points.
+                SourceLine(count, ruled: false)
 
                 // Low and quiet, at the end of the list rather than beside the controls
                 // that use it. Clearing is rare, destructive and has no undo, so it does

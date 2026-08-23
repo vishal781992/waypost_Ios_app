@@ -152,6 +152,7 @@ struct NearbyCard: View {
     private func shortlist(_ brief: NearbyBrief? = nil) -> some View {
         VStack(spacing: 0) {
             ForEach(Array(briefing.candidates.enumerated()), id: \.element.id) { index, candidate in
+                let isLast = index == briefing.candidates.count - 1
                 // `validate` writes each note's park as the candidate's own name, so this
                 // matches exactly. A park the model wrote nothing usable about simply has
                 // no line, and the row still reads.
@@ -196,7 +197,9 @@ struct NearbyCard: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(PressStyle(scale: 0.99))
-                .overlay(alignment: .bottom) { Hairline() }
+                // Between the parks, not under the last one. The card's own border and the
+                // footnote below it already end the list.
+                .overlay(alignment: .bottom) { if !isLast { Hairline() } }
                 .accessibilityElement(children: .combine)
             }
         }
