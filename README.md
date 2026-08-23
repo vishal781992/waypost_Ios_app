@@ -44,6 +44,18 @@ xcodegen generate            # writes Waypost.xcodeproj — it is not committed
 open Waypost.xcodeproj
 ```
 
+**Run `xcodegen generate` again after any pull that adds a file.** The project is
+generated, so a new file does not exist as far as Xcode is concerned until it has — and
+the symptom is a build failure that reads like a code error and is not one: *Cannot find
+'SomeType' in scope*, on a type that is declared, spelled correctly, and sitting in the
+file next to it. `./sync-version.sh` regenerates as part of its run, and
+
+```sh
+python3 tools/check-project.py
+```
+
+answers the question on its own, in a second, before a build cycle is spent on it.
+
 Or from the command line:
 
 ```sh
