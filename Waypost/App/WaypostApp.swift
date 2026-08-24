@@ -217,6 +217,12 @@ struct RootShell: View {
             DiscoverScreen()
         case .atlas:
             AtlasScreen()
+        case .preferences:
+            PreferencesScreen()
+        case .packs:
+            OfflinePacksScreen()
+        case .connections:
+            ConnectionsScreen()
         }
     }
 }

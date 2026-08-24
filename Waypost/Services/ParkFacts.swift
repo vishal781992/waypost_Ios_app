@@ -15,7 +15,7 @@ import Foundation
 final class ParkFacts {
     static let shared = ParkFacts()
 
-    struct Facts: Hashable {
+    struct Facts: Hashable, Codable {
         var code: String
         var fee: String?
         var hours: String?
@@ -44,7 +44,7 @@ final class ParkFacts {
 
     /// A campground as the park service describes it, with the Recreation.gov facility
     /// its own reservation link points at — which is what makes availability possible.
-    struct Campground: Hashable, Identifiable {
+    struct Campground: Hashable, Identifiable, Codable {
         var name: String
         var sites: Int?
         var fee: String?
@@ -62,7 +62,7 @@ final class ParkFacts {
         var id: String { name }
     }
 
-    struct Activity: Hashable, Identifiable {
+    struct Activity: Hashable, Identifiable, Codable {
         var title: String
         var duration: String?
         /// Clipped to a couple of sentences, for a row that shows it in passing.
@@ -133,7 +133,17 @@ final class ParkFacts {
     }
 
     /// Records a request's final state and releases anyone waiting on it.
+    ///
+    /// A failure falls back to the offline pack, where there is one. That is the whole
+    /// point of a pack: the park screen reads whole in a canyon with no bars, out of what
+    /// was downloaded before setting off. It is a fallback and never a preference — with a
+    /// signal the live record always wins, because a fee can change and a road can close
+    /// between packing and arriving.
     private func finish(_ code: String, _ state: State) {
+        var state = state
+        if case .failed = state, let packed = ParkPack.shared.record(for: code) {
+            state = .loaded(packed)
+        }
         states[code] = state
         for waiter in waiters.removeValue(forKey: code) ?? [] {
             waiter.resume(returning: state)
@@ -149,33 +159,37 @@ final class ParkFacts {
 
         Task { [weak self] in
             guard let self else { return }
-            guard let code = await npsCode(for: park) else {
-                finish(park.code, .notCovered)
-                return
-            }
-            do {
-                guard let row = try await proxy.park(code: code) else {
-                    finish(park.code, .notCovered)
-                    return
-                }
-                // The park record is the one that must arrive; the rest fill in what they
-                // can and are absent rather than wrong when they do not.
-                async let alerts = proxy.rows("alerts", code: code)
-                async let camps = proxy.rows("campgrounds", code: code)
-                async let things = proxy.rows("thingstodo", code: code)
-                async let lots = proxy.rows("parkinglots", code: code)
-                // Where the timed-entry and free-park facts live. The park record does not
-                // carry them; this endpoint does.
-                async let feespasses = proxy.rows("feespasses", code: code)
-                finish(park.code, .loaded(Self.facts(
-                    from: row, code: code,
-                    alerts: await alerts, camps: await camps,
-                    things: await things, lots: await lots,
-                    feespasses: await feespasses
-                )))
-            } catch {
-                finish(park.code, .failed(String(describing: error).prefix(80).description))
-            }
+            finish(park.code, await fetch(park))
+        }
+    }
+
+    /// One trip to the park service, and the state it produced.
+    ///
+    /// Split out of `load` so an offline pack can ask for exactly what the screen asks for
+    /// and keep the answer. Two implementations of "what a park record is" would drift
+    /// within a release, and the pack would then hold a different park from the one the
+    /// screen shows.
+    func fetch(_ park: CuratedPark) async -> State {
+        guard let code = await npsCode(for: park) else { return .notCovered }
+        do {
+            guard let row = try await proxy.park(code: code) else { return .notCovered }
+            // The park record is the one that must arrive; the rest fill in what they
+            // can and are absent rather than wrong when they do not.
+            async let alerts = proxy.rows("alerts", code: code)
+            async let camps = proxy.rows("campgrounds", code: code)
+            async let things = proxy.rows("thingstodo", code: code)
+            async let lots = proxy.rows("parkinglots", code: code)
+            // Where the timed-entry and free-park facts live. The park record does not
+            // carry them; this endpoint does.
+            async let feespasses = proxy.rows("feespasses", code: code)
+            return .loaded(Self.facts(
+                from: row, code: code,
+                alerts: await alerts, camps: await camps,
+                things: await things, lots: await lots,
+                feespasses: await feespasses
+            ))
+        } catch {
+            return .failed(String(describing: error).prefix(80).description)
         }
     }
 

@@ -59,6 +59,12 @@ enum PushedScreen: Hashable, Identifiable {
     /// look around in, and it wants the back-swipe and the room to open a park on top of
     /// itself. The profile carries a picture of it and nothing more.
     case atlas
+    /// Everything the profile used to carry below the fold.
+    case preferences
+    /// The parks kept on this phone for a road with no signal.
+    case packs
+    /// Every way the app reaches outside the phone, and whether it is working.
+    case connections
 
     var id: String {
         switch self {
@@ -66,6 +72,9 @@ enum PushedScreen: Hashable, Identifiable {
         case .trip(let id): return "trip:" + id
         case .explore: return "explore"
         case .atlas: return "atlas"
+        case .preferences: return "preferences"
+        case .packs: return "packs"
+        case .connections: return "connections"
         }
     }
 }
@@ -200,9 +209,13 @@ final class AppState {
     var notifyAlerts = false
     var notifyLive = false
 
-    // Offline packs
+    // Offline packs. The truth is the filesystem — `ParkPack` reads the directory and
+    // these two read `ParkPack` — so what the app says is downloaded is what is
+    // downloaded, and a snapshot restored onto a phone whose files were cleared cannot
+    // claim otherwise. `packs` stays in the snapshot for one release so an old save still
+    // decodes; nothing reads it.
     var packs: [String: PackState] = [:]
-    var packProgress: [String: Double] = [:]
+    var packProgress: [String: Double] { ParkPack.shared.progress }
 
     // Library. Empty on a clean install: a saved park, a stamp and a downloaded pack are
     // claims about what somebody did, and nobody has done anything yet.
@@ -294,7 +307,6 @@ final class AppState {
     // Transient
     var toast: String?
     private var toastTask: Task<Void, Never>?
-    private var packTasks: [String: Task<Void, Never>] = [:]
 
     let library = CuratedLibrary.shared
 
@@ -370,7 +382,10 @@ final class AppState {
         todayPark.flatMap { PermitDrop.byPark[$0.code] }
     }
 
-    func packState(_ code: String) -> PackState { packs[code] ?? .none }
+    func packState(_ code: String) -> PackState {
+        if ParkPack.shared.isDownloading(code) { return .busy }
+        return ParkPack.shared.has(code) ? .ready : .none
+    }
 
     func isStamped(_ unitCode: String) -> Bool { stamps.contains(unitCode) }
 
@@ -723,34 +738,17 @@ final class AppState {
         persist()
     }
 
-    /// Downloads a park pack. The progress is simulated on this pass — the pack format
-    /// itself is not built yet, and the Profile screen says so rather than implying the
-    /// bytes are on the device.
+    /// Downloads a park pack — the park service's record, the photograph and the ground
+    /// around it, written to Application Support.
+    ///
+    /// This used to count to a hundred on a timer and store nothing at all: the row said
+    /// *On device* and there was no device copy. What it stores now is what a park screen
+    /// cannot draw without a network, and the size on the row is the size on the disk.
     func startPack(_ code: String) {
-        guard packState(code) != .ready, packTasks[code] == nil else { return }
-        packs[code] = .busy
-        packProgress[code] = 0.04
-        packTasks[code] = Task { [weak self] in
-            while true {
-                try? await Task.sleep(for: .milliseconds(260))
-                guard let self, !Task.isCancelled else { return }
-                let next = (packProgress[code] ?? 0) + 0.11
-                if next >= 1 {
-                    packProgress[code] = 1
-                    packs[code] = .ready
-                    packTasks[code] = nil
-                    persist()
-                    show((library.park(code)?.name ?? "Park") + " pack ready — works with no signal")
-                    return
-                }
-                packProgress[code] = next
-            }
-        }
+        guard packState(code) == .none, let park = park(code) else { return }
+        ParkPack.shared.download(park)
     }
 
-    var packStorageMB: Int {
-        library.orderedParks.filter { packState($0.code) == .ready }.reduce(0) { $0 + $1.packMB }
-    }
 
     // MARK: Trips
 
@@ -1048,6 +1046,39 @@ final class AppState {
     }
 
     private static let key = "waypost-app"
+
+    /// Everything this phone is holding about the person using it, deleted.
+    ///
+    /// Four kinds of thing, and they live in four places: what was collected (the snapshot
+    /// in `UserDefaults`), what was downloaded (the packs, in Application Support), what
+    /// was cached to make the app quick (photographs and route maps, in caches), and the
+    /// preferences. Only the first three are somebody's data; the preferences are a
+    /// setting, and clearing them would be a surprise rather than a wipe — so the vehicle,
+    /// the units and the notification switches survive.
+    ///
+    /// There is no undo, which is why the control that calls this asks twice.
+    func eraseEverything() {
+        saved = []
+        stamps = []
+        stampBook = []
+        manualVisits = []
+        hiddenVisits = []
+        myTrips = []
+        doneItems = []
+        journalCount = 0
+        packs = [:]
+        day = 1
+        seedTripHidden = false
+        paths = [:]
+
+        ParkPack.shared.removeAll()
+        RouteSnapshotStore.shared.clear()
+        // The only one of the four that is an actor of its own.
+        Task { await PhotoStore.shared.clear() }
+        UserDefaults.standard.removeObject(forKey: Self.key)
+        persist()
+        show("Everything on this phone cleared")
+    }
 
     func persist() {
         let snapshot = Snapshot(

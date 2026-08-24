@@ -15,6 +15,49 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.39.0 — Preferences, and a pack that is really there
+
+**The profile is a profile.** You, where you have been, and one row: *Preferences*.
+Everything else moved to a pushed screen where a settings screen is expected to be —
+notifications, travel defaults, the page colour, the field journal count.
+
+**Park packs are real.** The old one counted to a hundred on a timer and stored nothing at
+all: the row said *On device* and there was no device copy. A pack now holds three files,
+and they are the three things a park screen cannot draw without a network — what the park
+service publishes about the park, its photograph, and a picture of the ground ten miles
+around it. They go in Application Support rather than caches, because a pack the system
+empties under pressure is a promise about a canyon, broken in the canyon. Progress is the
+fraction of the three that are done, so a slow connection reads as slow. **And the park
+screen reads them**: when the park service does not answer, the facts come off the pack
+instead — always as a fallback, never as a preference, because a fee can change and a road
+can close between packing and arriving.
+
+**The list of packs left the profile.** A pack is made where somebody is already looking at
+the park — the park screen and Discover both offer it — so *Offline packs* under
+Preferences manages what is on the phone rather than offering sixty-two more: each park with
+what it actually weighs on disk, what is in it, when it was downloaded, and a way to remove
+it. The total is the sum of the files, not of a column in a data file.
+
+**Connections replaces a green dot that was always green.** The profile used to show a live
+indicator beside *NPS · Open-Meteo · Recreation.gov* that was drawn healthy whatever had
+happened, and a row reading *Live sources — Re-wiring next pass*. The first was this app's
+one rule broken in its own settings: it claimed three services were fine without having
+asked any of them.
+
+The new screen asks. The phone's own network path, from `NWPathMonitor` rather than from a
+request that happened to fail. The Waypost proxy, by calling its health endpoint and
+waiting. And then ten sources, each with what it is for and one of three states — **heard
+from**, **did not answer** with the reason, or **not needed yet**, which is not a fault: a
+park screen nobody opened asks the park service nothing. Failures were already reported by
+every catch in the app; successes now are too, recorded centrally in `HTTP` by the host that
+answered, so no service has to remember and none of them can forget.
+
+**Erase everything on this phone.** A destructive control at the foot of Preferences, behind
+a question that says exactly what goes and that nothing can bring it back — trips, stamps,
+saved parks, downloads, the photograph cache and the route maps. The vehicle, the units and
+the notification switches stay: those are settings, not somebody's data, and clearing them
+would be a surprise rather than a wipe.
+
 ## 2.38.2 — The atlas, snappier and in focus
 
 Six things about the parks atlas, all of them mine from 2.38.0.

@@ -232,7 +232,7 @@ enum CatalogueSource: String, Decodable, Hashable {
     case curated = "the curated library"
 }
 
-struct CuratedAlert: Decodable, Hashable, Identifiable {
+struct CuratedAlert: Codable, Hashable, Identifiable {
     let cat: String
     let title: String
     let body: String

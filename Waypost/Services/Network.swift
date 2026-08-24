@@ -12,13 +12,24 @@ final class FailureLog {
     private(set) var failures: [String: String] = [:]
 
     func note(_ source: String, _ error: Error) {
+        Connections.shared.record(source, failed: String(describing: error))
         guard failures[source] == nil else { return }   // first failure per source wins
         failures[source] = String(String(describing: error).prefix(120))
     }
 
     func note(_ source: String, _ message: String) {
+        Connections.shared.record(source, failed: message)
         guard failures[source] == nil else { return }
         failures[source] = String(message.prefix(120))
+    }
+
+    /// A request that came back. The counterpart to `note`, and the reason the connections
+    /// screen can tell a source nobody has needed from a source that is down.
+    ///
+    /// Outside the first-failure rule on purpose: `failures` keeps the first thing that
+    /// went wrong because that is the one worth reporting, but health is about now.
+    func ok(_ source: String) {
+        Connections.shared.record(answered: source)
     }
 
     func clear() { failures = [:] }
@@ -116,6 +127,25 @@ enum HTTPError: LocalizedError {
 }
 
 enum HTTP {
+    /// Every answer this app gets from outside, recorded by the host that gave it.
+    ///
+    /// Central on purpose. Failures already report themselves — every catch in the app
+    /// calls `FailureLog.note` — but successes had nowhere to go, and a connections screen
+    /// that only knows about failures cannot tell a source that is working from one nobody
+    /// has needed. Hooking the one place every request passes through means no service has
+    /// to remember, and none of them can forget.
+    static func heard(_ response: URLResponse?, from url: URL?) {
+        guard let host = url?.host() else { return }
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 200
+        Task { @MainActor in
+            if (200..<300).contains(code) {
+                Connections.shared.record(answered: host)
+            } else {
+                Connections.shared.record(host, failed: "HTTP \(code)")
+            }
+        }
+    }
+
     static let session: URLSession = {
         let c = URLSessionConfiguration.default
         c.timeoutIntervalForRequest = 15
@@ -129,6 +159,7 @@ enum HTTP {
 
     static func json<T: Decodable>(_ url: URL, as type: T.Type) async throws -> T {
         let (data, response) = try await session.data(from: url)
+        heard(response, from: url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw HTTPError.status(http.statusCode)
         }
@@ -148,6 +179,7 @@ enum HTTP {
     /// Nominatim and a few others answer with a bare array rather than an object.
     static func array(_ request: URLRequest) async throws -> [[String: Any]] {
         let (data, response) = try await session.data(for: request)
+        heard(response, from: request.url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw HTTPError.status(http.statusCode)
         }
@@ -159,6 +191,7 @@ enum HTTP {
 
     static func any(_ request: URLRequest) async throws -> [String: Any] {
         let (data, response) = try await session.data(for: request)
+        heard(response, from: request.url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw HTTPError.status(http.statusCode)
         }

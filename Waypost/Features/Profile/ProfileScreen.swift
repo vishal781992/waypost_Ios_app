@@ -46,89 +46,29 @@ struct ProfileScreen: View {
 
                     visited
 
-                    sectionLabel("Tell me when")
+                    // Everything that was here is one push away now. A profile is you and
+                    // where you have been; the machinery is a settings screen, and a
+                    // settings screen is where somebody goes looking for it.
+                    sectionLabel("Settings")
                     Grouped {
-                        toggleRow("Permit windows drop",
-                                  "Timed entry, lotteries, next-day releases",
-                                  isOn: app.notifyPermits) {
-                            app.notifyPermits.toggle()
-                            app.show(app.notifyPermits ? "Notifications on" : "Notifications off")
-                            app.persist()
+                        Button { app.push(.preferences) } label: {
+                            HStack(spacing: 10) {
+                                Text("Preferences").font(WP.body(14))
+                                Spacer(minLength: 0)
+                                Text("Notifications, travel, downloads, connections")
+                                    .font(WP.body(11.5)).opacity(0.55).lineLimit(1)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(WP.accent700)
+                            }
+                            .padding(.horizontal, 14).padding(.vertical, 13)
+                            .frame(minHeight: 46)
+                            .contentShape(Rectangle())
                         }
-                        Hairline()
-                        toggleRow("Park alerts on my route",
-                                  "Closures, fire, flash flood, road work",
-                                  isOn: app.notifyAlerts) {
-                            app.notifyAlerts.toggle()
-                            app.persist()
-                        }
-                        Hairline()
-                        toggleRow("Live Activity on drive legs",
-                                  "Arrival time and next charge on the lock screen",
-                                  isOn: app.notifyLive) {
-                            app.notifyLive.toggle()
-                            app.persist()
-                        }
+                        .buttonStyle(PressStyle(scale: 0.995))
+                        .foregroundStyle(WP.text)
                     }
-
-                    sectionLabel("Park packs for no signal")
-                    Grouped {
-                        ForEach(Array(app.library.orderedParks.enumerated()), id: \.element.code) { index, park in
-                            packRow(park)
-                            if index < app.library.orderedParks.count - 1 { Hairline() }
-                        }
-
-                    }
-
-                    sectionLabel("Page colour · while testing")
-                    PageTintRow()
-
-                    sectionLabel("Travel defaults")
-                    VStack(alignment: .leading, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Vehicle").font(WP.body(12)).opacity(0.65)
-                            SegmentedTrough(
-                                options: [(false, "Gasoline"), (true, "Electric")],
-                                selection: Binding(get: { app.vehicleIsElectric },
-                                                   set: { app.vehicleIsElectric = $0; app.persist() }),
-                                haptic: { Haptics.vehicle(isElectric: $0) }
-                            )
-                        }
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Units").font(WP.body(12)).opacity(0.65)
-                            SegmentedTrough(
-                                options: [(false, "Miles · °F"), (true, "Km · °C")],
-                                selection: Binding(get: { app.unitsMetric },
-                                                   set: { app.unitsMetric = $0; app.persist() })
-                            )
-                        }
-                    }
-
-                    sectionLabel("Data & offline")
-                    Grouped {
-                        HStack(spacing: 10) {
-                            Circle().fill(WP.live).frame(width: 7, height: 7)
-                            Text("Park records").font(WP.body(14))
-                            Spacer(minLength: 0)
-                            Text("NPS · Open-Meteo · Recreation.gov")
-                                .font(WP.body(11.5)).opacity(0.55).lineLimit(1)
-                        }
-                        .padding(.horizontal, 14).padding(.vertical, 13)
-                        Hairline()
-                        HStack {
-                            Text("Field journal").font(WP.body(14))
-                            Spacer(minLength: 0)
-                            Text("\(app.journalCount) photographs").font(WP.body(11.5)).opacity(0.55)
-                        }
-                        .padding(.horizontal, 14).padding(.vertical, 13)
-                        Hairline()
-                        HStack {
-                            Text("Live sources").font(WP.body(14))
-                            Spacer(minLength: 0)
-                            Text("Re-wiring next pass").font(WP.body(11.5)).opacity(0.55)
-                        }
-                        .padding(.horizontal, 14).padding(.vertical, 13)
-                    }
+                    .padding(.top, 4)
 
                     Text("Every panel says where its rows came from. Where a source has not answered, the panel says so rather than filling the gap.")
                         .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
@@ -340,48 +280,6 @@ struct ProfileScreen: View {
             .padding(.top, 22).padding(.bottom, 8)
     }
 
-    private func toggleRow(_ title: String, _ subtitle: String, isOn: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(WP.body(14))
-                    Text(subtitle).font(WP.body(11.5)).opacity(0.6).lineSpacing(1)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-                WPSwitch(isOn: isOn)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 13)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PressStyle(scale: 0.995))
-    }
-
-    private func packRow(_ park: CuratedPark) -> some View {
-        let state = app.packState(park.code)
-        return HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(park.name).font(WP.body(14))
-                Text(park.pack).font(WP.body(11.5)).opacity(0.55)
-            }
-            Spacer(minLength: 0)
-            Button {
-                app.startPack(park.code)
-            } label: {
-                Text(state == .ready ? "On device"
-                     : state == .busy ? "\(Int((app.packProgress[park.code] ?? 0) * 100))%"
-                     : "Get")
-                    .font(WP.headingUI(12.5))
-                    .padding(.horizontal, 13)
-                    .frame(minHeight: 44)
-                    .glassControl(shadow: false)
-            }
-            .buttonStyle(PressStyle(scale: 0.95))
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-    }
 }
 
 /// The grouped-inset card iOS uses for settings, in the Classical palette.
