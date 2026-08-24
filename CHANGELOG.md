@@ -15,6 +15,22 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.40.2 — Frosted glass across the top of a trip
+
+A scrolled trip sent leg rows up through the status bar and out behind the back control,
+so a row's own words ran across the clock and across "Trips". Two pieces of type at the
+same size sharing one band does not read as depth; it reads as a mistake.
+
+The band is frosted now rather than cut. Glass at the top of the display going to nothing
+by the bottom, with a wash of page colour behind it so the clock keeps its contrast over a
+pale row. A row loses its edges before it reaches the control instead of sliding out from
+under it intact.
+
+It ends exactly where the pinned segmented control's own opaque background begins, so the
+two meet with no seam, and it is sized the way the hero is — drawn taller than its box by
+the status bar and pulled back up by the same amount. It takes no touches: the back control
+is above it and the page scrolls under it.
+
 ## 2.40.1 — The trip screen: a control you can reach, weather on the way home
 
 Four things on the trip screen, all of them things that read as broken rather than as

@@ -106,6 +106,8 @@ struct TripDetailScreen: View {
             }
             }
 
+            topFrost
+
             // No padding here. `FloatingBack` carries its own, which is the only way the
             // two screens can be guaranteed to put it in the same place.
             FloatingBack(label: "Trips") { app.pop() }
@@ -271,6 +273,45 @@ struct TripDetailScreen: View {
             // No map: the page starts where it always did, under the floating back control.
             Color.clear.frame(height: WP.statusBarInset + 52)
         }
+    }
+
+    /// The top of the display, frosted.
+    ///
+    /// The page runs full bleed so the hero keeps the map that was tapped to get here,
+    /// which means a scrolled page sends leg rows up through the status bar and behind the
+    /// back control. A row's own words then ran across the clock and across "Trips", and
+    /// two pieces of type at the same size sharing the same band reads as a mistake rather
+    /// than as depth.
+    ///
+    /// So the band is frosted rather than cut. Glass at the top going to nothing by the
+    /// bottom, with a wash of page colour behind it so the clock keeps its contrast over a
+    /// pale row — words lose their edges before they reach the control instead of sliding
+    /// out from under it intact. It ends exactly where `pinnedTop` does, which is where the
+    /// segmented control's own opaque background begins, so the two meet with no seam.
+    ///
+    /// Sized and lifted the way `hero` is: drawn taller than its box by the status bar and
+    /// pulled back up by the same amount. Nothing here takes a touch — the control sits
+    /// above it, the page scrolls under it.
+    private var topFrost: some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            LinearGradient(colors: [WP.bg.opacity(0.66), WP.bg.opacity(0)],
+                           startPoint: .top, endPoint: .bottom)
+        }
+        .mask {
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black.opacity(0.9), location: 0.45),
+                    .init(color: .clear, location: 1),
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: WP.statusBarInset + Self.pinnedTop)
+        .padding(.top, -WP.statusBarInset)
+        .allowsHitTesting(false)
     }
 
     /// Where the segmented control sits, and where choosing a section scrolls back to.
