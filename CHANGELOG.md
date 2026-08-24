@@ -15,6 +15,34 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.40.0 — A tab bar that keeps its names
+
+Reading down a screen, the bar used to drop to a single pill holding the tab you were
+already on. It was the reduction the system bar makes, and it had two faults. The first is
+that it took the other three destinations off the screen, so changing tab meant scrolling
+back up to find one. The second only showed up once it was measured: **it gave the page
+nothing back.** The bar stayed sixty-two points tall and merely stopped covering the ends of
+one line.
+
+It keeps its width now and loses its height instead. The glyphs fold away, the four names
+stay where they were, and the bar goes from sixty-two points to twenty-six — thirty-six
+points of page returned, against none, with every destination still one tap away.
+
+**The ink shrinks and the target does not.** Twenty-six points is well under the forty-four
+Apple asks for anything a finger has to find, and this bar was already grown once for exactly
+that reason. So each item keeps a forty-four point frame with the extra height transparent
+above and below the capsule, and the glass is drawn as a background sized to the ink rather
+than as a wrapper around the targets. What you touch is forty-four; what you see is
+twenty-six.
+
+The lime still sits behind the selected name and still travels between items on
+`matchedGeometryEffect` — that animation is untouched.
+
+**Also fixed:** `eraseEverything` called `RouteSnapshotStore.clear()` straight, and that is
+an actor of its own rather than a main-actor class, so 2.39.0 did not build. Both stores are
+awaited off one task now, which is what `forget(id:)` twenty lines above it was already
+doing.
+
 ## 2.39.0 — Preferences, and a pack that is really there
 
 **The profile is a profile.** You, where you have been, and one row: *Preferences*.

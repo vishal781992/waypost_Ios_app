@@ -28,25 +28,51 @@ struct CompactTabBar: View {
     private let itemWidth: CGFloat = 68
     private let itemHeight: CGFloat = 52
 
+    /// What an item is *drawn* at when the bar is held out of the way: the name and
+    /// nothing else, on one line. Sixteen points of ink and ten of type — as slim as four
+    /// names go before the type stops being legible or one of them has to leave.
+    private let slimItemHeight: CGFloat = 16
+
+    /// Apple's floor for anything a finger has to find. The bar was already grown once for
+    /// this reason, and a twenty-six point strip puts it back under the line — so the ink
+    /// shrinks and the target does not. Each item keeps a forty-four point frame with the
+    /// extra height transparent, above and below the capsule.
+    private let minimumTarget: CGFloat = 44
+
+    /// The height of the drawn capsule. The frame around it is taller; this is the glass.
+    private var plateHeight: CGFloat { inkHeight + 10 }
+    private var inkHeight: CGFloat { isMinimized ? slimItemHeight : itemHeight }
+    /// Transparent, and only ever positive where the ink is smaller than a thumb.
+    private var overhang: CGFloat { max(0, (minimumTarget - inkHeight) / 2) }
+
+    /// What the bar takes up in the layout: whichever is taller, the glass or the targets.
+    ///
+    /// Stated rather than left to the content, because the two disagree in both directions.
+    /// Whole, the plate is taller than the items and the glass would otherwise draw outside
+    /// the bar's own bounds — which moved it five points down the screen, under the home
+    /// indicator. Slim, the targets are taller than the plate.
+    private var barHeight: CGFloat { max(plateHeight, inkHeight + overhang * 2) }
+
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(visibleTabs) { tab in
+            ForEach(AppTab.allCases) { tab in
                 item(tab)
             }
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 5)
-        .liquidGlass(.tabBar, radius: 999)
-        .shadow(color: Color(hex: 0x181008, opacity: 0.10), radius: 12, y: 4)
+        .frame(height: barHeight)
+        // The glass is a background rather than a wrapper, because the stack is as tall as
+        // a thumb needs and the capsule is only as tall as the ink. Wrapped, the plate
+        // would grow to the touch area and the bar would not look slim at all.
+        .background {
+            Color.clear
+                .frame(height: plateHeight)
+                .liquidGlass(.tabBar, radius: 999)
+                .shadow(color: Color(hex: 0x181008, opacity: 0.10), radius: 12, y: 4)
+        }
         .animation(Motion.panel, value: isMinimized)
         .animation(Motion.panel, value: selection)
         .sensoryFeedback(.selection, trigger: selection)
-    }
-
-    /// Minimised, the bar carries the selected tab alone — the same reduction the system
-    /// bar makes, which is what tells you it is still there without holding the page.
-    private var visibleTabs: [AppTab] {
-        isMinimized ? [selection] : AppTab.allCases
     }
 
     private func item(_ tab: AppTab) -> some View {
@@ -56,14 +82,20 @@ struct CompactTabBar: View {
             selection = tab
         } label: {
             VStack(spacing: 3) {
-                TabIcon(tab: tab)
-                    .frame(width: 29, height: 29)
+                // The glyph is what goes. Every name stays, in the same order, in the same
+                // places — so the bar folds rather than emptying, and the destination you
+                // want is where it was a moment ago.
+                if !isMinimized {
+                    TabIcon(tab: tab)
+                        .frame(width: 29, height: 29)
+                }
                 Text(tab.label)
-                    .font(WP.body(11, semibold: isSelected))
+                    .font(WP.body(isMinimized ? 10 : 11, semibold: isSelected))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
             .foregroundStyle(isSelected ? WP.neutral900 : WP.neutral600)
-            .frame(width: itemWidth, height: itemHeight)
+            .frame(width: itemWidth, height: inkHeight)
             .background {
                 if isSelected {
                     // Not quite opaque: the bar is glass, and a flat fill on top of it
@@ -73,7 +105,10 @@ struct CompactTabBar: View {
                         .matchedGeometryEffect(id: "selection", in: pill)
                 }
             }
-            .contentShape(Capsule())
+            // Transparent, and the whole point: the ink is sixteen points and the finger
+            // gets forty-four. Zero when the bar is whole, because fifty-two already is.
+            .padding(.vertical, overhang)
+            .contentShape(Rectangle())
         }
         .buttonStyle(PressStyle(scale: 0.94))
         .accessibilityLabel(tab.label)

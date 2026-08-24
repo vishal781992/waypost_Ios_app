@@ -1072,9 +1072,11 @@ final class AppState {
         paths = [:]
 
         ParkPack.shared.removeAll()
-        RouteSnapshotStore.shared.clear()
-        // The only one of the four that is an actor of its own.
-        Task { await PhotoStore.shared.clear() }
+        // Both of these are actors of their own, so both are awaited off this one.
+        Task {
+            await PhotoStore.shared.clear()
+            await RouteSnapshotStore.shared.clear()
+        }
         UserDefaults.standard.removeObject(forKey: Self.key)
         persist()
         show("Everything on this phone cleared")
