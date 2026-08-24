@@ -928,28 +928,36 @@ struct TripDetailScreen: View {
                     .padding(.bottom, 3)
             }
 
+            // The app's own full-width control, not a new one: forty-eight points of glass
+            // in a pill, pressed at 0.98. The park screen's "Plan a trip" and the leg
+            // sheet's "Start Live Activity" are the same button, and a third shape here
+            // would have been a third shape for no reason.
             Button {
+                Haptics.tap()
                 Task { await writeToCalendar(remove: added) }
             } label: {
                 HStack(spacing: 9) {
                     if busy {
-                        ProgressView().controlSize(.small)
+                        ProgressView().controlSize(.small).tint(.white)
                     } else {
                         Image(systemName: added ? "calendar.badge.minus" : "calendar.badge.plus")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(WP.accent700)
                     }
                     Text(added ? "Take this trip off your calendar" : "Add these days to your calendar")
-                        .font(WP.headingUI(14))
+                        .font(WP.headingUI(14.5))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                 }
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(WP.divider, lineWidth: 1))
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .glassControl()
             }
-            .buttonStyle(PressStyle(scale: 0.99))
-            .disabled(busy || plannedDaysList.isEmpty)
-            .opacity(plannedDaysList.isEmpty ? 0.5 : 1)
+            .buttonStyle(PressStyle(scale: 0.98))
+            // Only ever drawn where the days are ready — it lives inside that branch — so
+            // the one state it can be caught in is mid-write.
+            .disabled(busy)
+            .accessibilityLabel(added
+                                ? "Take this trip off your calendar"
+                                : "Add this trip's days to your calendar")
 
             Text(added
                  ? "In a calendar of its own called “\(TripCalendar.calendarTitle)”, so hiding or deleting the whole trip is one move in Calendar."

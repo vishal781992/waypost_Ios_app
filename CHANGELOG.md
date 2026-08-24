@@ -15,6 +15,32 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.42.1 — The calendar controls, held to the app's own patterns
+
+A pass over everything the calendar work added, against what the app already does.
+
+**The add button was a shape this app does not have.** Fifty points tall, outlined, pressed
+at 0.99 — three values that appear nowhere else. Every full-width control in the app is
+forty-eight points of glass in a pill pressed at 0.98: the park screen's "Plan a trip", the
+leg sheet's "Start Live Activity". It is now that button. It also taps, like every other
+committing control, and carries a label for VoiceOver, which the two it copies both do.
+
+**A switch that could only fail.** Where calendar access has already been refused, iOS will
+not ask again — so the row in Preferences did nothing at all and posted a message naming a
+Settings screen the reader then had to go and find. Tapping it opens that screen. Write-only
+access is untouched by this: iOS *will* still ask to upgrade, so that tap still asks.
+
+**Three lines of explanation beside a switch is a paragraph pretending to be a label.** The
+access lines are short enough now to sit on one or two.
+
+**A dead disabled state** on the add button, guarding a case that cannot happen — the
+control is only ever drawn once the days are ready.
+
+Deliberately unchanged: the clash count stays a plain chip and not a button. It sits in a
+line of facts — days, miles, fuel, packs — none of which is tappable, and the packs pill
+beside it sets the rule that a pill there is a state rather than a control. The day rows are
+where a clash is acted on, and those are full-width and already open on a tap.
+
 ## 2.42.0 — The trip against the calendar you already keep
 
 Two jobs, and iOS 17 needs a different permission for each — which is what shapes the whole

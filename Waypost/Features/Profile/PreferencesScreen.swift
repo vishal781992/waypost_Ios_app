@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Everything the profile used to carry below the fold.
 ///
@@ -195,35 +196,46 @@ struct PreferencesScreen: View {
         switch TripCalendar.shared.access {
         case .full:
             return app.checksCalendar
-                ? "Days you already have something on are marked on the trip"
-                : "Allowed — turn this on to mark days that are already spoken for"
+                ? "Days you are already busy on are marked on the trip"
+                : "Turn on to mark days you are already busy on"
         case .writeOnly:
-            return "ParkHop may add trips but not read your days. Allow full access to find clashes."
+            return "ParkHop may add trips but not read them — turn on to allow reading too"
         case .denied:
-            return "Calendar access is off. Settings › Privacy & Security › Calendars turns it on."
+            return "Calendar access is off — tap to open Settings"
         case .restricted:
-            return "Calendar access is restricted on this phone."
+            return "Calendar access is restricted on this phone"
         case .notAsked:
-            return "Asks for permission to read your calendar when you turn this on"
+            return "Asks permission to read your calendar when you turn this on"
         }
     }
 
     private func toggleCalendarChecking() {
+        Haptics.tap()
+
+        // Where the answer is already no, iOS will not ask again — so the switch cannot
+        // turn on and a tap on it does nothing at all. Rather than a row that refuses
+        // quietly and a toast naming a screen the reader then has to go and find, the tap
+        // goes to that screen. A control that can only fail is not a control.
+        let access = TripCalendar.shared.access
+        if access == .denied || access == .restricted {
+            if let settings = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(settings)
+            }
+            return
+        }
+
         if app.checksCalendar {
             app.checksCalendar = false
             TripCalendar.shared.invalidate()
             app.persist()
+            app.show("Calendar clashes off")
             return
         }
         Task {
             let allowed = await TripCalendar.shared.askToRead()
             app.checksCalendar = allowed
             app.persist()
-            if !allowed {
-                app.show(TripCalendar.shared.access == .denied
-                         ? "Calendar access is off in Settings"
-                         : "Calendar access was not given")
-            }
+            app.show(allowed ? "Checking your calendar for clashes" : "Calendar access was not given")
         }
     }
 
