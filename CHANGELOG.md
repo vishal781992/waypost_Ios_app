@@ -15,6 +15,36 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.40.1 — The trip screen: a control you can reach, weather on the way home
+
+Four things on the trip screen, all of them things that read as broken rather than as
+choices.
+
+**The segmented control froze under the clock.** It is a pinned header, so it stops at the
+top of what the scroll view can see — and the scroll view was ignoring the top safe area,
+so the top of what it could see was the top of the display. The control pinned itself over
+the time and under the Trips button, on top of the back control, which floats in that
+same place. The scroll view keeps its safe area again, which is what the hero's own layout
+was written for, and the pinned control reserves `FloatingBack`'s footprint above itself —
+six points of padding, forty-four of control, four of air. It now stops below the back
+control instead of under the clock.
+
+**No weather on the way home.** The column that draws a forecast beside each leg is filled
+from the place the leg *arrives* at, and that place was typed as a park. The drive home
+does not arrive at a park, so there was nothing to hand it and the last row of every trip
+drew nothing — while every outbound leg drew a glyph, which is exactly the asymmetry that
+reads as a bug. The destination is now a name and a coordinate, and the way home is
+weathered at the trip's own origin. Where the trip flies home and then drives from the
+arrival airport, the column sits on the drive, matching the outbound rule.
+
+**Two rules around one line of text.** The days · miles · fuel · packs line was boxed
+between hairlines directly beneath the title and route line, so a single row of text read
+as a one-row table. Both rules are gone.
+
+**The atlas cuff is back at the foot of the map.** It was moved to the top to sit where a
+tab bar sits; the atlas has no tab bar under it, so the whole bottom of the display is free
+and that is where the thumb is. Counts and filter return to the bottom.
+
 ## 2.40.0 — A tab bar that keeps its names
 
 Reading down a screen, the bar used to drop to a single pill holding the tab you were

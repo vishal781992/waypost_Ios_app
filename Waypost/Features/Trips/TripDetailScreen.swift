@@ -63,7 +63,11 @@ struct TripDetailScreen: View {
                         SegmentedTrough(options: TripSegment.allCases.map { ($0, $0.label) },
                                         selection: $segment)
                             .padding(.horizontal, WP.gutter)
-                            .padding(.top, 16)
+                            // Room for the back control above it. A pinned header stops at
+                            // the top of what the scroll view can see, and `FloatingBack`
+                            // floats in the same place — so pinned, the two were in each
+                            // other's way, with the clock over both of them.
+                            .padding(.top, Self.pinnedTop)
                             .padding(.bottom, 12)
                             // Opaque, or the page scrolls through the pinned control.
                             .background(WP.bg)
@@ -92,7 +96,6 @@ struct TripDetailScreen: View {
                 }
             }
             .animation(Motion.panel, value: segment)
-            .ignoresSafeArea(edges: .top)
             // Choosing a section puts its first line under the control rather than leaving
             // it below the fold. The same move the park screen's rail makes, at the same
             // speed — `.snappy(duration: 0.34)`, transcribed rather than re-chosen.
@@ -273,6 +276,13 @@ struct TripDetailScreen: View {
     /// Where the segmented control sits, and where choosing a section scrolls back to.
     private static let segmentAnchor = "trip.segments"
 
+    /// What the control keeps clear above itself: `FloatingBack`'s own footprint.
+    ///
+    /// Six points of top padding and forty-four of control, plus four for air — read off
+    /// `FloatingBack` rather than measured off a screenshot, because the control owns its
+    /// placement and this has to follow it if that ever changes.
+    private static let pinnedTop: CGFloat = 54
+
     /// Shorter than the park screen's 372. A trip has a segmented control and a list under
     /// it, and pushing those off the display is the thing the hero is meant to fix.
     private static let heroHeight: CGFloat = 260
@@ -376,9 +386,11 @@ struct TripDetailScreen: View {
             packChip(ready: ready, of: parks.count)
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 9)
-        .overlay(alignment: .top) { Hairline() }
-        .overlay(alignment: .bottom) { Hairline() }
+        // No rules around it. Two hairlines boxed one line of text in directly under a
+        // title and a route line that are already separated by nothing but air — the row
+        // reads as the end of the heading, and the box made it look like a table with one
+        // row in it.
+        .padding(.top, 2)
     }
 
     private func figure(_ value: String, _ unit: String) -> some View {
@@ -410,7 +422,8 @@ struct TripDetailScreen: View {
             // includes, and the first one anybody actually drives.
             if let approach = app.routing.approach(for: trip) {
                 legRow(approach.curated, date: "", index: 0, label: "Getting there",
-                       flyRefusal: approach.flyRefusal, arriving: parks.first) {
+                       flyRefusal: approach.flyRefusal,
+                       arriving: parks.first.map { WeatherStop($0) }) {
                     app.sheetTrip = trip.id; app.sheet = .routedLeg(approach, label: "Getting there")
                 }
             } else if case .routing = app.routing.approachPhase(for: trip) {
@@ -442,13 +455,13 @@ struct TripDetailScreen: View {
                         // park follows as a row of its own — so the weather column belongs
                         // to whichever of the two actually arrives at the park.
                         legRow(leg.curated, date: "", index: index, flyRefusal: leg.flyRefusal,
-                               arriving: leg.arrivalDrive == nil ? park : nil) {
+                               arriving: leg.arrivalDrive == nil ? WeatherStop(park) : nil) {
                             app.sheetTrip = trip.id; app.sheet = .routedLeg(leg, label: leg.fly == nil ? "Driving day" : "Flying day")
                         }
                         if let arrival = leg.arrivalDrive {
                             let label = "Driving from \(arrival.from)"
                             legRow(arrival.curated, date: "", index: index, label: label,
-                                   arriving: park) {
+                                   arriving: WeatherStop(park)) {
                                 app.sheetTrip = trip.id
                                 app.sheet = .routedLeg(arrival, label: label)
                             }
@@ -467,13 +480,20 @@ struct TripDetailScreen: View {
                 if routed.count > parks.count {
                     let home = routed[parks.count]
                     let homeLabel = home.fly == nil ? "The drive home" : "The flight home"
+                    // The way home arrives where the trip started, so that is the place
+                    // its weather is asked about — the same rule the outbound legs follow,
+                    // and the same rule about which of a flight and its arrival drive
+                    // carries the column.
+                    let back = trip.resolvedOrigin(app.library).map { WeatherStop($0) }
                     legRow(home.curated, date: "", index: parks.count, label: homeLabel,
-                           flyRefusal: home.flyRefusal) {
+                           flyRefusal: home.flyRefusal,
+                           arriving: home.arrivalDrive == nil ? back : nil) {
                         app.sheetTrip = trip.id; app.sheet = .routedLeg(home, label: homeLabel)
                     }
                     if let arrival = home.arrivalDrive {
                         let label = "Driving from \(arrival.from)"
-                        legRow(arrival.curated, date: "", index: parks.count, label: label) {
+                        legRow(arrival.curated, date: "", index: parks.count, label: label,
+                               arriving: back) {
                             app.sheetTrip = trip.id
                             app.sheet = .routedLeg(arrival, label: label)
                         }
@@ -514,15 +534,29 @@ struct TripDetailScreen: View {
         }
     }
 
+    /// Where a leg ends, for the weather column.
+    ///
+    /// The drive home does not end at a park, and while `arriving:` took a `CuratedPark`
+    /// there was nothing to hand it — so the last row of every trip drew no weather at
+    /// all. A place with a name and a coordinate is all the forecast ever needed.
+    private struct WeatherStop {
+        let key: String
+        let lat: Double
+        let lon: Double
+
+        init(_ park: CuratedPark) { key = park.code; lat = park.lat; lon = park.lon }
+        init(_ origin: TripOrigin) { key = origin.name; lat = origin.lat; lon = origin.lon }
+    }
+
     /// A leg is weathered at the place it arrives — the end of a drive is where the day is
     /// spent, and the start of it is a park whose own row already carries the morning.
-    private func legWeather(_ index: Int, to park: CuratedPark?) -> some View {
+    private func legWeather(_ index: Int, to stop: WeatherStop?) -> some View {
         Group {
-            if let park, let date = travelDate(index) {
-                WeatherGlyph(day: TripWeather.shared.day(lat: park.lat, lon: park.lon, date: date),
-                             awaiting: TripWeather.shared.isAsking(lat: park.lat, lon: park.lon, date: date))
-                    .task(id: park.code + date.description) {
-                        TripWeather.shared.load(lat: park.lat, lon: park.lon, date: date)
+            if let stop, let date = travelDate(index) {
+                WeatherGlyph(day: TripWeather.shared.day(lat: stop.lat, lon: stop.lon, date: date),
+                             awaiting: TripWeather.shared.isAsking(lat: stop.lat, lon: stop.lon, date: date))
+                    .task(id: stop.key + date.description) {
+                        TripWeather.shared.load(lat: stop.lat, lon: stop.lon, date: date)
                     }
             }
         }
@@ -539,7 +573,7 @@ struct TripDetailScreen: View {
     private func legRow(_ leg: CuratedLeg, date: String, index: Int,
                         label: String? = nil,
                         flyRefusal: String? = nil,
-                        arriving: CuratedPark? = nil,
+                        arriving: WeatherStop? = nil,
                         onTap: (() -> Void)? = nil) -> some View {
         Button {
             // A seed leg opens the sheet the library built; a routed one opens the sheet

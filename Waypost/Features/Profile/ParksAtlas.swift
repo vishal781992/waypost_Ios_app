@@ -286,16 +286,14 @@ struct AtlasScreen: View {
         // checks — one control, one placement, owned by the control.
         return ZStack(alignment: .topLeading) {
             map(reading).ignoresSafeArea()
-
-            // Back, then the counts, then the filter — in that order and at the top,
-            // because that is where the park screen and the trip screen keep theirs. It
-            // was a floating cuff at the foot of the map, which is the one place in the
-            // app a segmented control does not appear.
-            VStack(alignment: .leading, spacing: 0) {
-                FloatingBack(label: "Profile") { app.pop() }
-                cuff(reading).padding(.top, 10)
-            }
+            FloatingBack(label: "Profile") { app.pop() }
         }
+        // At the foot, under the thumb. It sat at the top for one release, next to the
+        // back control, which is where the park and trip screens keep their segments —
+        // but those screens have a tab bar under them and this one does not, so the whole
+        // bottom of the display is free and the counts were as far from a hand as they
+        // could be put.
+        .overlay(alignment: .bottom) { cuff(reading) }
         .task { StateShapes.shared.load() }
     }
 
@@ -440,6 +438,9 @@ struct AtlasScreen: View {
                 .shadow(color: Color(hex: 0x181008, opacity: 0.18), radius: 14, y: 6)
         }
         .padding(.horizontal, WP.gutter)
+        // The atlas is a pushed screen, so the tab bar is hidden and this can sit on the
+        // safe area's own line rather than clearing a bar that is not there.
+        .padding(.bottom, 8)
         .accessibilityElement(children: .contain)
     }
 
