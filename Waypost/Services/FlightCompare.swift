@@ -111,7 +111,13 @@ enum FlightCompare {
             from: FlyAirport(code: origin.airport.code,
                              lat: origin.airport.lat, lon: origin.airport.lon),
             to: FlyAirport(code: destination.airport.code,
-                           lat: destination.airport.lat, lon: destination.airport.lon)
+                           lat: destination.airport.lat, lon: destination.airport.lon),
+            // The same two numbers the sentence above is written from, kept as numbers so
+            // the day composer can spend them. `fromAirport` is already counted inside
+            // `doorToDoor`; it travels alongside so anything with the router's real figure
+            // for that drive can swap it in rather than add it on.
+            doorToDoorMinutes: doorToDoor,
+            fromAirportMinutes: fromAirport
         ))
     }
 

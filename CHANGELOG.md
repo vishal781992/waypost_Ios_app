@@ -15,6 +15,48 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.41.0 — A trip takes as long as it takes
+
+The composer gave every leg exactly one day. Castle Pines to Miami is 2,074 miles and
+thirty-seven and a half hours at the wheel, and the trip said that was a day — the same day
+it gave the forty-minute run from the airport to Biscayne. The stat line agreed, because it
+was not counting anything: the number of days was `parks × 2 + parks`, arithmetic that never
+looked at a distance or a duration. A trip with a cross-country drive in it and a trip
+without one both came out at six days.
+
+**`TripClock`** replaces that arithmetic, and the assumptions live in one named place —
+`TripPace` — rather than as literals through the composer. At most eight hours at the wheel
+a day. Set off at eight, nine on the first morning. Fifteen per cent added for fuel, food
+and stops when working out what time you get in. Arrive after four and the day is spent
+arriving.
+
+**Counted against the wheel, not the clock.** Eight hours means eight hours of driving; the
+breaks decide when the day *ends*, not how long it is. Counting them into the cap pushed a
+seven-hour drive — obviously one day — into two.
+
+**Split evenly rather than filled and spilled.** A nine-hour drive is two half days, not a
+full one and then an hour on the far side of a night's sleep. Nobody has that day.
+
+**A flown leg is a day**, because airports and a hire car are a day however the hours
+divide. The drive on from the far airport only becomes a day of its own when it will not fit
+on the back of the flight — forty minutes to Biscayne goes on the end, the better part of
+six hours from Salt Lake City to Yellowstone does not. `FlightCompare` had always worked the
+door-to-door total out and then kept only the sentence; it now keeps the number too.
+
+**The arrival day says which kind it is.** "Arrive 15:52 — enough of the day left for Big
+Bend", or "Arrive 17:39 — too late for Big Bend. Find the bed; the park starts in the
+morning." Never on a trip whose dates will not parse: the day count is still known there,
+the hour is not, and a guessed one would be an invented value.
+
+Three things follow from days no longer being legs:
+
+- Roadside stops are divided by distance along the route, so a place nine hundred miles into
+  a three-day drive belongs to day two instead of appearing on all three.
+- The weather column on the route asks for a leg's day by leg rather than by counting
+  travelling days, which had stopped being the same number.
+- The skeleton and the finished list ask the same function for the day count, so what the
+  Days tab holds is what arrives.
+
 ## 2.40.2 — Frosted glass across the top of a trip
 
 A scrolled trip sent leg rows up through the status bar and out behind the back control,

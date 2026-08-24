@@ -57,6 +57,18 @@ final class TripDays {
         case park(code: String, name: String, number: Int, of: Int)
     }
 
+    /// What the end of an arrival day is.
+    ///
+    /// A drive that finishes at half past two and one that finishes at half past six are
+    /// not the same day, and the trip used to describe them identically. The park is named
+    /// in both cases because the sentence is about that park's afternoon.
+    enum Arrival: Hashable {
+        /// Enough of the day is left to go in.
+        case park(String)
+        /// Too late for the gate: find the bed, and start in the morning.
+        case settle(String)
+    }
+
     struct Day: Identifiable, Hashable {
         var index: Int
         var date: Date?
@@ -67,11 +79,40 @@ final class TripDays {
         /// "this park publishes none" are different sentences and only one of them is a
         /// statement about the park.
         var doingsNote: String?
+        /// Which leg of the trip this day belongs to, on a travelling day.
+        ///
+        /// A leg is no longer one day, so "the nth travelling day" and "the nth leg" have
+        /// stopped being the same sentence. Anything that wants a leg's day — the weather
+        /// column on the route, for one — asks by leg rather than by counting.
+        var leg: Int?
+        /// Which day of that leg this is, and how many it takes.
+        var part: Int = 1
+        var parts: Int = 1
+        /// When the day sets off and when it gets in. Absent on a trip whose dates do not
+        /// parse: the hours are still known, the calendar is not.
+        var departs: Date?
+        var arrives: Date?
+        /// Set on the last day of a leg that ends at a park.
+        var arrival: Arrival?
         var id: Int { index }
 
         var dateLabel: String {
             guard let date else { return "Day \(index)" }
             return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        }
+
+        /// What the arrival is worth saying, where there is a time to say it with.
+        var arrivalLine: String? {
+            guard let arrival else { return nil }
+            let time = arrives.map { $0.formatted(date: .omitted, time: .shortened) }
+            switch arrival {
+            case .park(let name):
+                return time.map { "Arrive \($0) — enough of the day left for \(name)." }
+                    ?? "Gets in with enough of the day left for \(name)."
+            case .settle(let name):
+                return time.map { "Arrive \($0) — too late for \(name). Find the bed; the park starts in the morning." }
+                    ?? "Gets in too late for \(name). The park starts in the morning."
+            }
         }
     }
 
@@ -139,11 +180,46 @@ final class TripDays {
         guard !parks.isEmpty, !legs.isEmpty else { return [] }
         var isTravel: [Bool] = []
         for (position, park) in parks.enumerated() {
-            if position < legs.count { isTravel.append(true) }
+            if position < legs.count {
+                isTravel.append(contentsOf: Array(repeating: true, count: travelDays(of: legs[position])))
+            }
             for _ in 0 ..< max(1, trip.days?[park.code] ?? 2) { isTravel.append(false) }
         }
-        if legs.count > parks.count { isTravel.append(true) }
+        if legs.count > parks.count, let home = legs.last {
+            isTravel.append(contentsOf: Array(repeating: true, count: travelDays(of: home)))
+        }
         return isTravel
+    }
+
+    /// How many days one leg takes.
+    ///
+    /// The one number `compose` and `plannedShape` must agree on, so both ask this rather
+    /// than each working it out. A leg used to be a day whatever it was; it is now however
+    /// many eight-hour days its hours divide into.
+    static func travelDays(of leg: TripRouting.Leg) -> Int {
+        leg.fly == nil ? TripClock.days(forDriving: leg.minutes) : (flightSplits(leg) ? 2 : 1)
+    }
+
+    /// Whether the drive on from the far airport is a day of its own.
+    ///
+    /// A flying day absorbs a lot: airports at both ends, the flight, and the hire car.
+    /// Forty minutes to Biscayne goes on the back of it. The better part of six hours from
+    /// Salt Lake City to Yellowstone does not.
+    ///
+    /// Measured against the router's own figure for that drive where there is one, and
+    /// against the flight comparison's estimate where there is not — never both, because
+    /// the estimate is already counted inside the door-to-door total.
+    static func flightSplits(_ leg: TripRouting.Leg) -> Bool {
+        guard let fly = leg.fly, let doorToDoor = fly.doorToDoorMinutes else { return false }
+        let toGate = doorToDoor - (fly.fromAirportMinutes ?? 0)
+        guard toGate > 0 else { return false }
+        return toGate + driveOnMinutes(leg) > Int((TripPace.standard.flyingDayHours * 60).rounded())
+    }
+
+    /// The drive from the far airport, as it is actually spent.
+    static func driveOnMinutes(_ leg: TripRouting.Leg) -> Int {
+        if let drive = leg.arrivalDrive { return TripClock.elapsedMinutes(driving: drive.minutes) }
+        return leg.fly?.fromAirportMinutes ?? 0
     }
 
     private func compose(_ trip: SavedTrip, parks: [CuratedPark], legs: [TripRouting.Leg]) async -> [Day] {
@@ -158,18 +234,12 @@ final class TripDays {
 
         for (position, park) in parks.enumerated() {
             // The drive to this park. The first leg starts at the origin; the rest run
-            // park to park.
+            // park to park — and each takes however many days its hours divide into.
             if position < legs.count {
-                let leg = legs[position]
-                days.append(Day(index: index,
-                                date: cursor,
-                                kind: .travel(from: leg.from, to: leg.to,
-                                              miles: leg.miles, drive: leg.drive, fly: leg.fly),
-                                // Nothing is on the way when the way is an aeroplane, and
-                                // measuring four detours nobody can take is four routing
-                                // requests spent on a day that is not driven.
-                                stops: leg.fly == nil ? await stops(on: leg) : []))
-                advance()
+                let laid = await travelling(legs[position], position: position, arrivingAt: park,
+                                            from: cursor, index: index, first: days.isEmpty)
+                days += laid
+                for _ in laid { advance() }
             }
 
             let nights = max(1, trip.days?[park.code] ?? 2)
@@ -188,15 +258,150 @@ final class TripDays {
             }
         }
 
-        // The drive home, where the router has measured one.
+        // The drive home, where the router has measured one. No park at the far end, so
+        // no arrival line: nobody needs telling that they got home after four.
         if legs.count > parks.count, let home = legs.last {
-            days.append(Day(index: index,
-                            date: cursor,
-                            kind: .travel(from: home.from, to: home.to,
-                                          miles: home.miles, drive: home.drive, fly: home.fly),
-                            stops: home.fly == nil ? await stops(on: home) : []))
+            let laid = await travelling(home, position: parks.count, arrivingAt: nil,
+                                        from: cursor, index: index, first: days.isEmpty)
+            days += laid
+            for _ in laid { advance() }
         }
         return days
+    }
+
+    /// One leg, as the days it actually takes.
+    ///
+    /// A driven leg is cut by `TripClock` into eight-hour days. A flown one is a day —
+    /// airports, flight and hire car — unless the drive at the far end will not fit on the
+    /// back of it, in which case that drive becomes a day of its own and gets everything a
+    /// driven day gets, stops included.
+    private func travelling(_ leg: TripRouting.Leg, position: Int, arrivingAt park: CuratedPark?,
+                            from cursor: Date?, index: Int, first: Bool) async -> [Day] {
+        var out: [Day] = []
+        var day = cursor
+        var number = index
+
+        /// What the far end of the last day of this leg is, where it ends at a park.
+        ///
+        /// Nothing without a time to say it with. A trip whose dates will not parse still
+        /// knows how many days its drives take; what it does not know is what hour any of
+        /// them ends at, and "too late for the park" would be an invented value.
+        func arrival(at instant: Date?) -> Arrival? {
+            guard let park, let instant else { return nil }
+            return TripClock.reachesPark(by: instant) ? .park(park.name) : .settle(park.name)
+        }
+
+        func nextDay() {
+            day = day.flatMap { Calendar.current.date(byAdding: .day, value: 1, to: $0) }
+            number += 1
+        }
+
+        if let fly = leg.fly {
+            let splits = Self.flightSplits(leg)
+            let driveOn = Self.driveOnMinutes(leg)
+            let toGate = (fly.doorToDoorMinutes ?? 0) - (fly.fromAirportMinutes ?? 0)
+            // Where the hire car is not a day of its own it is still part of this one.
+            let spent = splits ? toGate : max(0, toGate + driveOn)
+            let departs = day.map { TripClock.departure(on: $0, first: first) }
+            // No clock on a flight the bundled table only describes in prose: the day is
+            // still a day, and the hour it lands is not something to make up.
+            let arrives = fly.doorToDoorMinutes == nil
+                ? nil
+                : departs.map { $0.addingTimeInterval(TimeInterval(spent * 60)) }
+
+            out.append(Day(index: number,
+                           date: day,
+                           kind: .travel(from: leg.from, to: leg.to,
+                                         miles: leg.miles, drive: leg.drive, fly: fly),
+                           // Nothing is on the way when the way is an aeroplane, and
+                           // measuring four detours nobody can take is four routing
+                           // requests spent on a day that is not driven.
+                           leg: position, part: 1, parts: splits ? 2 : 1,
+                           departs: departs, arrives: arrives,
+                           arrival: splits ? nil : arrival(at: arrives)))
+
+            if splits, let drive = leg.arrivalDrive {
+                nextDay()
+                let leaves = day.map { TripClock.departure(on: $0, first: false) }
+                let lands = leaves.map { $0.addingTimeInterval(TimeInterval(driveOn * 60)) }
+                out.append(Day(index: number,
+                               date: day,
+                               kind: .travel(from: drive.from, to: drive.to,
+                                             miles: drive.miles, drive: drive.drive, fly: nil),
+                               stops: await stops(on: drive),
+                               leg: position, part: 2, parts: 2,
+                               departs: leaves, arrives: lands,
+                               arrival: arrival(at: lands)))
+            }
+            return out
+        }
+
+        let span = TripClock.split(driving: leg.minutes, miles: leg.miles,
+                                   startingOn: day, first: first)
+        let perDay = Self.spread(await stops(on: leg), across: span.parts, along: leg.coordinates)
+        for part in span.parts {
+            out.append(Day(index: number,
+                           date: day,
+                           kind: .travel(from: leg.from, to: leg.to,
+                                         miles: part.miles,
+                                         drive: TripClock.clock(part.minutes), fly: nil),
+                           stops: perDay[part.number - 1],
+                           leg: position, part: part.number, parts: part.of,
+                           departs: part.departs, arrives: part.arrives,
+                           arrival: part.isLast ? arrival(at: part.arrives) : nil))
+            nextDay()
+        }
+        return out
+    }
+
+    /// The leg's stops, given to the day that actually passes them.
+    ///
+    /// Divided by distance along the route: a place nine hundred miles into a three-day
+    /// drive belongs to day two, and repeating all four of them on all three days would
+    /// say the opposite. Distance rather than hours is an approximation — the days are cut
+    /// by time, and an hour of interstate is not an hour of mountain road — but it is the
+    /// one of the two the geometry can answer, and it is right about the day far more
+    /// often than it is wrong about a boundary.
+    private static func spread(_ stops: [Stop], across parts: [TripClock.DayPart],
+                               along coordinates: [(lat: Double, lon: Double)]) -> [[Stop]] {
+        var out = Array(repeating: [Stop](), count: max(1, parts.count))
+        guard !stops.isEmpty else { return out }
+        guard parts.count > 1, coordinates.count > 1 else {
+            out[0] = stops
+            return out
+        }
+
+        // How far along the drive each vertex of the route is.
+        var run: [Double] = [0]
+        run.reserveCapacity(coordinates.count)
+        for point in 1 ..< coordinates.count {
+            run.append(run[point - 1] + Geo.haversine(coordinates[point - 1], coordinates[point]))
+        }
+        guard let total = run.last, total > 0 else {
+            out[0] = stops
+            return out
+        }
+
+        // Where each day ends, as a fraction of the whole drive.
+        let miles = parts.map { Double(max(0, $0.miles)) }
+        let whole = miles.reduce(0, +)
+        var bounds: [Double] = []
+        var carried = 0.0
+        for mile in miles {
+            carried += mile
+            bounds.append(whole > 0 ? carried / whole : 1)
+        }
+
+        for stop in stops {
+            let nearest = (0 ..< coordinates.count).min {
+                Geo.haversine(coordinates[$0], (stop.lat, stop.lon))
+                    < Geo.haversine(coordinates[$1], (stop.lat, stop.lon))
+            } ?? 0
+            let fraction = run[nearest] / total
+            let index = bounds.firstIndex { fraction <= $0 + 0.0001 } ?? (parts.count - 1)
+            out[index].append(stop)
+        }
+        return out
     }
 
     /// Asks for one leg's stops on their own. Runs once per leg; the answer is kept.

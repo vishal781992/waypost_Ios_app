@@ -411,7 +411,7 @@ struct TripDetailScreen: View {
     /// and a great-circle guess are different claims, and the italic *est.* is where the
     /// screen says which one is on it.
     private var statLine: some View {
-        let days = isSeed ? app.library.days.count : parks.count * 2 + parks.count
+        let days = plannedDayCount
         let ready = parks.filter { app.packState($0.code) == .ready }.count
         return HStack(alignment: .firstTextBaseline, spacing: 7) {
             figure("\(days)", "days")
@@ -432,6 +432,23 @@ struct TripDetailScreen: View {
         // reads as the end of the heading, and the box made it look like a table with one
         // row in it.
         .padding(.top, 2)
+    }
+
+    /// How long the trip is, from the best answer available.
+    ///
+    /// This used to be `parks.count * 2 + parks.count`, which never looked at a distance
+    /// or a duration: a trip with a thirty-seven-hour drive in it and one with a
+    /// forty-minute drive in it both came out at six days. In order: the days as composed,
+    /// the shape those days will take once the router has answered, and — before it has —
+    /// the old arithmetic, which is the only honest thing left to say when the roads are
+    /// still unknown.
+    private var plannedDayCount: Int {
+        if isSeed { return app.library.days.count }
+        if case .ready(let composed) = TripDays.shared.state(for: trip), !composed.isEmpty {
+            return composed.count
+        }
+        let shape = TripDays.plannedShape(trip, parks: parks, legs: app.routing.legs(for: trip))
+        return shape.isEmpty ? parks.count * 2 + parks.count : shape.count
     }
 
     private func figure(_ value: String, _ unit: String) -> some View {
@@ -557,13 +574,14 @@ struct TripDetailScreen: View {
         return []
     }
 
-    /// The date of the nth drive, in the order they are driven.
+    /// The day the nth leg arrives.
+    ///
+    /// The last of that leg's days, because a leg can take several now and the weather at
+    /// the far end belongs to the day you actually get there. Asked by leg rather than by
+    /// counting travelling days: those two stopped being the same number the moment a
+    /// thirty-seven-hour drive stopped being one day.
     private func travelDate(_ index: Int) -> Date? {
-        let travel = plannedDaysList.compactMap { day -> Date? in
-            if case .travel = day.kind { return day.date }
-            return nil
-        }
-        return travel.indices.contains(index) ? travel[index] : nil
+        plannedDaysList.last { $0.leg == index }?.date
     }
 
     /// Every date spent in one park. Two entries for a two-day park, which is what earns
@@ -842,7 +860,7 @@ struct TripDetailScreen: View {
             }
 
             // `PlannedDayRow` is a `DividedRow`: the last day drew the closing rule.
-            SourceLine("Stops from the National Park Service, detours measured by OSRM against the same drive without them. Things to do are the park service's own list, in its own order — NPS publishes no rating to sort by.",
+            SourceLine("Days are worked out from the routed hours: at most eight at the wheel a day, setting off at eight — nine on the first morning — with fifteen per cent added for fuel, food and stops when working out when you get in. Arrive after four and the day is spent arriving. Stops are the National Park Service's, detours measured by OSRM against the same drive without them. Things to do are the park service's own list, in its own order — NPS publishes no rating to sort by.",
                        ruled: false)
                 .padding(.top, 14)
         }
@@ -977,7 +995,11 @@ private struct PlannedDayRow: View {
 
     private var kicker: String {
         switch day.kind {
-        case .travel(_, _, _, _, let fly): return fly == nil ? "Driving day" : "Flying day"
+        case .travel(_, _, _, _, let fly):
+            if fly != nil { return "Flying day" }
+            // A leg can take more than a day now, and a row that said only "Driving day"
+            // three times running gave a reader no way to tell them apart.
+            return day.parts > 1 ? "Driving day \(day.part) of \(day.parts)" : "Driving day"
         case .park(_, let name, let number, let of): return "\(name) · day \(number) of \(of)"
         }
     }
@@ -1021,7 +1043,7 @@ private struct PlannedDayRow: View {
                         .font(WP.body(12)).opacity(0.62).tnum()
 
                     if day.stops.isEmpty {
-                        Text("Nothing of the park service's within a two-hour detour of this drive.")
+                        Text("Nothing of the park service's within a two-hour detour of this day's driving.")
                             .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
                             .fixedSize(horizontal: false, vertical: true)
                     } else {
@@ -1062,6 +1084,16 @@ private struct PlannedDayRow: View {
                         doingRow(doing)
                     }
                 }
+            }
+
+            // The one thing an arrival day is actually about: whether there is any of it
+            // left. Nil on every other kind of day, so it sits after the switch rather
+            // than being repeated inside both travelling branches.
+            if let line = day.arrivalLine {
+                Text(line)
+                    .font(WP.bodyItalic(11.5)).foregroundStyle(WP.accent700).lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 3)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

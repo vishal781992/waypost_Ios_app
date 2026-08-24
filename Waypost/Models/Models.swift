@@ -281,6 +281,26 @@ struct FlyOption: Codable, Hashable {
     /// which is what it was before.
     var from: FlyAirport? = nil
     var to: FlyAirport? = nil
+
+    /// `time` as a number rather than a sentence.
+    ///
+    /// `FlightCompare` has always worked this out — it is the whole point of a door-to-door
+    /// comparison — and then kept only the string. So a trip that had decided to fly a leg
+    /// could not tell its own composer that the leg took nine hours rather than thirty-seven,
+    /// and the day count was the same either way.
+    ///
+    /// Optional: the bundled table in `curated.json` carries a written connection and no
+    /// arithmetic behind it. A flight with no number is laid out as one day, which is what
+    /// it was before.
+    var doorToDoorMinutes: Int? = nil
+
+    /// The drive from the far airport, as `doorToDoorMinutes` estimates it.
+    ///
+    /// Kept separately because it is *inside* the door-to-door figure, and because the
+    /// router measures the same stretch properly. Anything wanting the real number swaps
+    /// this estimate out for `Leg.arrivalDrive` rather than adding the two and counting
+    /// the hire car twice.
+    var fromAirportMinutes: Int? = nil
 }
 
 struct Leg: Codable, Hashable {
