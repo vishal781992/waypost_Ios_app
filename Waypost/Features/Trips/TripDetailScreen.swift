@@ -137,6 +137,17 @@ struct TripDetailScreen: View {
         .task(id: trip.id) {
             TripDays.shared.build(trip, parks: parks, legs: app.routing.legs(for: trip))
         }
+        // Not at launch, and not once: the calendar changes while the app is open, and the
+        // days this asks about are not known until the router and the composer have both
+        // finished. `TripCalendar` does nothing without full access and nothing twice over
+        // the same stretch, so re-running this is cheap.
+        .task(id: calendarKey) {
+            guard app.checksCalendar else { return }
+            TripCalendar.shared.readAccess()
+            let days = plannedDaysList.compactMap(\.date)
+            guard !days.isEmpty else { return }
+            await TripCalendar.shared.look(over: [trip.id: days])
+        }
     }
 
 
@@ -425,6 +436,13 @@ struct TripDetailScreen: View {
                 .font(WP.body(12.5)).opacity(0.66)
             separator
             packChip(ready: ready, of: parks.count)
+            // Only when there is something to say. A trip with nothing booked against it
+            // shows nothing here rather than a green all-clear: with the switch off, or
+            // the permission refused, nobody has looked, and "clear" would be a claim the
+            // app has not earned. Absence is not a finding either way.
+            if !calendarClashes.isEmpty {
+                clashChip(calendarClashes.count)
+            }
             Spacer(minLength: 0)
         }
         // No rules around it. Two hairlines boxed one line of text in directly under a
@@ -460,6 +478,26 @@ struct TripDetailScreen: View {
 
     private var separator: some View {
         Text("·").font(WP.body(12.5)).opacity(0.36)
+    }
+
+    /// What this trip's days already have on them.
+    private var calendarClashes: [TripCalendar.Clash] {
+        TripCalendar.shared.clashes(for: trip.id)
+    }
+
+    /// A count, not a colour.
+    ///
+    /// A red outline says a trip is impossible and gives a reader nothing to do about it.
+    /// "2 clashes" says which trip to open and roughly how bad it is, and the day rows say
+    /// which days and what with.
+    private func clashChip(_ count: Int) -> some View {
+        Text("\(count) \(count == 1 ? "clash" : "clashes")")
+            .font(WP.body(10.5, semibold: true)).tnum()
+            .padding(.horizontal, 9).padding(.vertical, 2)
+            .background(WP.accent100, in: Capsule())
+            .overlay(Capsule().stroke(WP.markDeep.opacity(0.5), lineWidth: 1))
+            .foregroundStyle(WP.markDeep)
+            .accessibilityLabel("\(count) days of this trip already have something booked")
     }
 
     private func packChip(ready: Int, of total: Int) -> some View {
@@ -859,11 +897,93 @@ struct TripDetailScreen: View {
                     .environment(\.planningTrip, trip.id)
             }
 
+            calendarButton.padding(.top, 18)
+
             // `PlannedDayRow` is a `DividedRow`: the last day drew the closing rule.
             SourceLine("Days are worked out from the routed hours: at most eight at the wheel a day, setting off at eight — nine on the first morning — with fifteen per cent added for fuel, food and stops when working out when you get in. Arrive after four and the day is spent arriving. Stops are the National Park Service's, detours measured by OSRM against the same drive without them. Things to do are the park service's own list, in its own order — NPS publishes no rating to sort by.",
                        ruled: false)
                 .padding(.top, 14)
         }
+    }
+
+    // MARK: The trip on the calendar
+
+    /// Put the trip on the calendar, or take it back off.
+    ///
+    /// At the foot of the day list rather than beside the title, because this writes down
+    /// exactly what is above it — one all-day entry per composed day — and the place to
+    /// decide that is where those days can be read.
+    private var calendarButton: some View {
+        let added = app.calendarTrips.contains(trip.id)
+        let busy = TripCalendar.shared.working.contains(trip.id)
+        return VStack(alignment: .leading, spacing: 7) {
+            // Said once, here, and only where it is true: the calendar was read, and these
+            // days came back empty. The stat line stays silent when a trip is clear —
+            // silence is not a claim — so this is the one place the difference between
+            // "checked, and clear" and "never checked" is written down.
+            if TripCalendar.shared.hasLooked(at: trip.id), calendarClashes.isEmpty {
+                Text("Nothing else on your calendar for these days.")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 3)
+            }
+
+            Button {
+                Task { await writeToCalendar(remove: added) }
+            } label: {
+                HStack(spacing: 9) {
+                    if busy {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: added ? "calendar.badge.minus" : "calendar.badge.plus")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(WP.accent700)
+                    }
+                    Text(added ? "Take this trip off your calendar" : "Add these days to your calendar")
+                        .font(WP.headingUI(14))
+                }
+                .frame(maxWidth: .infinity, minHeight: 50)
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(WP.divider, lineWidth: 1))
+            }
+            .buttonStyle(PressStyle(scale: 0.99))
+            .disabled(busy || plannedDaysList.isEmpty)
+            .opacity(plannedDaysList.isEmpty ? 0.5 : 1)
+
+            Text(added
+                 ? "In a calendar of its own called “\(TripCalendar.calendarTitle)”, so hiding or deleting the whole trip is one move in Calendar."
+                 : "One all-day entry per day, in a calendar of its own called “\(TripCalendar.calendarTitle)”. Nothing else on your calendar is touched.")
+                .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func writeToCalendar(remove: Bool) async {
+        if remove {
+            if await TripCalendar.shared.remove(trip.id) {
+                app.calendarTrips.remove(trip.id)
+                app.persist()
+                app.show("Taken off your calendar")
+            } else {
+                app.show(TripCalendar.shared.trouble ?? "The calendar did not answer")
+            }
+            return
+        }
+        let plan = TripCalendar.plan(for: trip, days: plannedDaysList, parks: parks)
+        if await TripCalendar.shared.add(plan) {
+            app.calendarTrips.insert(trip.id)
+            app.persist()
+            app.show("\(plan.entries.count) days added to your calendar")
+        } else {
+            app.show(TripCalendar.shared.trouble ?? "The calendar did not answer")
+        }
+    }
+
+    /// What decides a fresh look at the calendar: the trip, how many days it now has, and
+    /// whether the traveller has the feature on at all.
+    private var calendarKey: String {
+        "\(trip.id)|\(plannedDaysList.count)|\(app.checksCalendar)"
     }
 
     /// A day the builder is composing. A drive and a day in a park are laid out the same
@@ -932,6 +1052,7 @@ struct TripDetailScreen: View {
 private struct PlannedDayRow: View {
     var day: TripDays.Day
 
+    @Environment(\.planningTrip) private var planningTrip
     @State private var isOpen = false
     /// Which descriptions inside this day have been opened out.
     @State private var expandedDoings: Set<String> = []
@@ -969,6 +1090,17 @@ private struct PlannedDayRow: View {
                         .font(WP.rowTitle(17))
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    // Visible folded. A fortnight of days is one screen precisely so the
+                    // shape of the trip can be read without opening anything, and which
+                    // day is already spoken for is part of that shape.
+                    if !clashes.isEmpty {
+                        Text(clashLine)
+                            .font(WP.bodyItalic(11.5))
+                            .foregroundStyle(WP.markDeep)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 1)
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -991,6 +1123,20 @@ private struct PlannedDayRow: View {
         .accessibilityLabel("\(day.dateLabel). \(kicker). \(summary)")
         .accessibilityHint(isOpen ? "Collapses the day" : "Expands the day")
         .accessibilityAddTraits(isOpen ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// What this day already has on it, where anybody has looked.
+    private var clashes: [TripCalendar.Clash] {
+        guard let planningTrip else { return [] }
+        return TripCalendar.shared.clashes(for: planningTrip, on: day.date)
+    }
+
+    private var clashLine: String {
+        switch clashes.count {
+        case 0: return ""
+        case 1: return "Already booked: \(clashes[0].title)"
+        case let count: return "Already booked: \(clashes[0].title), and \(count - 1) more"
+        }
     }
 
     private var kicker: String {
@@ -1094,6 +1240,20 @@ private struct PlannedDayRow: View {
                     .font(WP.bodyItalic(11.5)).foregroundStyle(WP.accent700).lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 3)
+            }
+
+            // Named, with the hour, because "you have a clash" is not something anybody can
+            // act on and "Dentist, 2:30 PM" is.
+            if !clashes.isEmpty {
+                Text("Already on this day".uppercased())
+                    .font(WP.body(9.5)).tracking(1.3)
+                    .foregroundStyle(WP.markDeep)
+                    .padding(.top, 5)
+                ForEach(clashes) { clash in
+                    Text("\(clash.title) · \(clash.whenLabel)")
+                        .font(WP.body(12.5)).opacity(0.7)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

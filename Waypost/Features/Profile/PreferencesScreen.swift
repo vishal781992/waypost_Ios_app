@@ -52,6 +52,29 @@ struct PreferencesScreen: View {
                         }
                     }
 
+                    sectionLabel("Your calendar")
+                    Grouped {
+                        toggleRow("Check my days for clashes",
+                                  calendarAccessLine,
+                                  isOn: app.checksCalendar && TripCalendar.shared.access.canRead) {
+                            toggleCalendarChecking()
+                        }
+                        Hairline()
+                        HStack {
+                            Text("Trips added to the calendar").font(WP.body(14))
+                            Spacer(minLength: 0)
+                            Text(app.calendarTrips.isEmpty
+                                 ? "None yet"
+                                 : "\(app.calendarTrips.count) \(app.calendarTrips.count == 1 ? "trip" : "trips")")
+                                .font(WP.body(11.5)).opacity(0.55)
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 13)
+                    }
+
+                    Text("A trip is added from its own Days tab, into a calendar of its own called “\(TripCalendar.calendarTitle)” — so the whole trip can be hidden or deleted in one move, and so a trip never counts as a clash with itself. Adding needs only permission to write; looking for clashes is the one that needs permission to read, which is why it has a switch of its own.")
+                        .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
+                        .padding(.top, 10)
+
                     sectionLabel("Travel defaults")
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 6) {
@@ -120,6 +143,10 @@ struct PreferencesScreen: View {
         }
         .background(WP.bg)
         .task { Connections.shared.watch() }
+        // The permission can be changed in Settings while the app is in the background, so
+        // the switch is read off the system each time this screen opens rather than
+        // remembered from when it was last set.
+        .task { TripCalendar.shared.readAccess() }
     }
 
     /// What the connections row says without opening it: the shortest true sentence.
@@ -154,7 +181,49 @@ struct PreferencesScreen: View {
             Button("Cancel", role: .cancel) {}
             Button("Erase", role: .destructive) { app.eraseEverything() }
         } message: {
-            Text("Every trip you have planned, every stamp you have collected, every park you have saved and every offline pack goes. Nothing here has left this phone, so there is nothing to restore it from. Your vehicle, units and notification switches stay.")
+            Text("Every trip you have planned, every stamp you have collected, every park you have saved and every offline pack goes. Nothing here has left this phone, so there is nothing to restore it from. Your vehicle, units and notification switches stay. Trips already added to your calendar stay too — those are in your calendar account rather than on this phone, and “\(TripCalendar.calendarTitle)” deletes the lot in one move.")
+        }
+    }
+
+    // MARK: The calendar
+
+    /// What the system will currently let the app do, in a sentence.
+    ///
+    /// Never "on" where the permission is missing: a switch that reads as on while the app
+    /// can see nothing is the app claiming to have checked.
+    private var calendarAccessLine: String {
+        switch TripCalendar.shared.access {
+        case .full:
+            return app.checksCalendar
+                ? "Days you already have something on are marked on the trip"
+                : "Allowed — turn this on to mark days that are already spoken for"
+        case .writeOnly:
+            return "ParkHop may add trips but not read your days. Allow full access to find clashes."
+        case .denied:
+            return "Calendar access is off. Settings › Privacy & Security › Calendars turns it on."
+        case .restricted:
+            return "Calendar access is restricted on this phone."
+        case .notAsked:
+            return "Asks for permission to read your calendar when you turn this on"
+        }
+    }
+
+    private func toggleCalendarChecking() {
+        if app.checksCalendar {
+            app.checksCalendar = false
+            TripCalendar.shared.invalidate()
+            app.persist()
+            return
+        }
+        Task {
+            let allowed = await TripCalendar.shared.askToRead()
+            app.checksCalendar = allowed
+            app.persist()
+            if !allowed {
+                app.show(TripCalendar.shared.access == .denied
+                         ? "Calendar access is off in Settings"
+                         : "Calendar access was not given")
+            }
         }
     }
 

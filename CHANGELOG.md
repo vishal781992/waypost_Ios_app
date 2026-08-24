@@ -15,6 +15,47 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.42.0 — The trip against the calendar you already keep
+
+Two jobs, and iOS 17 needs a different permission for each — which is what shapes the whole
+feature. **Write-only** lets an app add events and read nothing back. **Full** lets it look.
+Adding a trip needs the first; finding out what a trip runs into needs the second. So the
+app asks for the smaller one when adding, and for the larger one only when somebody turns
+clash-checking on in Preferences, where there is a switch to explain it beside.
+
+**A calendar of its own.** Everything written goes into "ParkHop trips", and every clash
+query excludes that calendar. That is what stops a trip clashing with itself once it is
+added — without having to switch the checking off, which would throw the feature away
+exactly when it starts to matter, since a committed trip is when other people start booking
+things into those days. It also means the whole trip hides or deletes in one move in
+Calendar, and that nothing depends on `eventIdentifier`, which does not survive a sync.
+
+**A count, not a colour.** A red outline says a trip is impossible and gives you nothing to
+do about it. The stat line says "2 clashes"; the day rows say which days and what with —
+"Already booked: Dentist, 2:30 PM" — visible with the day still folded, because which day is
+spoken for is part of the shape of a trip.
+
+**What counts as a clash.** Not "any event in the window": everybody's calendar has
+something in it and a light that is always on is not a light. Busy time counts. Anything
+marked free is skipped unless it runs all day, which is how a conference and a wedding are
+filed. Declined and cancelled events are skipped. Birthday and subscribed calendars are
+skipped wholesale — a national holiday is not a commitment, and a calendar full of them
+would make every trip look impossible.
+
+**Never a green light it has not earned.** A clear trip shows nothing on the stat line,
+because silence is not a claim. The one place the app says "nothing else on your calendar
+for these days" is under the add button, and only where it actually read the calendar and
+found nothing. With access denied, or write-only, it says neither.
+
+Underneath: one query across the whole span rather than one per trip, re-read only when the
+days asked about fall outside what is already in hand, and thrown away entirely on
+`EKEventStoreChanged` — the calendar changes while the app is open. Every EventKit call runs
+on an actor of its own, because `events(matching:)` is a synchronous trawl of the calendar
+database and does not belong on the thread drawing the screen.
+
+Erasing everything on this phone leaves calendar entries alone, and the alert says so:
+those live in a calendar account rather than on the phone.
+
 ## 2.41.0 — A trip takes as long as it takes
 
 The composer gave every leg exactly one day. Castle Pines to Miami is 2,074 miles and

@@ -209,6 +209,22 @@ final class AppState {
     var notifyAlerts = false
     var notifyLive = false
 
+    /// Whether the app looks at the calendar for days a trip already has something on.
+    ///
+    /// Off until somebody turns it on, and turning it on is what asks for the permission —
+    /// so the ask arrives beside a switch that explains it rather than on a launch screen
+    /// with no context. Reading the calendar is the larger of the two calendar permissions
+    /// and this app should not hold it unless the feature it is for is wanted.
+    var checksCalendar = false
+
+    /// Which trips this app has written into the calendar.
+    ///
+    /// Kept here rather than read back from the calendar because reading needs full access
+    /// and writing does not: a traveller who has given write-only access can still be told
+    /// which of their trips are on it. Where full access is held the calendar itself is the
+    /// better authority, and a removal that finds nothing simply removes nothing.
+    var calendarTrips: Set<String> = []
+
     // Offline packs. The truth is the filesystem — `ParkPack` reads the directory and
     // these two read `ParkPack` — so what the app says is downloaded is what is
     // downloaded, and a snapshot restored onto a phone whose files were cleared cannot
@@ -1043,6 +1059,10 @@ final class AppState {
         /// still decodes — `stamps` carries the codes either way, and it is still written
         /// alongside this, so a build without the book reads a snapshot with one.
         var book: [CollectedStamp]?
+        /// Optional, so a snapshot written before the calendar existed still decodes — and
+        /// decodes to off, which is the only safe default for a permission.
+        var calendarCheck: Bool?
+        var calendarTrips: [String]?
     }
 
     private static let key = "waypost-app"
@@ -1070,6 +1090,12 @@ final class AppState {
         day = 1
         seedTripHidden = false
         paths = [:]
+        // The record of which trips were written, not the entries themselves. Deleting
+        // somebody's real calendar entries from a button labelled "erase everything on
+        // this phone" would be reaching outside the phone: those events are in their
+        // account and on their other devices. The alert says so, and Calendar removes
+        // them in one move — the trips are in a calendar of their own for that reason.
+        calendarTrips = []
 
         ParkPack.shared.removeAll()
         // Both of these are actors of their own, so both are awaited off this one.
@@ -1102,7 +1128,9 @@ final class AppState {
             seedHidden: seedTripHidden,
             visits: manualVisits,
             unvisits: Array(hiddenVisits),
-            book: stampBook
+            book: stampBook,
+            calendarCheck: checksCalendar,
+            calendarTrips: Array(calendarTrips)
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             UserDefaults.standard.set(data, forKey: Self.key)
@@ -1123,6 +1151,8 @@ final class AppState {
         journalCount = snapshot.journal
         vehicleIsElectric = snapshot.ev
         unitsMetric = snapshot.metric
+        checksCalendar = snapshot.calendarCheck ?? false
+        calendarTrips = Set(snapshot.calendarTrips ?? [])
         notifyPermits = snapshot.permits
         notifyAlerts = snapshot.alerts
         notifyLive = snapshot.live
