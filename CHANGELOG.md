@@ -15,6 +15,29 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.42.2 — The calendar control is welded to the floor
+
+It sat at the end of the day list, which on a fortnight of days meant scrolling past every one
+of them to reach the thing you opened the tab to do. My list had already answered this: its
+action is frozen to the floor with the share disc beside it, on the page's own colour under a
+hairline. The Days tab now carries the same strip.
+
+So all three sections end the way they should. **My list** keeps "Drive it". **Days** gets the
+calendar control. **Route**, which has no action of its own, keeps the disc floating over the
+page as before — it is only on the other two that the disc joins a footer.
+
+**Fifty-two points, not forty-eight.** A full-width control standing alone is forty-eight; one
+standing beside the fifty-two point share disc matches the disc, which is what `listFooter`
+settled the first time this shape appeared.
+
+**The strip does not exist until the days do.** Composed days are what gets written, so before
+they land there is nothing to add and no control to press — rather than a live button that
+could only fail.
+
+The two lines that explain what adding does stay in the scroll. A frozen strip is for controls;
+two lines of prose welded over the page would cost every day row the height of a paragraph for
+something worth reading once.
+
 ## 2.42.1 — The calendar controls, held to the app's own patterns
 
 A pass over everything the calendar work added, against what the app already does.

@@ -75,20 +75,27 @@ struct TripDetailScreen: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                // Enough for the floating share disc to clear the last line of the page.
-                .padding(.bottom, segment == .list ? WP.tabBarClearance : 82)
+                // Only Route still has a disc floating over it. The other two carry a frozen
+                // footer, and `safeAreaInset` insets the scroll by its height for them.
+                .padding(.bottom, segment == .route ? 82 : WP.tabBarClearance)
             }
             .scrollIndicators(.hidden)
             .captureScrollPosition()
-            // Frozen to the floor on My list. `safeAreaInset` also pads the scrolling
-            // content by the bar's height, so the last row still clears it.
+            // Frozen to the floor on the two tabs that end in an action. `safeAreaInset`
+            // also pads the scrolling content by the strip's height, so the last row still
+            // clears it — and a control welded to the floor is one a thumb can find
+            // without scrolling to the end of a fortnight of days to reach it.
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if segment == .list { listFooter }
+                switch segment {
+                case .list: listFooter
+                case .days: if !plannedDaysList.isEmpty { calendarFooter }
+                case .route: EmptyView()
+                }
             }
-            // On the other two it floats over the page and stays where it is while the
-            // page moves under it.
+            // Route has no action of its own, so there the disc floats over the page and
+            // stays where it is while the page moves under it.
             .overlay(alignment: .bottomTrailing) {
-                if segment != .list {
+                if segment == .route {
                     shareDisc
                         .padding(.trailing, WP.gutter)
                         .padding(.bottom, 18)
@@ -897,7 +904,7 @@ struct TripDetailScreen: View {
                     .environment(\.planningTrip, trip.id)
             }
 
-            calendarButton.padding(.top, 18)
+            calendarNote.padding(.top, 16)
 
             // `PlannedDayRow` is a `DividedRow`: the last day drew the closing rule.
             SourceLine("Days are worked out from the routed hours: at most eight at the wheel a day, setting off at eight — nine on the first morning — with fifteen per cent added for fuel, food and stops when working out when you get in. Arrive after four and the day is spent arriving. Stops are the National Park Service's, detours measured by OSRM against the same drive without them. Things to do are the park service's own list, in its own order — NPS publishes no rating to sort by.",
@@ -913,25 +920,20 @@ struct TripDetailScreen: View {
     /// At the foot of the day list rather than beside the title, because this writes down
     /// exactly what is above it — one all-day entry per composed day — and the place to
     /// decide that is where those days can be read.
-    private var calendarButton: some View {
+    /// The trip on the calendar, and the trip shared — welded to the floor of the Days tab.
+    ///
+    /// The same strip `listFooter` is, and for the same reason: the tab's one action at
+    /// full width with the share disc beside it, on the page's own colour under a hairline.
+    /// It used to sit at the end of the scroll, which on a fortnight of days meant scrolling
+    /// past every one of them to reach the thing you opened the tab to do.
+    ///
+    /// Fifty-two points here rather than the forty-eight a full-width control takes
+    /// elsewhere: it is standing beside a fifty-two point disc, and `listFooter` already
+    /// settled that a footer's control matches the disc it shares the row with.
+    private var calendarFooter: some View {
         let added = app.calendarTrips.contains(trip.id)
         let busy = TripCalendar.shared.working.contains(trip.id)
-        return VStack(alignment: .leading, spacing: 7) {
-            // Said once, here, and only where it is true: the calendar was read, and these
-            // days came back empty. The stat line stays silent when a trip is clear —
-            // silence is not a claim — so this is the one place the difference between
-            // "checked, and clear" and "never checked" is written down.
-            if TripCalendar.shared.hasLooked(at: trip.id), calendarClashes.isEmpty {
-                Text("Nothing else on your calendar for these days.")
-                    .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 3)
-            }
-
-            // The app's own full-width control, not a new one: forty-eight points of glass
-            // in a pill, pressed at 0.98. The park screen's "Plan a trip" and the leg
-            // sheet's "Start Live Activity" are the same button, and a third shape here
-            // would have been a third shape for no reason.
+        return HStack(spacing: 11) {
             Button {
                 Haptics.tap()
                 Task { await writeToCalendar(remove: added) }
@@ -948,20 +950,46 @@ struct TripDetailScreen: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                 }
-                .frame(maxWidth: .infinity, minHeight: 48)
+                .frame(maxWidth: .infinity, minHeight: 52)
                 .glassControl()
             }
             .buttonStyle(PressStyle(scale: 0.98))
-            // Only ever drawn where the days are ready — it lives inside that branch — so
-            // the one state it can be caught in is mid-write.
             .disabled(busy)
             .accessibilityLabel(added
                                 ? "Take this trip off your calendar"
                                 : "Add this trip's days to your calendar")
 
+            shareDisc
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, WP.gutter)
+        .padding(.top, 10)
+        .padding(.bottom, -12)
+        .background(WP.bg.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) { Hairline() }
+    }
+
+    /// What the control at the foot of the screen is about to do, or has done.
+    ///
+    /// Left in the scroll rather than carried into the footer: a frozen strip is for
+    /// controls, and two lines of prose welded over the page would cost every day row the
+    /// height of a paragraph for something worth reading once.
+    private var calendarNote: some View {
+        let added = app.calendarTrips.contains(trip.id)
+        return VStack(alignment: .leading, spacing: 6) {
+            // Said once, and only where it is true: the calendar was read, and these days
+            // came back empty. The stat line stays silent when a trip is clear — silence is
+            // not a claim — so this is the one place the difference between "checked, and
+            // clear" and "never checked" is written down.
+            if TripCalendar.shared.hasLooked(at: trip.id), calendarClashes.isEmpty {
+                Text("Nothing else on your calendar for these days.")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Text(added
-                 ? "In a calendar of its own called “\(TripCalendar.calendarTitle)”, so hiding or deleting the whole trip is one move in Calendar."
-                 : "One all-day entry per day, in a calendar of its own called “\(TripCalendar.calendarTitle)”. Nothing else on your calendar is touched.")
+                 ? "These days are on your calendar, in one of its own called “\(TripCalendar.calendarTitle)” — so hiding or deleting the whole trip is one move in Calendar."
+                 : "Adding writes one all-day entry per day, into a calendar of its own called “\(TripCalendar.calendarTitle)”. Nothing else on your calendar is touched.")
                 .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
