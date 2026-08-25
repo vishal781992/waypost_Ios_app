@@ -15,6 +15,21 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.42.4 — The same button My list has
+
+Not a lookalike of it — the same component. My list ends in a lime `GlowButton` at fifty-two
+points with the share disc eleven points to its right; the Days tab now ends in that exact
+control, in the same strip. A dark glass pill sitting beside a lime disc in the same footer
+read as two apps in one screen.
+
+`GlowButton` carries a title and nothing else — no icon, no spinner — which is precisely what
+makes this the same control rather than an imitation of it. So the working state is said in the
+words: **Add to calendar** becomes **Adding…**, **Remove from calendar** becomes **Removing…**,
+the way "Drive it with 3 stops" already changes with the list.
+
+Shorter labels follow from the narrower well beside the disc. What is being added is still
+spelt out in the line above the strip, which is where it belongs.
+
 ## 2.42.3 — “Could not make a calendar to write into”
 
 Adding a trip failed on the first tap. Three things go wrong here on a real phone and the

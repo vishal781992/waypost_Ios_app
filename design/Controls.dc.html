@@ -22,6 +22,10 @@
              padding: 22px 24px; }
     .btnlabel { font-size: 12.5px; font-weight: 600; }
     .tick { font-size: 10.5px; color: #7D5411; font-variant-numeric: tabular-nums; }
+    .lime { height: 52px; display: flex; align-items: center; justify-content: center;
+            border-radius: 999px; background: #DBE64C; border: .5px solid rgba(0,0,0,.14);
+            box-shadow: 0 6px 10px rgba(24,16,8,.16); font-size: 14.6px; font-weight: 600;
+            color: #201F1D; }
   </style>
 </helmet>
 
@@ -31,9 +35,9 @@
   <div style="font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 600; font-size: 36px;
               line-height: 1.08; margin-top: 6px">Measured against the app, not invented</div>
   <div class="cap" style="max-width: 640px; margin-top: 8px">
-    Glass in a pill, pressed at 0.98 — the park screen’s “Plan a trip”, the leg sheet’s “Start Live
-    Activity”. Forty-eight points where a control stands alone; fifty-two in a frozen footer, matching
-    the share disc it stands beside, which is where My list already settled it.
+    Not a lookalike — the same <em>component</em>. My list ends in a lime <span style="font-weight:600">GlowButton</span>
+    at fifty-two points with the share disc beside it; the Days tab now ends in that exact control.
+    Two tabs that both end in one action end in the same button.
   </div>
 
   <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 26px">
@@ -48,46 +52,22 @@
             <div class="tick">52</div>
             <div style="width: 1px; height: 8px; background: #7D5411"></div>
           </div>
-          <div class="glass" style="flex: 1; height: 52px; display: flex; align-items: center;
-                      justify-content: center; gap: 9px">
-            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <rect x="2.2" y="3.6" width="12.2" height="12.2" rx="2.4" stroke="#fff" stroke-width="1.6"/>
-              <path d="M5.6 2.2v2.8M11 2.2v2.8M2.2 7.6h12.2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-              <path d="M15.4 11.6v5M12.9 14.1h5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-            <span class="btnlabel">Add these days to your calendar</span>
-          </div>
+          <div class="lime" style="flex: 1">Add to calendar</div>
         </div>
-
         <div style="display: flex; align-items: center; gap: 14px">
           <div style="flex: none; width: 25px"></div>
-          <div class="glass" style="flex: 1; height: 52px; display: flex; align-items: center;
-                      justify-content: center; gap: 9px">
-            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <rect x="2.2" y="3.6" width="12.2" height="12.2" rx="2.4" stroke="#fff" stroke-width="1.6"/>
-              <path d="M5.6 2.2v2.8M11 2.2v2.8M2.2 7.6h12.2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-              <path d="M12.9 14.1h5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-            <span class="btnlabel">Take this trip off your calendar</span>
-          </div>
+          <div class="lime" style="flex: 1">Remove from calendar</div>
         </div>
-
         <div style="display: flex; align-items: center; gap: 14px">
           <div style="flex: none; width: 25px"></div>
-          <div class="glass" style="flex: 1; height: 52px; display: flex; align-items: center;
-                      justify-content: center; gap: 9px; opacity: .62">
-            <svg width="17" height="17" viewBox="0 0 20 20" aria-hidden="true">
-              <circle cx="10" cy="10" r="7" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
-              <path d="M10 3a7 7 0 0 1 7 7" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span class="btnlabel">Add these days to your calendar</span>
-          </div>
+          <div class="lime" style="flex: 1; opacity: .6">Adding…</div>
         </div>
       </div>
 
       <div class="cap" style="margin-top: 16px">
-        Disabled only while it is writing. The strip itself does not appear until the days are worked
-        out, so there is no state in which it can only fail.
+        The same control My list carries, so the working state is said in the words rather than by a
+        spinner the component does not have — the way “Drive it with 3 stops” already changes with
+        the list. The strip does not appear until the days are worked out.
       </div>
     </div>
 
@@ -102,17 +82,14 @@
           </div>
         </div>
         <div>
-          <div class="cap" style="margin-bottom: 7px">After — the app’s own control</div>
-          <div class="glass" style="height: 48px; display: flex; align-items: center;
-                      justify-content: center; gap: 9px">
-            <span class="btnlabel">Add these days to your calendar</span>
-          </div>
+          <div class="cap" style="margin-bottom: 7px">After — My list’s control, unchanged</div>
+          <div class="lime">Add to calendar</div>
         </div>
       </div>
       <div class="cap" style="margin-top: 16px">
-        Three values that appeared nowhere else — height, shape and press scale — plus a missing haptic
-        and no label for VoiceOver. It also sat at the end of the day list, so a fortnight of days had
-        to be scrolled past to reach it; it is welded to the floor beside share now, as on My list.
+        It began as a shape that existed nowhere else, became a glass pill borrowed from the park
+        screen, and is now simply the control My list already uses. A dark pill sitting beside a lime
+        one in the same footer read as two apps in one screen.
       </div>
     </div>
 

@@ -922,40 +922,18 @@ struct TripDetailScreen: View {
     /// decide that is where those days can be read.
     /// The trip on the calendar, and the trip shared — welded to the floor of the Days tab.
     ///
-    /// The same strip `listFooter` is, and for the same reason: the tab's one action at
-    /// full width with the share disc beside it, on the page's own colour under a hairline.
-    /// It used to sit at the end of the scroll, which on a fortnight of days meant scrolling
-    /// past every one of them to reach the thing you opened the tab to do.
-    ///
-    /// Fifty-two points here rather than the forty-eight a full-width control takes
-    /// elsewhere: it is standing beside a fifty-two point disc, and `listFooter` already
-    /// settled that a footer's control matches the disc it shares the row with.
+    /// `listFooter`, with one word changed. The same `GlowButton` in the same lime at the
+    /// same fifty-two points, the same eleven-point gap to the same share disc, the same
+    /// page colour under the same hairline. Two tabs that both end in one action should end
+    /// in the same control, and a dark glass pill beside a lime one read as two apps.
     private var calendarFooter: some View {
-        let added = app.calendarTrips.contains(trip.id)
-        let busy = TripCalendar.shared.working.contains(trip.id)
-        return HStack(spacing: 11) {
-            Button {
+        HStack(spacing: 11) {
+            GlowButton(title: calendarActionTitle, minHeight: 52) {
                 Haptics.tap()
-                Task { await writeToCalendar(remove: added) }
-            } label: {
-                HStack(spacing: 9) {
-                    if busy {
-                        ProgressView().controlSize(.small).tint(.white)
-                    } else {
-                        Image(systemName: added ? "calendar.badge.minus" : "calendar.badge.plus")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    Text(added ? "Take this trip off your calendar" : "Add these days to your calendar")
-                        .font(WP.headingUI(14.5))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                }
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .glassControl()
+                Task { await writeToCalendar(remove: app.calendarTrips.contains(trip.id)) }
             }
-            .buttonStyle(PressStyle(scale: 0.98))
-            .disabled(busy)
-            .accessibilityLabel(added
+            .disabled(TripCalendar.shared.working.contains(trip.id))
+            .accessibilityLabel(app.calendarTrips.contains(trip.id)
                                 ? "Take this trip off your calendar"
                                 : "Add this trip's days to your calendar")
 
@@ -967,6 +945,19 @@ struct TripDetailScreen: View {
         .padding(.bottom, -12)
         .background(WP.bg.ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) { Hairline() }
+    }
+
+    /// What the control says, including while it is writing.
+    ///
+    /// `GlowButton` carries a title and nothing else — no icon, no spinner — which is what
+    /// makes it the same control My list uses rather than a lookalike. So the working state
+    /// is said in the words, the way "Drive it with 3 stops" already changes with the list.
+    private var calendarActionTitle: String {
+        let added = app.calendarTrips.contains(trip.id)
+        if TripCalendar.shared.working.contains(trip.id) {
+            return added ? "Removing…" : "Adding…"
+        }
+        return added ? "Remove from calendar" : "Add to calendar"
     }
 
     /// What the control at the foot of the screen is about to do, or has done.
