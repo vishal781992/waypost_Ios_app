@@ -15,6 +15,40 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.42.3 — “Could not make a calendar to write into”
+
+Adding a trip failed on the first tap. Three things go wrong here on a real phone and the
+first version handled none of them.
+
+**The accounts had not been fetched.** EventKit loads them lazily, and a store that has not
+refreshed since permission was granted reports *none at all* — which is exactly the state the
+very first tap is in. Every account lookup ran against an empty list and there was nothing to
+make a calendar in. `refreshSourcesIfNecessary()` was missing.
+
+**Not every account will hold a new calendar.** Subscribed feeds and the birthday list refuse
+outright; others refuse for reasons the API does not publish in advance. There is nothing to
+test, so the app now asks each account in turn and keeps the first that says yes.
+
+**Write-only access can add events but cannot make calendars.** That is the permission working
+as designed, and it is the likeliest reason to arrive here empty-handed: the app asks for the
+smaller permission, as it should, and then tried to do something the larger one is for.
+
+So where no account will take a calendar of ours, the trip is written into the calendar new
+events already go to rather than failing. It is still tagged with the trip's own link, so it is
+still found for removal and still excluded from its own clash check — the separate calendar was
+always a convenience, not the mechanism.
+
+**And the app now says where the trip actually went.** The toast and the line under the button
+name the calendar that was used rather than promising one that may never have been made.
+
+Two things fixed alongside it: removing a trip searches every calendar it can edit rather than
+only the app's own, so a trip written into the default calendar can still be taken off; and the
+clash query skips any event carrying a ParkHop link, so a trip in the default calendar does not
+count as a clash with itself.
+
+Where it still cannot write at all, the message now carries the system's own reason instead of
+one flat sentence.
+
 ## 2.42.2 — The calendar control is welded to the floor
 
 It sat at the end of the day list, which on a fortnight of days meant scrolling past every one

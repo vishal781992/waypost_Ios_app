@@ -11,8 +11,8 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: 2.42.2
-    CURRENT_PROJECT_VERSION: 74
+    MARKETING_VERSION: 2.42.3
+    CURRENT_PROJECT_VERSION: 75
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
   configs:

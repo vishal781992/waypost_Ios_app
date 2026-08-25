@@ -96,6 +96,13 @@ final class TripCalendar {
     private(set) var working: Set<String> = []
     /// The last thing that went wrong, in a sentence fit to show.
     private(set) var trouble: String?
+    /// The calendar the last trip actually went into.
+    ///
+    /// Usually the app's own. Where no account on the phone would hold a calendar of ours
+    /// — which is what write-only access means in practice — it is whichever calendar new
+    /// events already go to, and a screen that went on promising "a calendar of its own"
+    /// would be describing something that was never made.
+    private(set) var wroteInto: String?
 
     private let vault = CalendarVault()
     /// The busy time last read, and the window it was read over.
@@ -240,8 +247,9 @@ final class TripCalendar {
         defer { working.remove(plan.tripID) }
 
         switch await vault.write(plan) {
-        case .success:
+        case .success(let calendar):
             trouble = nil
+            wroteInto = calendar.isEmpty ? nil : calendar
             // What was just written must not come back as a clash with itself. It is in the
             // app's own calendar and so already excluded, but the window has been read.
             invalidate()
@@ -391,6 +399,9 @@ private actor CalendarVault {
         let predicate = store.predicateForEvents(withStart: from, end: to, calendars: searched)
         return store.events(matching: predicate).compactMap { event -> TripCalendar.Clash? in
             guard event.status != .canceled else { return nil }
+            // The app's own entries, wherever they were written. Excluding the app's
+            // calendar is not enough on a phone whose account would not hold one.
+            if event.url?.scheme == "parkhop" { return nil }
             // Something already turned down is not a clash.
             if let me = event.attendees?.first(where: \.isCurrentUser),
                me.participantStatus == .declined { return nil }
@@ -407,13 +418,19 @@ private actor CalendarVault {
     // MARK: Writing
 
     enum Outcome {
-        case success
+        /// Written, and the name of the calendar it went into — which is not always the
+        /// app's own, so the screen that reports it can say where the trip actually is.
+        case success(String)
         case failure(String)
     }
 
+    /// Why the last attempt to get a calendar failed, in the system's own words.
+    private var lastTrouble: String?
+
     func write(_ plan: TripCalendar.Plan) -> Outcome {
         guard let calendar = calendarForWriting() else {
-            return .failure("ParkHop could not make a calendar to write into.")
+            return .failure(lastTrouble
+                            ?? "No calendar on this phone would accept the trip.")
         }
         do {
             for entry in plan.entries {
@@ -443,7 +460,7 @@ private actor CalendarVault {
                 try store.save(event, span: .thisEvent, commit: false)
             }
             try store.commit()
-            return .success
+            return .success(calendar.title)
         } catch {
             store.reset()
             return .failure("The calendar refused the trip: \(error.localizedDescription)")
@@ -451,24 +468,30 @@ private actor CalendarVault {
     }
 
     func erase(tripID: String) -> Outcome {
-        guard let calendar = existingCalendar() else { return .success }
         // Without a link there is nothing to match on, and matching on nothing would delete
         // every entry in the calendar rather than this trip's.
         guard let link = Self.link(to: tripID) else {
             return .failure("That trip has no name the calendar can be searched by.")
         }
+        // Every calendar that can be edited, not only the app's own: where no account
+        // would accept a calendar of ours the trip was written into the default one, and a
+        // removal that only looked in ours would quietly find nothing. The link is what
+        // identifies the trip either way.
+        let searched = store.calendars(for: .event).filter(\.allowsContentModifications)
+        guard !searched.isEmpty else { return .success("") }
+
         // Wide enough to hold any trip anybody plans in this app, and narrow enough that
         // the predicate is still doing work: four years back, four forward.
         let now = Date()
         let from = now.addingTimeInterval(-4 * 365 * 86_400)
         let to = now.addingTimeInterval(4 * 365 * 86_400)
-        let predicate = store.predicateForEvents(withStart: from, end: to, calendars: [calendar])
+        let predicate = store.predicateForEvents(withStart: from, end: to, calendars: searched)
         do {
             for event in store.events(matching: predicate) where event.url == link {
                 try store.remove(event, span: .thisEvent, commit: false)
             }
             try store.commit()
-            return .success
+            return .success("")
         } catch {
             store.reset()
             return .failure("The calendar refused to remove the trip: \(error.localizedDescription)")
@@ -489,28 +512,70 @@ private actor CalendarVault {
         return found
     }
 
+    /// A calendar this trip can be written into.
+    ///
+    /// Three things go wrong here on a real phone, and the first version of this handled
+    /// none of them:
+    ///
+    /// - **`sources` comes back empty.** EventKit fetches the accounts lazily, and a store
+    ///   that has not refreshed since permission was granted — which is exactly the state
+    ///   the very first tap is in — reports none at all. `refreshSourcesIfNecessary()` is
+    ///   the fix, and without it every account lookup below returns nothing.
+    /// - **Not every account will hold a new calendar.** A subscribed feed and the birthday
+    ///   list refuse outright, and some accounts refuse for reasons the API does not expose
+    ///   in advance. There is nothing to test, so this asks each in turn and keeps the one
+    ///   that says yes.
+    /// - **Write-only access can add events but not make calendars.** That is the
+    ///   permission working as designed, and it is the likeliest reason to end up here with
+    ///   nothing: the app asked for the smaller permission, as it should, and then tried to
+    ///   do something the larger one is for.
+    ///
+    /// So when no account will take a calendar of ours, the trip goes into the calendar new
+    /// events already go to rather than failing. It is still tagged with the trip's link, so
+    /// it is still found for removal and still excluded from its own clash check — the
+    /// separate calendar is a convenience, not the mechanism. The caller is told which
+    /// calendar was used so the screen can say so rather than promising one that was never
+    /// made.
     private func calendarForWriting() -> EKCalendar? {
         if let existing = existingCalendar() { return existing }
 
-        let calendar = EKCalendar(for: .event, eventStore: store)
-        calendar.title = TripCalendar.calendarTitle
-        // The mark's orange, so the trip reads as this app's in a week of everything else.
-        calendar.cgColor = CGColor(red: 0.85, green: 0.45, blue: 0.13, alpha: 1)
-        // Where a new calendar is allowed to live. The account new events already go to,
-        // failing that any account that can hold one, failing that this phone alone.
-        calendar.source = store.defaultCalendarForNewEvents?.source
-            ?? store.sources.first { $0.sourceType == .calDAV }
-            ?? store.sources.first { $0.sourceType == .local }
-        guard calendar.source != nil else { return nil }
+        // Lazily fetched, and empty on a store that has not refreshed since access was
+        // granted. Every lookup below depends on this line having run.
+        store.refreshSourcesIfNecessary()
 
-        do {
-            try store.saveCalendar(calendar, commit: true)
-            UserDefaults.standard.set(calendar.calendarIdentifier, forKey: Self.key)
-            mine = calendar
-            return calendar
-        } catch {
-            store.reset()
-            return nil
+        var candidates: [EKSource] = []
+        if let preferred = store.defaultCalendarForNewEvents?.source { candidates.append(preferred) }
+        candidates += store.sources.filter { $0.sourceType != .birthdays && $0.sourceType != .subscribed }
+
+        var seen = Set<String>()
+        candidates = candidates.filter { seen.insert($0.sourceIdentifier).inserted }
+
+        for source in candidates {
+            let calendar = EKCalendar(for: .event, eventStore: store)
+            calendar.title = TripCalendar.calendarTitle
+            // The mark's orange, so the trip reads as this app's in a week of everything else.
+            calendar.cgColor = CGColor(red: 0.85, green: 0.45, blue: 0.13, alpha: 1)
+            calendar.source = source
+            do {
+                try store.saveCalendar(calendar, commit: true)
+                UserDefaults.standard.set(calendar.calendarIdentifier, forKey: Self.key)
+                mine = calendar
+                lastTrouble = nil
+                return calendar
+            } catch {
+                lastTrouble = error.localizedDescription
+            }
         }
+
+        // Nothing would take one of ours. Write where new events already go.
+        if let fallback = store.defaultCalendarForNewEvents, fallback.allowsContentModifications {
+            lastTrouble = nil
+            return fallback
+        }
+
+        lastTrouble = candidates.isEmpty
+            ? "This phone has no calendar account ParkHop is allowed to write into."
+            : "No calendar account would accept the trip." + (lastTrouble.map { " \($0)" } ?? "")
+        return nil
     }
 }

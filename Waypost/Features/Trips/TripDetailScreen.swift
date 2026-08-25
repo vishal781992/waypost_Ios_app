@@ -988,8 +988,8 @@ struct TripDetailScreen: View {
             }
 
             Text(added
-                 ? "These days are on your calendar, in one of its own called “\(TripCalendar.calendarTitle)” — so hiding or deleting the whole trip is one move in Calendar."
-                 : "Adding writes one all-day entry per day, into a calendar of its own called “\(TripCalendar.calendarTitle)”. Nothing else on your calendar is touched.")
+                 ? "These days are on your calendar, in “\(TripCalendar.shared.wroteInto ?? TripCalendar.calendarTitle)” — so hiding or deleting the whole trip is one move in Calendar."
+                 : "Adding writes one all-day entry per day, into a calendar of its own called “\(TripCalendar.calendarTitle)” where your account will hold one. Nothing else on your calendar is touched.")
                 .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -1010,7 +1010,10 @@ struct TripDetailScreen: View {
         if await TripCalendar.shared.add(plan) {
             app.calendarTrips.insert(trip.id)
             app.persist()
-            app.show("\(plan.entries.count) days added to your calendar")
+            // Named, because it is not always the calendar the button offered — where no
+            // account will hold one of ours the days go where new events already go.
+            let into = TripCalendar.shared.wroteInto.map { " to “\($0)”" } ?? ""
+            app.show("\(plan.entries.count) days added\(into)")
         } else {
             app.show(TripCalendar.shared.trouble ?? "The calendar did not answer")
         }
