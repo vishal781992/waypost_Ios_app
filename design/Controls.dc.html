@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           color: #201F1D; background: #D1CFA5; -webkit-font-smoothing: antialiased; }
+    a { color: #7D5411; } a:hover { color: #5A3B0A; }
+    .glass { background: rgba(24,20,16,.88); border: 1px solid rgba(255,255,255,.20); color: #fff;
+             border-radius: 999px;
+             box-shadow: inset 0 1px 0 rgba(255,255,255,.34), inset 0 -1px 0 rgba(255,255,255,.10),
+                         0 6px 14px rgba(24,16,8,.20); }
+    .lbl { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #B68235; }
+    .cap { font-size: 12px; opacity: .62; line-height: 1.5; }
+    .panel { background: rgba(243,242,242,.5); border: 1px solid rgba(32,31,29,.10); border-radius: 18px;
+             padding: 22px 24px; }
+    .btnlabel { font-size: 12.5px; font-weight: 600; }
+    .tick { font-size: 10.5px; color: #7D5411; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div style="width: 900px; min-height: 860px; padding: 34px 36px 40px; box-sizing: border-box; background: #D1CFA5">
+
+  <div class="lbl">Calendar controls</div>
+  <div style="font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 600; font-size: 36px;
+              line-height: 1.08; margin-top: 6px">Measured against the app, not invented</div>
+  <div class="cap" style="max-width: 640px; margin-top: 8px">
+    Every full-width control in ParkHop is forty-eight points of glass in a pill, pressed at 0.98 —
+    the park screen’s “Plan a trip”, the leg sheet’s “Start Live Activity”. The calendar control is
+    that button.
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 26px">
+
+    <div class="panel">
+      <div class="lbl" style="color: #7D5411">The three states</div>
+
+      <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 16px">
+        <div style="display: flex; align-items: center; gap: 14px">
+          <div style="flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px">
+            <div style="width: 1px; height: 8px; background: #7D5411"></div>
+            <div class="tick">48</div>
+            <div style="width: 1px; height: 8px; background: #7D5411"></div>
+          </div>
+          <div class="glass" style="flex: 1; height: 48px; display: flex; align-items: center;
+                      justify-content: center; gap: 9px">
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <rect x="2.2" y="3.6" width="12.2" height="12.2" rx="2.4" stroke="#fff" stroke-width="1.6"/>
+              <path d="M5.6 2.2v2.8M11 2.2v2.8M2.2 7.6h12.2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M15.4 11.6v5M12.9 14.1h5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span class="btnlabel">Add these days to your calendar</span>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px">
+          <div style="flex: none; width: 25px"></div>
+          <div class="glass" style="flex: 1; height: 48px; display: flex; align-items: center;
+                      justify-content: center; gap: 9px">
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <rect x="2.2" y="3.6" width="12.2" height="12.2" rx="2.4" stroke="#fff" stroke-width="1.6"/>
+              <path d="M5.6 2.2v2.8M11 2.2v2.8M2.2 7.6h12.2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M12.9 14.1h5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span class="btnlabel">Take this trip off your calendar</span>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px">
+          <div style="flex: none; width: 25px"></div>
+          <div class="glass" style="flex: 1; height: 48px; display: flex; align-items: center;
+                      justify-content: center; gap: 9px; opacity: .62">
+            <svg width="17" height="17" viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="10" cy="10" r="7" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
+              <path d="M10 3a7 7 0 0 1 7 7" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span class="btnlabel">Add these days to your calendar</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cap" style="margin-top: 16px">
+        Disabled only while it is writing — the control is drawn once the days are ready, so there is
+        no empty state for it to be caught in.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="lbl" style="color: #7D5411">What it replaced</div>
+      <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 16px">
+        <div>
+          <div class="cap" style="margin-bottom: 7px">Before — 50pt, outlined, pressed at 0.99</div>
+          <div style="height: 50px; border-radius: 14px; border: 1px solid rgba(32,31,29,.16);
+                      display: flex; align-items: center; justify-content: center; gap: 9px">
+            <span style="font-size: 12px; font-weight: 600">Add these days to your calendar</span>
+          </div>
+        </div>
+        <div>
+          <div class="cap" style="margin-bottom: 7px">After — the app’s own control</div>
+          <div class="glass" style="height: 48px; display: flex; align-items: center;
+                      justify-content: center; gap: 9px">
+            <span class="btnlabel">Add these days to your calendar</span>
+          </div>
+        </div>
+      </div>
+      <div class="cap" style="margin-top: 16px">
+        Three values that appeared nowhere else in the app — height, shape and press scale — plus a
+        missing haptic and no label for VoiceOver. All four now match the two controls it copies.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="lbl" style="color: #7D5411">In the stat line</div>
+      <div style="display: flex; align-items: baseline; gap: 7px; margin-top: 16px; flex-wrap: wrap">
+        <span style="font-size: 12.5px; font-weight: 600">11</span>
+        <span style="font-size: 12.5px; opacity: .66; margin-left: -3px">days</span>
+        <span style="font-size: 12.5px; opacity: .36">·</span>
+        <span style="font-size: 12.5px; font-weight: 600">787</span>
+        <span style="font-size: 12.5px; opacity: .66; margin-left: -3px">mi by road</span>
+        <span style="font-size: 12.5px; opacity: .36">·</span>
+        <span style="font-size: 10.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px;
+                     background: #FFF3E4; border: 1px solid #E1AD66; color: #5A3B0A">0 of 2 packs</span>
+        <span style="font-size: 10.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px;
+                     background: #FFF3E4; border: 1px solid rgba(217,130,43,.5); color: #D9822B">2 clashes</span>
+      </div>
+      <div class="cap" style="margin-top: 14px">
+        A count, not a colour: a red outline says the trip is impossible and gives no way to act.
+        The chip stays a state rather than a control, like the packs pill beside it — the day row
+        that names the clash is what opens on a tap.
+      </div>
+      <div class="cap" style="margin-top: 10px">
+        A clear trip shows nothing here. Silence is not a claim.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="lbl" style="color: #7D5411">What the switch says, and does</div>
+      <div style="display: flex; flex-direction: column; gap: 11px; margin-top: 16px">
+        <div style="display: flex; gap: 10px">
+          <div style="flex: none; width: 78px; font-size: 11px; font-weight: 600; color: #7D5411; padding-top: 1px">Allowed</div>
+          <div style="flex: 1; font-size: 12px; line-height: 1.45">Days you are already busy on are marked on the trip</div>
+        </div>
+        <div style="display: flex; gap: 10px">
+          <div style="flex: none; width: 78px; font-size: 11px; font-weight: 600; color: #7D5411; padding-top: 1px">Not asked</div>
+          <div style="flex: 1; font-size: 12px; line-height: 1.45">Asks permission to read your calendar when you turn this on</div>
+        </div>
+        <div style="display: flex; gap: 10px">
+          <div style="flex: none; width: 78px; font-size: 11px; font-weight: 600; color: #7D5411; padding-top: 1px">Write only</div>
+          <div style="flex: 1; font-size: 12px; line-height: 1.45">ParkHop may add trips but not read them — turn on to allow reading too</div>
+        </div>
+        <div style="display: flex; gap: 10px">
+          <div style="flex: none; width: 78px; font-size: 11px; font-weight: 600; color: #D9822B; padding-top: 1px">Refused</div>
+          <div style="flex: 1; font-size: 12px; line-height: 1.45">Calendar access is off — tap to open Settings</div>
+        </div>
+      </div>
+      <div class="cap" style="margin-top: 16px">
+        iOS never asks twice, so once access is refused the row could only fail. It opens Settings
+        instead. A control whose only outcome is failure is not a control.
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

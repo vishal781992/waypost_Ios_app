@@ -19,3 +19,8 @@ xcuserdata/
 
 # Word lock files
 ~$*
+
+# Seeded design canvases are generated from the .dc.html sources beside them
+# (~2 MB of packaged editor each) — the sources are what is kept.
+design/*.html
+!design/*.dc.html

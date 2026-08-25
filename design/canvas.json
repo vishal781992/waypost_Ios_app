@@ -1,0 +1,15 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "Trip · the clash count" },
+    { "file": "DaysFoot.dc.html", "x": 470, "y": 0, "w": 390, "h": 844, "title": "Trip · a day, and the add control" },
+    { "file": "Preferences.dc.html", "x": 940, "y": 0, "w": 390, "h": 844, "title": "Preferences · Your calendar" },
+    { "file": "Controls.dc.html", "x": 0, "y": 980, "w": 900, "h": 860, "title": "The controls, measured" }
+  ],
+  "annotations": [
+    { "id": "note-clash", "x": 0, "y": -150, "w": 420,
+      "text": "What the calendar work looks like in the app.\n\nEvery value here is lifted from Tokens.swift — the #D1CFA5 page, the #181410 glass at 0.88, Cormorant Garamond for the display face." },
+    { "id": "note-foot", "x": 940, "y": 900, "w": 390,
+      "text": "The switch is the only place the app asks to READ your calendar. Adding a trip needs the smaller permission and does not come through here." }
+  ],
+  "launch": { "view": "canvas" }
+}
