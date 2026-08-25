@@ -1,15 +1,25 @@
 {
+  "pages": [
+    { "id": "page-1", "name": "Top bar directions" },
+    { "id": "page-2", "name": "The calendar" }
+  ],
   "artboards": [
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "Trip · the clash count" },
-    { "file": "DaysFoot.dc.html", "x": 470, "y": 0, "w": 390, "h": 844, "title": "Trip · a day, and the add control" },
-    { "file": "Preferences.dc.html", "x": 940, "y": 0, "w": 390, "h": 844, "title": "Preferences · Your calendar" },
-    { "file": "Controls.dc.html", "x": 0, "y": 980, "w": 900, "h": 860, "title": "The controls, measured" }
+    { "file": "Now.dc.html", "x": 0, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "Now" },
+    { "file": "OptionA.dc.html", "x": 470, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "A · Room to breathe" },
+    { "file": "OptionB.dc.html", "x": 940, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "B · One row" },
+    { "file": "OptionC.dc.html", "x": 1410, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "C · One glass group" },
+    { "file": "OptionD.dc.html", "x": 1880, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "D · Glass over the page" },
+
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "page": "page-2", "title": "Trip · the clash count" },
+    { "file": "DaysFoot.dc.html", "x": 470, "y": 0, "w": 390, "h": 844, "page": "page-2", "title": "Trip · the frozen footer" },
+    { "file": "Preferences.dc.html", "x": 940, "y": 0, "w": 390, "h": 844, "page": "page-2", "title": "Preferences · Your calendar" },
+    { "file": "Controls.dc.html", "x": 0, "y": 980, "w": 900, "h": 860, "page": "page-2", "title": "The controls, measured" }
   ],
   "annotations": [
-    { "id": "note-clash", "x": 0, "y": -150, "w": 420,
-      "text": "What the calendar work looks like in the app.\n\nEvery value here is lifted from Tokens.swift — the #D1CFA5 page, the #181410 glass at 0.88, Cormorant Garamond for the display face." },
-    { "id": "note-foot", "x": 940, "y": 900, "w": 390,
-      "text": "The switch is the only place the app asks to READ your calendar. Adding a trip needs the smaller permission and does not come through here." }
+    { "id": "note-directions", "x": 0, "y": -190, "w": 700, "page": "page-1",
+      "text": "Four ways out of the four-point gap, one axis each: what it costs to ship, how much page it gives back, how many islands are on screen, and what material the control is made of.\n\nNothing here is built yet — pick one and I will." },
+    { "id": "note-calendar", "x": 0, "y": -150, "w": 420, "page": "page-2",
+      "text": "The calendar work as it ships in 2.42.2. Every value lifted from Tokens.swift." }
   ],
-  "launch": { "view": "canvas" }
+  "launch": { "view": "canvas", "page": "page-1" }
 }
