@@ -1,25 +1,174 @@
 {
   "pages": [
-    { "id": "page-1", "name": "Top bar directions" },
-    { "id": "page-2", "name": "The calendar" }
+    {
+      "id": "page-1",
+      "name": "Profile \u00b7 front page"
+    },
+    {
+      "id": "page-2",
+      "name": "Top bar directions"
+    },
+    {
+      "id": "page-3",
+      "name": "The calendar"
+    }
   ],
   "artboards": [
-    { "file": "Now.dc.html", "x": 0, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "Now" },
-    { "file": "OptionA.dc.html", "x": 470, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "A · Room to breathe" },
-    { "file": "OptionB.dc.html", "x": 940, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "B · One row" },
-    { "file": "OptionC.dc.html", "x": 1410, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "C · One glass group" },
-    { "file": "OptionD.dc.html", "x": 1880, "y": 0, "w": 390, "h": 520, "page": "page-1", "title": "D · Glass over the page" },
-
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "page": "page-2", "title": "Trip · the clash count" },
-    { "file": "DaysFoot.dc.html", "x": 470, "y": 0, "w": 390, "h": 844, "page": "page-2", "title": "Trip · the frozen footer" },
-    { "file": "Preferences.dc.html", "x": 940, "y": 0, "w": 390, "h": 844, "page": "page-2", "title": "Preferences · Your calendar" },
-    { "file": "Controls.dc.html", "x": 0, "y": 980, "w": 900, "h": 860, "page": "page-2", "title": "The controls, measured" }
+    {
+      "file": "ProfileMap.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1",
+      "title": "1 \u00b7 Sheet from the bottom"
+    },
+    {
+      "file": "ProfileSheet.dc.html",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1",
+      "title": "2 \u00b7 Glass sheet that carries the screen"
+    },
+    {
+      "file": "ProfileGlass.dc.html",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1",
+      "title": "3 \u00b7 Islands over the map"
+    },
+    {
+      "file": "ProfileDark.dc.html",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1",
+      "title": "4 \u00b7 No sheet at all"
+    },
+    {
+      "file": "ProfileCard.dc.html",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1",
+      "title": "5 \u00b7 A passport card"
+    },
+    {
+      "file": "Now.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 520,
+      "page": "page-2",
+      "title": "Now"
+    },
+    {
+      "file": "OptionA.dc.html",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 520,
+      "page": "page-2",
+      "title": "A \u00b7 Room to breathe"
+    },
+    {
+      "file": "OptionB.dc.html",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 520,
+      "page": "page-2",
+      "title": "B \u00b7 One row"
+    },
+    {
+      "file": "OptionC.dc.html",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 520,
+      "page": "page-2",
+      "title": "C \u00b7 One glass group"
+    },
+    {
+      "file": "OptionD.dc.html",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 520,
+      "page": "page-2",
+      "title": "D \u00b7 Glass over the page"
+    },
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-3",
+      "title": "Trip \u00b7 the clash count"
+    },
+    {
+      "file": "DaysFoot.dc.html",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-3",
+      "title": "Trip \u00b7 the frozen footer"
+    },
+    {
+      "file": "Preferences.dc.html",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-3",
+      "title": "Preferences \u00b7 Your calendar"
+    },
+    {
+      "file": "Controls.dc.html",
+      "x": 0,
+      "y": 980,
+      "w": 900,
+      "h": 860,
+      "page": "page-3",
+      "title": "The controls, measured"
+    }
   ],
   "annotations": [
-    { "id": "note-directions", "x": 0, "y": -190, "w": 700, "page": "page-1",
-      "text": "Four ways out of the four-point gap, one axis each: what it costs to ship, how much page it gives back, how many islands are on screen, and what material the control is made of.\n\nNothing here is built yet — pick one and I will." },
-    { "id": "note-calendar", "x": 0, "y": -150, "w": 420, "page": "page-2",
-      "text": "The calendar work as it ships in 2.42.2. Every value lifted from Tokens.swift." }
+    {
+      "id": "note-profile",
+      "x": 0,
+      "y": -210,
+      "w": 760,
+      "page": "page-1",
+      "text": "Profile as a front page: the atlas full bleed in black and white under a black tint, and everything else laid over it.\n\nFive ways to seat the content \u2014 a light sheet, a glass sheet, floating islands, no sheet at all, and a card standing on the map.\n\nTwo notes before you pick. There is no account in the app today, so the name and photo would be set on the phone like everything else, and \"Log out\" has nothing behind it \u2014 the sheet marked 2 shows the honest version, Sign in. And the version badge is kept in all five, since you read it while testing."
+    },
+    {
+      "id": "note-directions",
+      "x": 0,
+      "y": -190,
+      "w": 700,
+      "page": "page-2",
+      "text": "Four ways out of the four-point gap, one axis each: what it costs to ship, how much page it gives back, how many islands are on screen, and what material the control is made of.\n\nNothing here is built yet \u2014 pick one and I will."
+    },
+    {
+      "id": "note-calendar",
+      "x": 0,
+      "y": -150,
+      "w": 420,
+      "page": "page-3",
+      "text": "The calendar work as it ships in 2.42.2. Every value lifted from Tokens.swift."
+    }
   ],
-  "launch": { "view": "canvas", "page": "page-1" }
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
 }
