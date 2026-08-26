@@ -109,123 +109,70 @@ enum AtlasFilter: Hashable, CaseIterable {
     }
 }
 
-// MARK: - The card on the profile
+// MARK: - The ground under the profile
 
-/// The atlas at thumbnail size: a picture of the collection, and a door to the screen where
-/// it can actually be read.
+/// The atlas as the profile's ground.
 ///
-/// One tap target and no gestures of its own. It is a drawn picture rather than a live map
-/// for the reason the trip plates are — a map in a card re-streams its basemap on every
-/// appearance and comes up blank with no signal — and it shows the lower forty-eight only,
-/// because at this height there is no room for the Alaska and Hawai‘i insets a full atlas
-/// needs. The count beside it carries all sixty-two whatever the picture shows.
-struct AtlasCard: View {
+/// The profile used to carry the collection as a card among other cards — a hundred and
+/// eighty points of country between a heading and a settings row. It is the whole screen
+/// now: the country in black and white under a black tint, with the profile itself resting
+/// on it. The tap does what the card's tap did, so the map is still the door to the atlas
+/// and not merely a picture of one.
+///
+/// A drawn picture rather than a live map, for the reason the trip plates are: a map re-
+/// streams its basemap on every appearance and comes up blank with no signal. It is the
+/// same snapshot the card asked for, at the same size and out of the same cache — which is
+/// why opening the profile a second time is a read from disk.
+struct AtlasBackdrop: View {
     @Environment(AppState.self) private var app
 
-    /// Taller than the trip card's 132-point plate, and for a reason rather than for
-    /// looks: the lower forty-eight is about 1.86 times as wide as it is tall once the
-    /// longitude is narrowed for latitude, and a snapshotter fits a region into whatever
-    /// frame it is handed by widening the short side. At the trip plate's proportions the
-    /// country would sit small between two stripes of ocean.
-    ///
-    /// Fixed, so the profile does not move when the picture lands — the discipline
-    /// `ParkImage` keeps by drawing its colour field first.
-    private static let plateHeight: CGFloat = 180
+    /// How much of the display the sheet leaves for the map. Handed in rather than measured:
+    /// the sheet's height is decided one layer up, and a `GeometryReader` here would be a
+    /// second opinion about the same number.
+    var band: CGFloat
 
     @State private var plate: UIImage?
 
-    /// Counted once and handed to both figures.
-    ///
-    /// This was four computed properties, and `filledStates` and `openStates` each walked
-    /// the register and grouped it again — so a redraw of the card marked sixty-two parks
-    /// against the rail twice and grouped them by state twice, to print two numbers.
-    private var tally: (visited: Set<String>, filled: Int, open: Int) {
-        let rail = app.visitRail
-        let states = Atlas.states(Atlas.parks(rail))
-        return (Set(rail.map(\.id)), states.filter(\.isFilled).count, states.count)
-    }
-
     var body: some View {
-        let counts = tally
+        let visited = Set(app.visitRail.map(\.id))
         return Button {
             app.push(.atlas)
             Haptics.tap()
         } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                plateView(counts.visited)
-                    .frame(height: Self.plateHeight)
-                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 0,
-                                                      bottomTrailingRadius: 0, topTrailingRadius: 14,
-                                                      style: .continuous))
-                summary(counts)
-            }
-            .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(WP.divider, lineWidth: 1))
-            .contentShape(RoundedRectangle(cornerRadius: 14))
-        }
-        .buttonStyle(PressStyle(scale: 0.985))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(counts.visited.count) of \(NationalParks.all.count) national parks visited. Open the atlas.")
-    }
+            ZStack(alignment: .top) {
+                // The ground the tint is mixed into, so a phone with no picture yet — no
+                // signal, first launch — is a dark screen rather than a pale rectangle.
+                WP.ink
 
-    /// The picture, asked for the moment the card appears.
-    ///
-    /// No `GeometryReader` and no settle. The frame is the lower forty-eight and never
-    /// changes, so the drawing does not depend on the card's width — only its sharpness
-    /// does, and that is what `AtlasSnapshot.plateSize` is for. Measuring the card first
-    /// cost the two hundred milliseconds the trip plates spend waiting for `GeometryReader`
-    /// to stop changing its mind, and then a second render when it did, before the
-    /// snapshotter had even been asked. Now the request goes out on appear and the picture
-    /// is filed under the collection alone, so opening the profile a second time is a read
-    /// from disk.
-    private func plateView(_ visited: Set<String>) -> some View {
-        // The picture is an overlay on the plate rather than a sibling in a `ZStack`:
-        // `scaledToFill` reports a size larger than the space it was offered, so as a
-        // sibling it would widen the card it is meant to fit inside. The same trap
-        // `ParkImage` documents.
-        WP.surface.opacity(0.5)
-            .overlay {
                 if let plate {
                     Image(uiImage: plate)
                         .resizable()
-                        .scaledToFill()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .frame(maxHeight: max(120, band - WP.statusBarInset - 44))
+                        .padding(.top, WP.statusBarInset + 22)
                         .transition(.opacity)
                 }
+
+                // The black tint. Even across the map so the country keeps its own contrast,
+                // and deepening toward the foot so the sheet has something to stand on rather
+                // than a hard edge to cut against.
+                Color(hex: 0x101010, opacity: 0.30)
+                LinearGradient(
+                    colors: [Color(hex: 0x101010, opacity: 0), Color(hex: 0x101010, opacity: 0.45)],
+                    startPoint: .center, endPoint: .bottom
+                )
             }
-            .clipped()
-            .animation(.easeOut(duration: 0.28), value: plate != nil)
-            .task(id: visited.sorted().joined(separator: ",")) {
-                plate = await AtlasSnapshot.shared.card(visited: visited)
-            }
-    }
-
-    /// Parks first, states second — and thirty as the denominator, never fifty. Twenty
-    /// states hold no national park at all, and counting them would make this a figure
-    /// about geography rather than about anywhere anybody could go.
-    private func summary(_ tally: (visited: Set<String>, filled: Int, open: Int)) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("\(tally.visited.count)").font(WP.statValue(20)).tnum()
-            Text("of \(NationalParks.all.count) parks").font(WP.body(12.5)).opacity(0.62)
-
-            Text("·").font(WP.body(12.5)).opacity(0.36)
-
-            Text("\(tally.filled)").font(WP.statValue(20)).tnum()
-            Text("of \(tally.open) states").font(WP.body(12.5)).opacity(0.62)
-
-            Spacer(minLength: 0)
-
-            Text("Open the atlas").font(WP.headingUI(12.5)).foregroundStyle(WP.accent700)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(WP.accent700)
+            .contentShape(Rectangle())
         }
-        // One line, whatever the phone. The counts are three characters at most and the
-        // labels shrink before anything truncates — a row that wrapped would make the
-        // card two different heights on two different devices.
-        .lineLimit(1)
-        .minimumScaleFactor(0.8)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        // No press scale. Everything else in the app answers a touch by shrinking; a whole
+        // display doing it would read as the screen coming loose.
+        .buttonStyle(.plain)
+        .animation(.easeOut(duration: 0.32), value: plate != nil)
+        .task(id: visited.sorted().joined(separator: ",")) {
+            plate = await AtlasSnapshot.shared.card(visited: visited)
+        }
+        .accessibilityLabel("\(visited.count) of \(NationalParks.all.count) national parks visited. Open the atlas.")
     }
 }
 

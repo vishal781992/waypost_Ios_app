@@ -5,7 +5,7 @@ import UIKit
 
 /// The picture of the country on the profile, drawn once and then kept.
 ///
-/// `AtlasCard` is a map that nobody touches: it never pans, never zooms, and changes only
+/// `AtlasBackdrop` is a map that nobody touches: it never pans, never zooms, and changes only
 /// when a park is added to the rail. A live `Map` there would re-stream the basemap on
 /// every appearance — scrolling the profile, coming back to the tab, relaunching — and come
 /// up blank with no signal, which is the lesson `RouteSnapshots` already learned on the trip

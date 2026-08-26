@@ -3,22 +3,26 @@ import SwiftUI
 @main
 struct WaypostApp: App {
     @State private var app = AppState()
-    /// Nil until somebody has chosen how to come in — including choosing not to have an
-    /// account at all. Guest is remembered, so this asks once rather than every launch.
-    @State private var identity: Identity? = StubAuthService.shared.identity
+    /// Who is using the app, read off the service rather than copied out of it.
+    ///
+    /// It was a `@State` snapshot taken once at launch, which was fine while the only way
+    /// in was through the opening screens. Logging out happens on the profile, three
+    /// screens away, and a copy taken at launch cannot hear about it — so the service is
+    /// the one place that knows, and this observes it. Nil until somebody has chosen how to
+    /// come in, including choosing not to have an account at all.
+    @State private var auth = StubAuthService.shared
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if identity == nil {
+                if auth.identity == nil {
                     // The onboarding screens are photographic and always dark; the app they
                     // open into is neither, which is why the scheme is set per branch rather
                     // than once around both.
-                    OnboardingFlow { chosen in
-                        withAnimation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.42)) {
-                            identity = chosen
-                        }
-                    }
+                    //
+                    // The callback carries the chosen identity, which the service has
+                    // already recorded — nothing to assign here.
+                    OnboardingFlow { _ in }
                     .transition(.opacity)
                 } else {
                     RootShell()
@@ -32,6 +36,9 @@ struct WaypostApp: App {
                         .transition(.opacity)
                 }
             }
+            // The crossfade the onboarding callback used to run by hand. Written here so it
+            // covers both directions — coming in, and logging back out again.
+            .animation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.42), value: auth.identity == nil)
         }
     }
 }

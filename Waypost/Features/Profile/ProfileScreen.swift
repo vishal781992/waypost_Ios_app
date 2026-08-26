@@ -1,13 +1,223 @@
 import SwiftUI
 
-/// Profile — notifications, offline packs, travel defaults, and what the app is holding.
+/// The profile as a front page.
+///
+/// It was a scroll: a heading, a monogram beside a line of counts, the atlas as a card, a
+/// settings row, two paragraphs of small print. Everything on it was true and none of it
+/// was the point. The point is the country and how much of it has been stood in — so the
+/// country is the screen now, in black and white under a black tint, and everything else
+/// rests on a sheet that rises off the bottom of it.
+///
+/// The map is still a door. Tapping it opens the atlas exactly as the card it replaced did.
 struct ProfileScreen: View {
     @Environment(AppState.self) private var app
 
     @State private var adding = false
+    @State private var editing = false
+    @State private var loggingOut = false
     @State private var parkQuery = ""
     @FocusState private var parkFieldFocused: Bool
 
+    /// How much of the display the sheet takes.
+    ///
+    /// A fraction rather than the height of whatever is in it: the map above has to be laid
+    /// out against a number that does not move when a park is added or a name is typed, or
+    /// the country would slide up the screen every time the sheet grew a line.
+    private func sheetHeight(_ available: CGFloat) -> CGFloat {
+        max(430, available * 0.56)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let sheetTall = sheetHeight(proxy.size.height)
+
+            ZStack(alignment: .bottom) {
+                AtlasBackdrop(band: proxy.size.height - sheetTall)
+                    .ignoresSafeArea()
+
+                sheet.frame(height: sheetTall)
+            }
+        }
+        .ignoresSafeArea(edges: .bottom)
+        .sheet(isPresented: $editing) {
+            ProfileIdentityEditor()
+                .environment(app)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .alert("Log out?", isPresented: $loggingOut) {
+            Button("Cancel", role: .cancel) {}
+            Button("Log out", role: .destructive) { StubAuthService.shared.signOut() }
+        } message: {
+            Text("You come back to the opening screen. Nothing on this phone is deleted — your trips, stamps and saved parks are all still here when you come back in.")
+        }
+    }
+
+    // MARK: The sheet
+
+    private var sheet: some View {
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(WP.text.opacity(0.18))
+                .frame(width: 38, height: 5)
+                .padding(.top, 10)
+
+            ScrollView(.vertical) {
+                VStack(spacing: 0) {
+                    identity
+                    rows.padding(.top, 22)
+
+                    if adding { addField.padding(.top, 12) }
+
+                    logOut.padding(.top, 14)
+                    versionBadge.padding(.top, 16)
+
+                    Text("Every panel says where its rows came from. Where a source has not answered, the panel says so rather than filling the gap. Always confirm campsites, permits and closures with the park before you travel — ParkHop is a planner, not a promise.")
+                        .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 20)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, WP.gutter)
+                // Clear of the floating tab bar, which this screen sits under.
+                .padding(.bottom, WP.tabBarHeight + 26)
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .background {
+            UnevenRoundedRectangle(topLeadingRadius: 30, bottomLeadingRadius: 0,
+                                   bottomTrailingRadius: 0, topTrailingRadius: 30,
+                                   style: .continuous)
+                .fill(WP.onInk)
+                .shadow(color: Color(hex: 0x000000, opacity: 0.34), radius: 22, y: -10)
+                .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    // MARK: Who this is
+
+    /// The circle, the name, and what the phone is holding.
+    ///
+    /// The circle straddles the sheet's top edge — which is why it is drawn with a negative
+    /// top inset rather than inside the flow: half of it belongs to the map. Both it and the
+    /// name open the same editor, because a reader who wants to change one of them has no
+    /// reason to know they are two settings.
+    private var identity: some View {
+        Button {
+            editing = true
+            Haptics.tap()
+        } label: {
+            VStack(spacing: 9) {
+                avatar.padding(.top, -46)
+
+                if let name = app.profileName, !name.isEmpty {
+                    Text(name)
+                        .font(WP.display(31))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                } else {
+                    // Never a name nobody entered. An invitation instead, which stops being
+                    // one the moment there is something to show.
+                    Text("Add your name")
+                        .font(WP.display(31)).opacity(0.45)
+                }
+
+                Text(holdings)
+                    .font(WP.body(12)).opacity(0.6)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle(scale: 0.985))
+        .foregroundStyle(WP.text)
+        .accessibilityLabel("Your name and emoji. Opens the editor.")
+    }
+
+    private var avatar: some View {
+        Group {
+            if let emoji = app.profileEmoji {
+                Text(emoji).font(.system(size: 44))
+            } else {
+                Text(monogram).font(WP.heading(34)).foregroundStyle(WP.accent800)
+            }
+        }
+        .frame(width: 96, height: 96)
+        .background(WP.accent100, in: Circle())
+        // The ring is the sheet's own colour, so the circle reads as cut out of the sheet
+        // rather than laid on top of it.
+        .overlay { Circle().stroke(WP.onInk, lineWidth: 4) }
+        .shadow(color: Color(hex: 0x000000, opacity: 0.26), radius: 12, y: 5)
+    }
+
+    /// Initials of the parks on the rail, or a compass rose before there are any. Derived,
+    /// because until somebody picks an emoji there is nothing else to put in the circle.
+    private var monogram: String {
+        let initials = app.visitRail.prefix(2).compactMap { $0.park.name.first }
+        return initials.isEmpty ? "◆" : String(initials).uppercased()
+    }
+
+    /// What the phone is actually holding, counted rather than claimed.
+    private var holdings: String {
+        let rail = app.visitRail
+        let states = Atlas.states(Atlas.parks(rail))
+        let filled = states.filter(\.isFilled).count
+        let trips = app.myTrips.count
+        var parts = ["\(rail.count) of \(NationalParks.all.count) parks",
+                     "\(filled) of \(states.count) states"]
+        if trips > 0 { parts.append("\(trips) \(trips == 1 ? "trip" : "trips")") }
+        return parts.joined(separator: " · ")
+    }
+
+    // MARK: The rows
+
+    private var rows: some View {
+        Grouped {
+            row("Preferences", "Notifications, travel, calendar, downloads") {
+                app.push(.preferences)
+            }
+            Hairline()
+            row("Add a park you have visited", adding ? "Searching" : "By hand, if we missed one") {
+                withAnimation(.snappy(duration: 0.2)) { adding.toggle() }
+                if !adding { parkQuery = "" }
+            }
+        }
+    }
+
+    private func row(_ title: String, _ detail: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Text(title).font(WP.body(14))
+                Spacer(minLength: 0)
+                Text(detail).font(WP.body(11.5)).opacity(0.55).lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(WP.accent700)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 13)
+            .frame(minHeight: 46)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressStyle(scale: 0.995))
+        .foregroundStyle(WP.text)
+    }
+
+    /// Low, quiet, and behind a question — the same shape the erase button in Preferences
+    /// takes, at a lower weight because this one deletes nothing.
+    private var logOut: some View {
+        Button(role: .destructive) { loggingOut = true } label: {
+            Text("Log out")
+                .font(WP.headingUI(15))
+                .foregroundStyle(WP.danger)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .overlay {
+                    Capsule().stroke(WP.danger.opacity(0.38), lineWidth: 1)
+                }
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressStyle(scale: 0.98))
+    }
 
     /// Which build this is, for a tester writing it into a bug report — selectable so it
     /// can be copied rather than transcribed.
@@ -23,132 +233,9 @@ struct ProfileScreen: View {
             .accessibilityLabel("Version \(AppVersion.full)")
     }
 
-    var body: some View {
-        @Bindable var app = app
+    // MARK: Adding a park by hand
 
-        VStack(spacing: 0) {
-            ScreenHeader {
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // The version moved to the badge on the right, so it is not stated
-                        // twice on one header.
-                        Text("ParkHop · a field planner").kickerStyle()
-                        Text("Profile").font(WP.displayBold(44)).tracking(-0.4).padding(.top, 2)
-                    }
-                    Spacer(minLength: 0)
-                    versionBadge
-                }
-            }
-
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 0) {
-                    identity
-
-                    visited
-
-                    // Everything that was here is one push away now. A profile is you and
-                    // where you have been; the machinery is a settings screen, and a
-                    // settings screen is where somebody goes looking for it.
-                    sectionLabel("Settings")
-                    Grouped {
-                        Button { app.push(.preferences) } label: {
-                            HStack(spacing: 10) {
-                                Text("Preferences").font(WP.body(14))
-                                Spacer(minLength: 0)
-                                Text("Notifications, travel, downloads, connections")
-                                    .font(WP.body(11.5)).opacity(0.55).lineLimit(1)
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(WP.accent700)
-                            }
-                            .padding(.horizontal, 14).padding(.vertical, 13)
-                            .frame(minHeight: 46)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(PressStyle(scale: 0.995))
-                        .foregroundStyle(WP.text)
-                    }
-                    .padding(.top, 4)
-
-                    Text("Every panel says where its rows came from. Where a source has not answered, the panel says so rather than filling the gap.")
-                        .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
-                        .padding(.top, 22)
-
-                    Text("Always confirm campsites, permits and closures with the park before you travel. ParkHop is a planner, not a promise.")
-                        .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3)
-                        .padding(.top, 12)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, WP.gutter)
-                .padding(.top, 18)
-                .padding(.bottom, WP.rootScrollBottom)
-            }
-            .tracksTabBarMinimize()
-            .scrollIndicators(.hidden)
-            .captureScrollPosition()
-        }
-    }
-
-    // MARK: Parks visited
-
-    /// Everywhere they have been, as one picture rather than a rail of tiles.
-    ///
-    /// The rail showed the last few parks and hid the rest behind a sideways scroll nobody
-    /// reaches the end of — and it said nothing at all about the sixty-two-park register
-    /// those visits are a share of. `AtlasCard` is the whole country at a glance and a door
-    /// to the screen where it can be read properly; the control to add a park by hand comes
-    /// out of the rail and sits in this heading, which is the only place left with room for
-    /// it and the place a heading's control belongs.
-    private var visited: some View {
-        let visits = app.visitRail
-        return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                Text("Parks visited with ParkHop".uppercased())
-                    .font(WP.body(11)).tracking(1.3).opacity(0.55)
-                Rectangle().fill(WP.divider).frame(height: 1)
-                Text("\(visits.count) \(visits.count == 1 ? "park" : "parks")")
-                    .font(WP.display(17))
-                    .foregroundStyle(WP.accent700)
-                addControl
-            }
-            .padding(.top, 22)
-            .padding(.bottom, 12)
-
-            AtlasCard()
-
-            if adding {
-                addField.padding(.top, 12)
-            }
-        }
-    }
-
-    /// Add a park by hand, at the top right of its own heading.
-    ///
-    /// It was a dashed tile at the far end of the rail, which a deck or a map has no
-    /// equivalent of — there is no end to flick to. Here it is where a section's control
-    /// goes everywhere else in the app, and it says what it does rather than what it is.
-    private var addControl: some View {
-        Button {
-            withAnimation(.snappy(duration: 0.2)) { adding.toggle() }
-            if !adding { parkQuery = "" }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: adding ? "xmark" : "plus")
-                    .font(.system(size: 10, weight: .semibold))
-                Text(adding ? "Close" : "Add").font(WP.headingUI(12.5))
-            }
-            .foregroundStyle(WP.accent700)
-            .padding(.horizontal, 11)
-            .frame(minHeight: 30)
-            .background(WP.accent100, in: Capsule())
-            .overlay(Capsule().stroke(WP.accent.opacity(0.34), lineWidth: 1))
-            .contentShape(Capsule())
-        }
-        .buttonStyle(PressStyle(scale: 0.94))
-        .accessibilityLabel(adding ? "Close the park search" : "Add a park you have visited")
-    }
-
-    /// The search that appears under the rail once the add control is tapped.
+    /// The search that appears under the rows once the add row is tapped.
     private var addField: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
@@ -229,57 +316,6 @@ struct ProfileScreen: View {
         }
         return Array(out.prefix(6))
     }
-
-    /// Initials of the parks on the rail, or a compass rose before there are any. Derived,
-    /// because there is no account and therefore no name to show.
-    private var monogram: String {
-        let initials = app.visitRail.prefix(2).compactMap { $0.park.name.first }
-        return initials.isEmpty ? "◆" : String(initials).uppercased()
-    }
-
-    /// What the phone is actually holding, counted rather than claimed.
-    private var holdings: String {
-        let trips = app.myTrips.count
-        let parks = app.visitRail.count
-        let saved = app.saved.count
-        let parts = [
-            trips > 0 ? "\(trips) \(trips == 1 ? "trip" : "trips")" : nil,
-            parks > 0 ? "\(parks) visited" : nil,
-            saved > 0 ? "\(saved) saved" : nil,
-        ].compactMap { $0 }
-        return parts.isEmpty
-            ? "Stored on this iPhone · nothing yet"
-            : parts.joined(separator: " · ") + " · stored on this iPhone"
-    }
-
-    private var identity: some View {
-        HStack(spacing: 13) {
-            Text(monogram)
-                // 82 from 54, with the initials scaled by the same factor so the monogram
-                // keeps its proportions rather than sitting small in a bigger circle.
-                .font(WP.heading(32))
-                .foregroundStyle(WP.accent800)
-                .frame(width: 82, height: 82)
-                .background(WP.accent100, in: Circle())
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Your parks").font(WP.heading(20))
-                // Was "Miriam Halloran · Trips synced by iCloud · 3 devices" on every
-                // install — a name nobody entered, and a sync that does not exist. There is
-                // no account and nothing leaves the phone, so this counts what is actually
-                // held and says where it is held.
-                Text(holdings).font(WP.body(12)).opacity(0.6)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.bottom, 18)
-    }
-
-    private func sectionLabel(_ text: String) -> some View {
-        Text(text.uppercased())
-            .font(WP.body(10)).tracking(1.4).opacity(0.5)
-            .padding(.top, 22).padding(.bottom, 8)
-    }
-
 }
 
 /// The grouped-inset card iOS uses for settings, in the Classical palette.
@@ -288,11 +324,14 @@ struct Grouped<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) { content }
-            .background(WP.neutral100, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(WP.divider, lineWidth: 1))
+            .background(WP.neutral100.opacity(0.7),
+                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(WP.divider, lineWidth: 1)
+            }
     }
 }
-
 
 /// A hex field that repaints the app as it is typed.
 ///

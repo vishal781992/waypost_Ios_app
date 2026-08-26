@@ -15,6 +15,44 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.43.0 — The profile is a front page
+
+It was a scroll: a heading, a monogram beside a line of counts, the atlas as a hundred and
+eighty points of card, a settings row, two paragraphs of small print. Everything on it was
+true and none of it was the point. The point is the country and how much of it has been
+stood in.
+
+**So the country is the screen.** The atlas full bleed in black and white under a black
+tint, with the profile resting on a sheet that rises off the bottom of it. **The map is
+still a door** — tapping it opens the atlas exactly as the card it replaced did, and it
+uses the same cached snapshot, so opening the profile a second time is still a read from
+disk. It does not shrink when pressed: everything else in the app answers a touch that way,
+but a whole display doing it reads as the screen coming loose.
+
+**A circle you can choose, and a name you can type.** There is no account in this app —
+nothing to fetch a name from, nothing to download a picture from — so both are set on the
+phone and kept beside the trips and the stamps. Tapping either opens one editor, because
+somebody who wants to change one of them has no reason to know they are two settings.
+
+**Emoji, strictly — by construction rather than by validation.** iOS has no emoji-only
+keyboard an app may ask for; the emoji key belongs to whoever is typing, and a field that
+accepted every character and then threw most of them away would be a field that argues with
+them. It is a grid of sixty, and a grid cannot be typed into wrongly. Pick nothing and the
+circle carries the initials of the last two parks you stood in, exactly as it did before.
+
+**Nothing invented for somebody who has entered nothing.** With no name the line reads *Add
+your name* at forty-five per cent — an invitation, which stops being one the moment there is
+something to show.
+
+Kept, because the screen is not only a picture: the counts, the version badge a tester reads
+into a bug report, the control that adds a park by hand, and the two lines of small print,
+now one line and quieter.
+
+**Log out** returns to the opening screen behind a question that says plainly what happens —
+nothing on the phone is deleted. It works because the gate now reads who is signed in off
+the service that knows, rather than off a copy taken once at launch, which could not hear
+about a log-out happening three screens away.
+
 ## 2.42.4 — The same button My list has
 
 Not a lookalike of it — the same component. My list ends in a lime `GlowButton` at fifty-two

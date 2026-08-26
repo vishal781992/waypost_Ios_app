@@ -217,6 +217,15 @@ final class AppState {
     /// and this app should not hold it unless the feature it is for is wanted.
     var checksCalendar = false
 
+    /// The emoji this phone's owner picked for themselves, and the name they typed.
+    ///
+    /// There is no account, so there is no name to fetch and no picture to download —
+    /// which is exactly why these are set here and kept here, beside the trips and the
+    /// stamps. Both optional: nothing is invented for somebody who has set neither, and
+    /// the profile falls back to initials taken from the parks they have stood in.
+    var profileEmoji: String?
+    var profileName: String?
+
     /// Which trips this app has written into the calendar.
     ///
     /// Kept here rather than read back from the calendar because reading needs full access
@@ -1063,6 +1072,10 @@ final class AppState {
         /// decodes to off, which is the only safe default for a permission.
         var calendarCheck: Bool?
         var calendarTrips: [String]?
+        /// Optional, so a snapshot written before anybody could name themselves decodes to
+        /// the initials the profile derived before there was a name to show.
+        var profileEmoji: String?
+        var profileName: String?
     }
 
     private static let key = "waypost-app"
@@ -1096,6 +1109,8 @@ final class AppState {
         // account and on their other devices. The alert says so, and Calendar removes
         // them in one move — the trips are in a calendar of their own for that reason.
         calendarTrips = []
+        profileEmoji = nil
+        profileName = nil
 
         ParkPack.shared.removeAll()
         // Both of these are actors of their own, so both are awaited off this one.
@@ -1130,7 +1145,9 @@ final class AppState {
             unvisits: Array(hiddenVisits),
             book: stampBook,
             calendarCheck: checksCalendar,
-            calendarTrips: Array(calendarTrips)
+            calendarTrips: Array(calendarTrips),
+            profileEmoji: profileEmoji,
+            profileName: profileName
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             UserDefaults.standard.set(data, forKey: Self.key)
@@ -1153,6 +1170,8 @@ final class AppState {
         unitsMetric = snapshot.metric
         checksCalendar = snapshot.calendarCheck ?? false
         calendarTrips = Set(snapshot.calendarTrips ?? [])
+        profileEmoji = snapshot.profileEmoji
+        profileName = snapshot.profileName
         notifyPermits = snapshot.permits
         notifyAlerts = snapshot.alerts
         notifyLive = snapshot.live
