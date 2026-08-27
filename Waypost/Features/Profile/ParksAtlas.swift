@@ -237,6 +237,25 @@ struct AtlasScreen: View {
     @State private var filter: AtlasFilter = .all
     @State private var visible: MKCoordinateRegion?
 
+    /// Whether a live map has been built in this process yet.
+    ///
+    /// The first one is expensive in a way the rest are not: MapKit brings up its tile
+    /// engine, opens its connection to the location daemon and loads a basemap, and all of
+    /// that lands on the main thread the moment the view is built. Everywhere else in the
+    /// app a map is a drawn picture — the trip plates and the profile's own ground are
+    /// snapshots — so the atlas is the first live map the process ever makes, and it was
+    /// making it in the middle of the push animation. That is the stall.
+    ///
+    /// Static, because the cost belongs to the process rather than to the screen: the
+    /// second visit pays nothing and must not wait.
+    private static var mapKitIsWarm = false
+
+    /// Long enough for the push to finish. `NavigationStack` slides in on the system's own
+    /// curve, which is a little over three tenths of a second.
+    private static let settle: Duration = .milliseconds(360)
+
+    @State private var showsMap = AtlasScreen.mapKitIsWarm
+
     /// The register, its states and the filter applied — worked out once per redraw.
     ///
     /// These were five computed properties reading each other: `shown` asked for `parks`
@@ -268,7 +287,15 @@ struct AtlasScreen: View {
         // does not, which is the arrangement `FloatingBack` documents and the design lint
         // checks — one control, one placement, owned by the control.
         return ZStack(alignment: .topLeading) {
-            map(reading).ignoresSafeArea()
+            // The ground the map will cover, and what stands in for it while the screen is
+            // still sliding. The same ink the profile's map sits on, so arriving here is a
+            // continuation rather than a flash of a different colour.
+            WP.ink.ignoresSafeArea()
+
+            if showsMap {
+                map(reading).ignoresSafeArea().transition(.opacity)
+            }
+
             FloatingBack(label: "Profile") { app.pop() }
         }
         // At the foot, under the thumb. It sat at the top for one release, next to the
@@ -278,6 +305,21 @@ struct AtlasScreen: View {
         // could be put.
         .overlay(alignment: .bottom) { cuff(reading) }
         .task { StateShapes.shared.load() }
+        // The back control and the counts are up immediately; only the map waits, and only
+        // the first time. A screen that arrives complete a third of a second late is a
+        // screen that arrived; one that judders on its way in is a screen that broke.
+        .task { await liven() }
+    }
+
+    /// Builds the live map once the screen has finished arriving.
+    ///
+    /// Returns on its first line on every visit after the first, so the wait is paid once
+    /// per launch and never again.
+    private func liven() async {
+        guard !showsMap else { return }
+        try? await Task.sleep(for: Self.settle)
+        Self.mapKitIsWarm = true
+        withAnimation(.easeOut(duration: 0.3)) { showsMap = true }
     }
 
     // MARK: The map

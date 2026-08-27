@@ -15,6 +15,28 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.43.4 — The atlas stops juddering on its way in
+
+Only two live maps exist in this app, and the atlas is the one anybody reaches first.
+Everywhere else a map is a drawn picture — the trip plates and the profile's own ground are
+snapshots — so the atlas builds the first real `Map` the process has ever made, and it was
+building it in the middle of the push animation.
+
+That first one is expensive in a way the rest are not: MapKit brings up its tile engine,
+opens its connection to the location daemon and loads a basemap, and all of it lands on the
+main thread the moment the view is built. Hence a screen that hangs on its way in, once,
+and slides in cleanly ever after.
+
+The map is now built after the push has finished rather than during it. The back control
+and the counts are up immediately; the ground is the same ink the profile's map sits on, so
+arriving is a continuation rather than a flash of another colour, and the map fades in over
+it. **Only the first time** — the cost belongs to the process rather than to the screen, so
+every visit after it shows the map at once and waits for nothing.
+
+Ruled out on the way: the state boundaries are not the cause. `us-states.json` is not
+bundled, so that loader returns on its first line, and the register it walks is sixty-two
+rows of arithmetic.
+
 ## 2.43.3 — Something on the map that says it opens
 
 The card the backdrop replaced carried "Open the atlas" and a chevron along its foot, and
