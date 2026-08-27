@@ -15,6 +15,25 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.43.3 — Something on the map that says it opens
+
+The card the backdrop replaced carried "Open the atlas" and a chevron along its foot, and
+losing that row lost the only thing on the screen that said the picture was a door. A whole
+display is a generous tap target and an invisible one: nothing about a map filling a screen
+suggests it goes anywhere, and a reader who never tries it never finds out.
+
+So the words come back, on a glass pill in the map's bottom corner — the same dark glass the
+back control and every other floating control in the app wear. It sits inside the map's own
+button rather than beside it and takes no touches of its own: there is one tap target here,
+and this is a sign on it rather than a second control.
+
+Bottom trailing, because the circle owns the middle, the status bar owns the top, and that
+corner is ocean on every phone.
+
+The forty-four points the map runs on behind the sheet's rounded corners is a named number
+now rather than two copies of `44` — the caller adds it to the height it asks for, and the
+hint insets itself by it to stay in view.
+
 ## 2.43.2 — The band between the map and the sheet
 
 Two coordinate spaces, one layout. A `GeometryReader` reports the size *inside* the safe

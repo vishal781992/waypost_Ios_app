@@ -38,10 +38,10 @@ struct ProfileScreen: View {
             let sheetTall = sheetHeight(full.height)
 
             ZStack(alignment: .top) {
-                // Plus forty-four, so the map runs on behind the sheet's rounded corners
+                // `underlap` extra, so the map runs on behind the sheet's rounded corners
                 // instead of showing the ground through them.
                 AtlasBackdrop(size: CGSize(width: full.width,
-                                           height: full.height - sheetTall + 44))
+                                           height: full.height - sheetTall + AtlasBackdrop.underlap))
 
                 sheet(clearing: proxy.safeAreaInsets.bottom)
                     .frame(height: sheetTall)

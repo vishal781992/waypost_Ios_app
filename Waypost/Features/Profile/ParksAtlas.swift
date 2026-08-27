@@ -126,10 +126,14 @@ enum AtlasFilter: Hashable, CaseIterable {
 struct AtlasBackdrop: View {
     @Environment(AppState.self) private var app
 
+    /// How far the map runs on behind the sheet's rounded corners, so nothing shows through
+    /// them. Stated here because two things need it and they must agree: the caller adds it
+    /// to the height it asks for, and the hint below insets itself by it to stay in view.
+    static let underlap: CGFloat = 44
+
     /// The whole area the map is to fill — the display less whatever the sheet takes, plus
-    /// enough to run behind the sheet's rounded corners. Handed in rather than measured:
-    /// the sheet's height is decided one layer up, and a `GeometryReader` here would be a
-    /// second opinion about the same number.
+    /// `underlap`. Handed in rather than measured: the sheet's height is decided one layer
+    /// up, and a `GeometryReader` here would be a second opinion about the same number.
     var size: CGSize
 
     @State private var plate: UIImage?
@@ -162,6 +166,7 @@ struct AtlasBackdrop: View {
                 )
             }
             .frame(width: size.width, height: size.height)
+            .overlay(alignment: .bottomTrailing) { hint }
             .clipped()
             .contentShape(Rectangle())
         }
@@ -176,6 +181,34 @@ struct AtlasBackdrop: View {
             plate = await AtlasSnapshot.shared.backdrop(visited: visited, size: size)
         }
         .accessibilityLabel("\(visited.count) of \(NationalParks.all.count) national parks visited. Open the atlas.")
+    }
+
+    /// What says the map can be opened.
+    ///
+    /// The card this replaced carried "Open the atlas" and a chevron along its foot, and
+    /// losing that row lost the only thing on the screen that said the picture was a door.
+    /// A whole display is a generous tap target and an invisible one: nothing about a map
+    /// filling a screen suggests it goes anywhere, and a reader who does not try it never
+    /// finds out.
+    ///
+    /// Inside the button's own label rather than beside it, and deaf to touches — there is
+    /// one tap target here and this is a sign on it, not a second control. Bottom trailing:
+    /// the circle owns the middle, the status bar owns the top, and this corner is ocean on
+    /// every phone.
+    private var hint: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "map")
+                .font(.system(size: 11, weight: .semibold))
+            Text("Open the atlas").font(WP.headingUI(12.5))
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+        }
+        .padding(.horizontal, 13)
+        .frame(minHeight: 36)
+        .glassControl()
+        .padding(.trailing, WP.gutter)
+        .padding(.bottom, Self.underlap + 16)
+        .allowsHitTesting(false)
     }
 }
 
