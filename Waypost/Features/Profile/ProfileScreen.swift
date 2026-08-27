@@ -31,12 +31,17 @@ struct ProfileScreen: View {
         GeometryReader { proxy in
             let sheetTall = sheetHeight(proxy.size.height)
 
-            ZStack(alignment: .bottom) {
-                AtlasBackdrop(band: proxy.size.height - sheetTall)
-                    .ignoresSafeArea()
+            ZStack(alignment: .top) {
+                // Plus forty-four, so the map runs on behind the sheet's rounded corners
+                // instead of showing the ground through them.
+                AtlasBackdrop(size: CGSize(width: proxy.size.width,
+                                           height: proxy.size.height - sheetTall + 44))
 
-                sheet.frame(height: sheetTall)
+                sheet
+                    .frame(height: sheetTall)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
             }
+            .ignoresSafeArea()
         }
         .ignoresSafeArea(edges: .bottom)
         .sheet(isPresented: $editing) {
@@ -57,14 +62,12 @@ struct ProfileScreen: View {
 
     private var sheet: some View {
         VStack(spacing: 0) {
-            Capsule()
-                .fill(WP.text.opacity(0.18))
-                .frame(width: 38, height: 5)
-                .padding(.top, 10)
-
             ScrollView(.vertical) {
                 VStack(spacing: 0) {
-                    identity
+                    // Room for the half of the circle that belongs to the sheet. The circle
+                    // itself is an overlay, not a row: a scroll view clips its own content,
+                    // so drawn in here its top half was cut clean off.
+                    identity.padding(.top, 56)
                     rows.padding(.top, 22)
 
                     if adding { addField.padding(.top, 12) }
@@ -84,6 +87,11 @@ struct ProfileScreen: View {
             }
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
+        }
+        // Half on the sheet and half on the map, which is the whole idea — so it hangs off
+        // the top edge rather than sitting inside anything that could clip it.
+        .overlay(alignment: .top) {
+            avatarButton.offset(y: -48)
         }
         .background {
             UnevenRoundedRectangle(topLeadingRadius: 30, bottomLeadingRadius: 0,
@@ -109,8 +117,6 @@ struct ProfileScreen: View {
             Haptics.tap()
         } label: {
             VStack(spacing: 9) {
-                avatar.padding(.top, -46)
-
                 if let name = app.profileName, !name.isEmpty {
                     Text(name)
                         .font(WP.display(31))
@@ -133,6 +139,18 @@ struct ProfileScreen: View {
         .buttonStyle(PressStyle(scale: 0.985))
         .foregroundStyle(WP.text)
         .accessibilityLabel("Your name and emoji. Opens the editor.")
+    }
+
+    /// The circle, and the tap that opens the editor from it.
+    private var avatarButton: some View {
+        Button {
+            editing = true
+            Haptics.tap()
+        } label: {
+            avatar
+        }
+        .buttonStyle(PressStyle(scale: 0.94))
+        .accessibilityLabel("Your emoji. Opens the editor.")
     }
 
     private var avatar: some View {

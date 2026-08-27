@@ -126,10 +126,11 @@ enum AtlasFilter: Hashable, CaseIterable {
 struct AtlasBackdrop: View {
     @Environment(AppState.self) private var app
 
-    /// How much of the display the sheet leaves for the map. Handed in rather than measured:
+    /// The whole area the map is to fill — the display less whatever the sheet takes, plus
+    /// enough to run behind the sheet's rounded corners. Handed in rather than measured:
     /// the sheet's height is decided one layer up, and a `GeometryReader` here would be a
     /// second opinion about the same number.
-    var band: CGFloat
+    var size: CGSize
 
     @State private var plate: UIImage?
 
@@ -139,7 +140,7 @@ struct AtlasBackdrop: View {
             app.push(.atlas)
             Haptics.tap()
         } label: {
-            ZStack(alignment: .top) {
+            ZStack {
                 // The ground the tint is mixed into, so a phone with no picture yet — no
                 // signal, first launch — is a dark screen rather than a pale rectangle.
                 WP.ink
@@ -147,10 +148,7 @@ struct AtlasBackdrop: View {
                 if let plate {
                     Image(uiImage: plate)
                         .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                        .frame(maxHeight: max(120, band - WP.statusBarInset - 44))
-                        .padding(.top, WP.statusBarInset + 22)
+                        .scaledToFill()
                         .transition(.opacity)
                 }
 
@@ -163,14 +161,19 @@ struct AtlasBackdrop: View {
                     startPoint: .center, endPoint: .bottom
                 )
             }
+            .frame(width: size.width, height: size.height)
+            .clipped()
             .contentShape(Rectangle())
         }
         // No press scale. Everything else in the app answers a touch by shrinking; a whole
         // display doing it would read as the screen coming loose.
         .buttonStyle(.plain)
         .animation(.easeOut(duration: 0.32), value: plate != nil)
-        .task(id: visited.sorted().joined(separator: ",")) {
-            plate = await AtlasSnapshot.shared.card(visited: visited)
+        // Asked for at the shape it is going to fill. A picture of the country's own
+        // proportions dropped into a portrait hole either letterboxes — which is the black
+        // band this used to draw — or crops half the country away.
+        .task(id: "\(Int(size.width))x\(Int(size.height))|\(visited.sorted().joined(separator: ","))") {
+            plate = await AtlasSnapshot.shared.backdrop(visited: visited, size: size)
         }
         .accessibilityLabel("\(visited.count) of \(NationalParks.all.count) national parks visited. Open the atlas.")
     }

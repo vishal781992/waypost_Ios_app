@@ -15,6 +15,38 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.43.1 — Four faults in the front page
+
+**The circle was cut in half.** It hung off the top of the sheet by a negative inset while
+sitting *inside* the sheet's scroll view — and a scroll view clips its own content, so the
+half that belonged to the map was sheared off and what was left sat under the grab handle.
+It is an overlay on the sheet now rather than a row in it, hanging off an edge nothing
+clips. The grab handle goes with it: this sheet is a fixed layout, not a draggable one, and
+a handle promised a gesture that was never there.
+
+**The map letterboxed instead of filling.** The picture was of the country's own proportions
+— almost twice as wide as it is tall — dropped into a portrait hole, so it fitted to the
+width and left a black band the height of a hand beneath it. A picture in a hole of the
+wrong shape can only letterbox or crop half the country away, so neither: the snapshotter is
+now asked for the shape it is going to fill. The map runs from the top of the display to the
+sheet, and forty-four points on behind the sheet's rounded corners so nothing shows through
+them.
+
+The cache follows: two cuts of the same country rather than one file, and the shape is part
+of the receipt — a phone handed a size it did not draw at renders again rather than
+stretching what it has.
+
+**The emoji were too small to choose between.** Six across gave squares barely fifty points
+wide and glyphs that read as decoration on a form. Five across, sixty-point tiles,
+thirty-four-point glyphs.
+
+**Nothing said it had been saved.** Every tap was applied the moment it happened, which is
+defensible and reads as broken. The name and the emoji are drafts now, the close control
+discards them, and one lime **Save** at the foot commits — `GlowButton` at fifty-two points
+on the page colour under a hairline, the same strip My list and the trip's Days tab both end
+in. Above them a preview shows the circle at the size it is actually worn, rather than at the
+size of a square in a grid.
+
 ## 2.43.0 — The profile is a front page
 
 It was a scroll: a heading, a monogram beside a line of counts, the atlas as a hundred and

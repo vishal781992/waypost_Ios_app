@@ -35,9 +35,10 @@ final class AtlasSnapshot {
 
     private let directory: URL
     private let manager = FileManager.default
-    /// One render at a time. The card and its own redraw asking together is two snapshots
-    /// for one file.
-    private var inFlight: Task<UIImage?, Never>?
+    /// One render at a time per cut. The card and its own redraw asking together is two
+    /// snapshots for one file; the card and the backdrop asking together are two different
+    /// files and must not queue behind each other.
+    private var inFlight: [String: Task<UIImage?, Never>] = [:]
 
     private init() {
         let caches = manager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -45,55 +46,66 @@ final class AtlasSnapshot {
         try? manager.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
-    /// One size for every phone, drawn at three times it.
-    ///
-    /// The picture is of a fixed region, so its width was only ever about sharpness — and
-    /// making it depend on the card's measured width meant waiting for the layout before
-    /// the snapshotter could be asked, and re-rendering when the first measurement turned
-    /// out to be wrong. 1200 by 645 covers the widest phone at 3× and scales down cleanly
-    /// on the rest; the aspect is the lower forty-eight's own.
-    nonisolated static var plateSize: CGSize { CGSize(width: 400, height: 215) }
+    /// Drawn at three times the points it will occupy — sharp on every phone, and small
+    /// enough on disk that the cache is one file rather than a folder to manage.
     nonisolated static var plateScale: CGFloat { 3 }
 
-    private var image: URL { directory.appendingPathComponent("card.jpg") }
-    private var receipt: URL { directory.appendingPathComponent("card.fp") }
+    /// Two pictures of the same country, at two shapes.
+    ///
+    /// The card's is the lower forty-eight's own proportions. The profile's ground is
+    /// whatever shape the sheet leaves above it — taller than it is wide on most phones —
+    /// and asking the snapshotter for that shape is the only way to fill it: a landscape
+    /// picture in a portrait hole either letterboxes or crops half the country away.
+    private func image(_ cut: String) -> URL { directory.appendingPathComponent("\(cut).jpg") }
+    private func receipt(_ cut: String) -> URL { directory.appendingPathComponent("\(cut).fp") }
 
     // MARK: Asking
 
-    /// The card's picture: from disk while it is still of this collection, and from MapKit
-    /// when it is not. Nil only when the snapshot itself failed with nothing cached.
-    func card(visited: Set<String>) async -> UIImage? {
-        let key = Self.key(visited: visited)
-        if let stored = cached(key) { return stored }
+    /// The profile's ground, at the shape the sheet leaves for it: from disk while it is
+    /// still of this collection and this shape, and from MapKit when it is not. Nil only
+    /// when the snapshot itself failed with nothing cached.
+    ///
+    /// The size is the caller's because only the caller knows it — and it is part of the
+    /// receipt, so a phone that renders at one shape and is then handed another (a rotation,
+    /// a different device restoring the same cache) draws again rather than stretching what
+    /// it has.
+    func backdrop(visited: Set<String>, size: CGSize) async -> UIImage? {
+        let asked = CGSize(width: size.width.rounded(), height: size.height.rounded())
+        guard asked.width > 1, asked.height > 1 else { return nil }
+        return await picture(cut: "backdrop", visited: visited, size: asked)
+    }
 
-        if let running = inFlight { return await running.value }
+    private func picture(cut: String, visited: Set<String>, size: CGSize) async -> UIImage? {
+        let key = Self.key(visited: visited, size: size)
+        if let stored = cached(key, cut: cut) { return stored }
+
+        if let running = inFlight[cut] { return await running.value }
         let task = Task<UIImage?, Never> {
-            await render(key: key, visited: visited,
-                         size: Self.plateSize, scale: Self.plateScale)
+            await render(key: key, cut: cut, visited: visited,
+                         size: size, scale: Self.plateScale)
         }
-        inFlight = task
+        inFlight[cut] = task
         let result = await task.value
-        inFlight = nil
+        inFlight[cut] = nil
         return result
     }
 
-    /// The collection, and nothing else. Sorted, because a set has no order and two runs
-    /// of the same parks must produce the same receipt. The size is no longer part of it:
-    /// there is only one, so a picture drawn on any phone is the right picture on every
-    /// other — and collecting a park is the only thing that can make it wrong.
-    private static func key(visited: Set<String>) -> String {
-        "v2|" + visited.sorted().joined(separator: ",")
+    /// The collection and the shape it was drawn at. Sorted, because a set has no order and
+    /// two runs of the same parks must produce the same receipt.
+    private static func key(visited: Set<String>, size: CGSize) -> String {
+        "v3|\(Int(size.width))x\(Int(size.height))|" + visited.sorted().joined(separator: ",")
     }
 
-    private func cached(_ key: String) -> UIImage? {
-        guard let written = try? String(contentsOf: receipt, encoding: .utf8), written == key,
-              let data = try? Data(contentsOf: image) else { return nil }
+    private func cached(_ key: String, cut: String) -> UIImage? {
+        guard let written = try? String(contentsOf: receipt(cut), encoding: .utf8), written == key,
+              let data = try? Data(contentsOf: image(cut)) else { return nil }
         return UIImage(data: data)
     }
 
     // MARK: Drawing
 
-    private func render(key: String, visited: Set<String>, size: CGSize, scale: CGFloat) async -> UIImage? {
+    private func render(key: String, cut: String, visited: Set<String>,
+                        size: CGSize, scale: CGFloat) async -> UIImage? {
         let options = MKMapSnapshotter.Options()
         options.region = Self.region
         options.size = size
@@ -144,8 +156,8 @@ final class AtlasSnapshot {
         }
 
         if let data = composed.jpegData(compressionQuality: 0.9) {
-            try? data.write(to: image, options: .atomic)
-            try? key.write(to: receipt, atomically: true, encoding: .utf8)
+            try? data.write(to: image(cut), options: .atomic)
+            try? key.write(to: receipt(cut), atomically: true, encoding: .utf8)
         }
         return composed
     }
