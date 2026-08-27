@@ -15,6 +15,21 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.43.2 — The band between the map and the sheet
+
+Two coordinate spaces, one layout. A `GeometryReader` reports the size *inside* the safe
+area; the stack inside it was the thing ignoring the safe area, not the reader. So the map
+was sized against seven hundred and eighty-five points while the sheet was placed against
+eight hundred and forty-four, and the difference between them was a strip neither covered —
+the pale band under the map.
+
+The reader ignores the safe area now, so both are measured against the same display. The map
+runs from the top edge to the sheet and forty-four points on behind its rounded corners.
+
+The sheet reaches the real bottom of the phone as a result, so its content clears the home
+indicator's own inset as well as the floating tab bar — read off the same reader rather than
+written down as a number.
+
 ## 2.43.1 — Four faults in the front page
 
 **The circle was cut in half.** It hung off the top of the sheet by a negative inset while

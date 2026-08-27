@@ -28,22 +28,27 @@ struct ProfileScreen: View {
     }
 
     var body: some View {
+        // The reader ignores the safe area, not the stack inside it — which is the whole
+        // fix for the pale band that used to sit between the map and the sheet. A
+        // `GeometryReader` reports the size *inside* the safe area; with the stack ignoring
+        // it instead, the map was sized against 785 points while the sheet was placed
+        // against 844, and the difference showed as a gap neither of them covered.
         GeometryReader { proxy in
-            let sheetTall = sheetHeight(proxy.size.height)
+            let full = proxy.size
+            let sheetTall = sheetHeight(full.height)
 
             ZStack(alignment: .top) {
                 // Plus forty-four, so the map runs on behind the sheet's rounded corners
                 // instead of showing the ground through them.
-                AtlasBackdrop(size: CGSize(width: proxy.size.width,
-                                           height: proxy.size.height - sheetTall + 44))
+                AtlasBackdrop(size: CGSize(width: full.width,
+                                           height: full.height - sheetTall + 44))
 
-                sheet
+                sheet(clearing: proxy.safeAreaInsets.bottom)
                     .frame(height: sheetTall)
                     .frame(maxHeight: .infinity, alignment: .bottom)
             }
-            .ignoresSafeArea()
         }
-        .ignoresSafeArea(edges: .bottom)
+        .ignoresSafeArea()
         .sheet(isPresented: $editing) {
             ProfileIdentityEditor()
                 .environment(app)
@@ -60,7 +65,11 @@ struct ProfileScreen: View {
 
     // MARK: The sheet
 
-    private var sheet: some View {
+    /// - Parameter clearing: the home indicator's own inset. The sheet runs to the real
+    ///   bottom of the display now, so its content has to clear both the floating tab bar
+    ///   and the strip iOS keeps under it — and that strip is the phone's number, not one
+    ///   to write down here.
+    private func sheet(clearing bottomInset: CGFloat) -> some View {
         VStack(spacing: 0) {
             ScrollView(.vertical) {
                 VStack(spacing: 0) {
@@ -83,7 +92,7 @@ struct ProfileScreen: View {
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, WP.gutter)
                 // Clear of the floating tab bar, which this screen sits under.
-                .padding(.bottom, WP.tabBarHeight + 26)
+                .padding(.bottom, WP.tabBarHeight + 26 + bottomInset)
             }
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.basedOnSize)
@@ -99,7 +108,6 @@ struct ProfileScreen: View {
                                    style: .continuous)
                 .fill(WP.onInk)
                 .shadow(color: Color(hex: 0x000000, opacity: 0.34), radius: 22, y: -10)
-                .ignoresSafeArea(edges: .bottom)
         }
     }
 
