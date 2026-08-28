@@ -292,22 +292,45 @@ private struct IslandBloom: View {
     /// tall. Close enough on every phone that has one, and harmless on the phones that
     /// do not — there the light simply sits at the top of the screen.
     private static let centreY: CGFloat = 30
-    private static let radius: CGFloat = 140
-    /// Wider than it is tall, the way the Island is.
-    private static let stretch: CGFloat = 1.72
+
+    /// How far the light carries, and the number that keeps it off the words.
+    ///
+    /// It was a hundred and forty, which put the thick of the glow straight through the
+    /// kicker and the masthead — brass under lime, and worse, near-black under the pine.
+    /// Forty stops short of the type: the header's first line sits fifty-nine points of
+    /// safe area plus fourteen of inset below the top of the screen, and this curve is
+    /// spent well before it.
+    private static let reach: CGFloat = 40
+
+    /// Wider than it is tall in about the Island's own proportion, so the light reads as
+    /// belonging to that shape rather than as a circle that happens to sit behind it.
+    private static let stretch: CGFloat = 3.9
+
+    private static let peak: Double = 0.92
+
+    /// The falloff, as a smooth bump sampled across the radius.
+    ///
+    /// Three stops with straight ramps between them is what made the old glow read as a
+    /// circle. A linear falloff that stops dead leaves a kink in the slope, and the eye
+    /// finds a kink as an edge however soft the colours either side of it are — that was
+    /// the ring, and it is why nobody could point at where it was. `(1 - t²)³` arrives at
+    /// nothing with no slope left, so there is no edge in it to find.
+    private var stops: [Gradient.Stop] {
+        (0...14).map { step in
+            let t = Double(step) / 14
+            // Cubed by hand rather than through `pow`, which would be the only thing in
+            // this file reaching outside SwiftUI for a multiplication.
+            let bump = 1 - t * t
+            return .init(color: colour.opacity(Self.peak * bump * bump * bump), location: t)
+        }
+    }
 
     var body: some View {
-        RadialGradient(
-            gradient: Gradient(stops: [
-                .init(color: colour.opacity(0.92), location: 0),
-                .init(color: colour.opacity(0.34), location: 0.46),
-                .init(color: colour.opacity(0), location: 0.76),
-            ]),
-            center: .center, startRadius: 0, endRadius: Self.radius
-        )
-        .frame(width: Self.radius * 2, height: Self.radius * 2)
+        RadialGradient(gradient: Gradient(stops: stops),
+                       center: .center, startRadius: 0, endRadius: Self.reach)
+        .frame(width: Self.reach * 2, height: Self.reach * 2)
         .scaleEffect(x: Self.stretch, anchor: .center)
-        .offset(y: Self.centreY - Self.radius)
+        .offset(y: Self.centreY - Self.reach)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
