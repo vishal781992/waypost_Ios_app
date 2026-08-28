@@ -83,11 +83,12 @@ struct ProfileScreen: View {
 
                     logOut.padding(.top, 14)
                     versionBadge.padding(.top, 16)
-
-                    Text("Every panel says where its rows came from. Where a source has not answered, the panel says so rather than filling the gap. Always confirm campsites, permits and closures with the park before you travel — ParkHop is a planner, not a promise.")
-                        .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 20)
+                    // The paragraph that used to close this sheet said two things. The
+                    // first — that every panel names its sources — is a claim the panels
+                    // make themselves, on every screen, which is the only place it means
+                    // anything. The second is the travel warning, and it belongs on the
+                    // settings screen with the rest of the small print rather than under
+                    // somebody's own name.
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, WP.gutter)

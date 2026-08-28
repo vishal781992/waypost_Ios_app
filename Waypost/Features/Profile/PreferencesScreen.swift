@@ -72,8 +72,8 @@ struct PreferencesScreen: View {
                         .padding(.horizontal, 14).padding(.vertical, 13)
                     }
 
-                    Text("A trip is added from its own Days tab, into a calendar of its own called “\(TripCalendar.calendarTitle)” — so the whole trip can be hidden or deleted in one move, and so a trip never counts as a clash with itself. Adding needs only permission to write; looking for clashes is the one that needs permission to read, which is why it has a switch of its own.")
-                        .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
+                    Text("Trips go into “\(TripCalendar.calendarTitle)”, a calendar of their own.")
+                        .font(WP.bodyItalic(11.5)).opacity(0.55)
                         .padding(.top, 10)
 
                     sectionLabel("Travel defaults")
@@ -127,13 +127,9 @@ struct PreferencesScreen: View {
                     // anywhere a thumb rests on the way past.
                     eraseButton.padding(.top, 30)
 
-                    Text("Every panel in the app says where its rows came from. Where a source has not answered, the panel says so rather than filling the gap.")
-                        .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
-                        .padding(.top, 26)
-
-                    Text("Always confirm campsites, permits and closures with the park before you travel. ParkHop is a planner, not a promise.")
+                    Text("A planner, not a promise — confirm campsites, permits and closures with the park.")
                         .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3)
-                        .padding(.top, 12)
+                        .padding(.top, 26)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, WP.gutter)
