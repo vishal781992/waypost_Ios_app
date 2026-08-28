@@ -42,26 +42,32 @@ struct ParkPlateProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (ParkEntry) -> Void) {
-        // The gallery preview. No network: a snapshot is drawn while somebody is choosing
-        // a widget and must not keep them waiting.
-        completion(ParkEntry(date: Date(), park: Self.fallback, photo: nil,
-                             isSaved: false))
+        // The gallery, where a widget is being chosen and must draw at once: no network.
+        // Everywhere else a snapshot is a real plate — it is what is shown while a timeline
+        // is being built, and a photographless one there was the plate arriving as a
+        // coloured rectangle every time.
+        guard !context.isPreview else {
+            completion(ParkEntry(date: Date(), park: Self.fallback, photo: nil, isSaved: false))
+            return
+        }
+        Task {
+            let park = Self.rota(count: 1).first ?? Self.fallback
+            completion(ParkEntry(date: Date(), park: park,
+                                 photo: await Self.photo(for: park, family: context.family),
+                                 isSaved: SavedParks.contains(park.code)))
+        }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<ParkEntry>) -> Void) {
         Task {
             let saved = SavedParks.codes()
             let parks = Self.rota(count: Self.count)
-            let width = context.family == .systemSmall ? 480 : 900
 
             var entries: [ParkEntry] = []
             var when = Date()
             for park in parks {
-                var photo: UIImage?
-                if let url = await ParkPhoto.url(for: park, width: width) {
-                    photo = await ParkPhoto.image(at: url, maxPixel: width)
-                }
-                entries.append(ParkEntry(date: when, park: park, photo: photo,
+                entries.append(ParkEntry(date: when, park: park,
+                                         photo: await Self.photo(for: park, family: context.family),
                                          isSaved: saved.contains(park.code)))
                 when = when.addingTimeInterval(Self.step)
             }
@@ -71,6 +77,13 @@ struct ParkPlateProvider: TimelineProvider {
             let timeline = entries.isEmpty ? [placeholder(in: context)] : entries
             completion(Timeline(entries: timeline, policy: .after(when)))
         }
+    }
+
+    /// One park's photograph, at the size the family will draw it.
+    private static func photo(for park: WidgetPark, family: WidgetFamily) async -> UIImage? {
+        let width = family == .systemSmall ? 480 : 900
+        guard let url = await ParkPhoto.url(for: park, width: width) else { return nil }
+        return await ParkPhoto.image(at: url, maxPixel: width)
     }
 
     /// The parks this timeline will show, in an order that moves between builds.
@@ -107,6 +120,9 @@ struct ParkPlateWidget: Widget {
             ParkPlateView(entry: entry)
                 .containerBackground(for: .widget) { Color.clear }
         }
+        // The plate paints its own edges. Without this the system insets everything —
+        // including the photograph, which is the black border it used to sit inside.
+        .contentMarginsDisabled()
         .configurationDisplayName("A park")
         .description("A national park, changing through the day. Tap to open it.")
         .supportedFamilies([.systemSmall, .systemMedium])

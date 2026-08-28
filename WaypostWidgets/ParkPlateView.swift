@@ -13,10 +13,21 @@ struct ParkPlateView: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            ground
-            scrim
             words
             if SavedParks.isShared { save }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // The picture goes in the container background rather than at the bottom of the
+        // stack, and this is the whole of why the plate had a black border around it.
+        // From iOS 17 a widget's own content is laid inside margins the system chooses;
+        // only `containerBackground` is given the full tile. A photograph in the stack
+        // stopped where those margins began, and what showed around it was the widget's
+        // empty background.
+        .containerBackground(for: .widget) {
+            ZStack {
+                ground
+                scrim
+            }
         }
         // A small plate gets one tap for the whole tile: WidgetKit gives a small widget a
         // single URL and no room for anything else. The medium one has links of its own,
@@ -40,7 +51,7 @@ struct ParkPlateView: View {
             // to build, not worth another round of guessing at an API from here.
             Image(uiImage: photo)
                 .resizable()
-                .scaledToFill()
+                .aspectRatio(contentMode: .fill)
         } else {
             // What the app draws before a photograph lands, rather than an empty frame:
             // three soft fields in the park's own colours, hashed off its code so the same

@@ -19,8 +19,8 @@ settings:
     # Left commented rather than filled in with a guess: a wrong team is a harder error
     # to read than a missing one.
     # DEVELOPMENT_TEAM: XXXXXXXXXX
-    MARKETING_VERSION: 2.53.1
-    CURRENT_PROJECT_VERSION: 100
+    MARKETING_VERSION: 2.53.2
+    CURRENT_PROJECT_VERSION: 101
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
   configs:
@@ -86,6 +86,11 @@ targets:
       - path: WaypostWidgets
       # The register, into the extension's own bundle. A widget cannot read the app's.
       - path: Waypost/Resources/national-parks.json
+        buildPhase: resources
+      # And the display face. A widget cannot reach the app's fonts either: `Font.custom`
+      # falls back silently to the system face, which is why the first plate drew a park's
+      # name in SF. One weight only — the plate uses no other.
+      - path: Waypost/Resources/Fonts/CormorantGaramond-SemiBold.ttf
         buildPhase: resources
     settings:
       base:
