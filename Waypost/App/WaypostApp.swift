@@ -103,7 +103,8 @@ struct RootShell: View {
             // its own header and its own way back, and the bar over it was never part of
             // that page.
             if app.path(for: currentTab).isEmpty {
-                CompactTabBar(selection: selection, isMinimized: chrome.isMinimized)
+                CompactTabBar(selection: selection, isMinimized: chrome.isMinimized,
+                              profileEmoji: app.profileEmoji)
                     // Down to the safe area's own line and no further. Below it is the
                     // strip iOS reserves for the home gesture, which takes the first
                     // touch — the fault the park screen's rail had until it was lifted
@@ -323,6 +324,16 @@ struct NativeTabBarBehaviour: ViewModifier {
 /// `Image` and nothing else. `CompactTabBar` draws views, so the shapes go in as they are.
 struct TabIcon: View {
     var tab: AppTab
+    /// The emoji to wear in place of the person, on the Profile tab.
+    ///
+    /// Passed rather than read from the environment, because this is a drawing of four
+    /// glyphs and nothing else — a view that reaches into app state to decide what it is
+    /// cannot be put anywhere app state is not.
+    ///
+    /// `nil` covers both of the reasons there would be no emoji: the tab is not the one
+    /// selected, and nobody has picked one. Neither needs a case of its own, because the
+    /// answer to both is the same drawn person.
+    var worn: String? = nil
 
     var body: some View {
         switch tab {
@@ -346,11 +357,18 @@ struct TabIcon: View {
         case .saved:
             BookmarkShape()
         case .me:
-            VStack(spacing: 1.4) {
-                Circle().frame(width: 7.8, height: 7.8)
-                PersonBody()
+            if let worn {
+                // Twenty-three points rather than the twenty-nine the frame allows: an
+                // emoji is drawn with its own margin, so a glyph set to the box overshoots
+                // the three that are drawn to it.
+                Text(worn).font(.system(size: 23))
+            } else {
+                VStack(spacing: 1.4) {
+                    Circle().frame(width: 7.8, height: 7.8)
+                    PersonBody()
+                }
+                .offset(y: 0.6)
             }
-            .offset(y: 0.6)
         }
     }
 }

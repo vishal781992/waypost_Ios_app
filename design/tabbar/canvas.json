@@ -1,58 +1,84 @@
 {
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Shipped"
+    },
+    {
+      "id": "page-2",
+      "name": "Not taken"
+    }
+  ],
   "artboards": [
     {
       "file": "Main.dc.html",
       "x": 0,
       "y": 0,
       "w": 390,
-      "h": 780
-    },
-    {
-      "file": "DirectionA.dc.html",
-      "x": 490,
-      "y": 0,
-      "w": 420,
-      "h": 370
-    },
-    {
-      "file": "DirectionB.dc.html",
-      "x": 1010,
-      "y": 0,
-      "w": 420,
-      "h": 370
-    },
-    {
-      "file": "DirectionC.dc.html",
-      "x": 1530,
-      "y": 0,
-      "w": 420,
-      "h": 370
+      "h": 800,
+      "page": "page-1"
     },
     {
       "file": "DirectionD.dc.html",
       "x": 490,
-      "y": 500,
+      "y": 0,
       "w": 420,
-      "h": 370
+      "h": 370,
+      "page": "page-1"
+    },
+    {
+      "file": "DirectionA.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 420,
+      "h": 370,
+      "page": "page-2"
+    },
+    {
+      "file": "DirectionB.dc.html",
+      "x": 520,
+      "y": 0,
+      "w": 420,
+      "h": 370,
+      "page": "page-2"
+    },
+    {
+      "file": "DirectionC.dc.html",
+      "x": 1040,
+      "y": 0,
+      "w": 420,
+      "h": 370,
+      "page": "page-2"
     },
     {
       "file": "DirectionE.dc.html",
-      "x": 1010,
+      "x": 0,
       "y": 500,
       "w": 420,
-      "h": 370
+      "h": 370,
+      "page": "page-2"
     }
   ],
   "annotations": [
     {
       "id": "why",
-      "x": 1530,
+      "x": 490,
       "y": 500,
       "w": 420,
-      "text": "The problem all five are solving:\n\nThe bar's other three glyphs are monochrome vectors that carry selection by going #7D7979 -> #2D2B2B. A colour emoji ignores that entirely.\n\nSo the real question is not \"can the emoji go in the bar\" \u2014 it is \"how does an untintable thing say on and off\"."
+      "page": "page-1",
+      "text": "Why this one solves the problem:\n\nThe bar's other three glyphs are monochrome vectors that carry selection by going #7D7979 -> #2D2B2B. A colour emoji cannot.\n\nOption D sidesteps it rather than working around it \u2014 the emoji only ever appears on the tab that is already selected, so it never has to say \"off\"."
+    },
+    {
+      "id": "notpicked",
+      "x": 520,
+      "y": 500,
+      "w": 420,
+      "page": "page-2",
+      "text": "The four that were not taken, kept for the record.\n\nA and C left the emoji visible at rest, where it outshouts the tab you are actually on. B rings it in a disc but drops it to 15 points. E keeps both marks in one 29-point box, which is busy at the size a tab bar gets looked at."
     }
   ],
   "launch": {
-    "view": "canvas"
+    "view": "canvas",
+    "page": "page-1"
   }
 }
