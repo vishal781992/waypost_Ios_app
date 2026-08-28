@@ -1,4 +1,6 @@
+import Combine
 import SwiftUI
+import UIKit
 
 /// The profile as a front page.
 ///
@@ -17,6 +19,22 @@ struct ProfileScreen: View {
     @State private var loggingOut = false
     @State private var parkQuery = ""
     @FocusState private var parkFieldFocused: Bool
+
+    /// How much of the display the keyboard is covering.
+    ///
+    /// Read from the system rather than from a safe-area inset, because this screen ignores
+    /// the safe area outright — that is what holds the map and the sheet to one set of
+    /// numbers instead of two, and it switched off SwiftUI's own keyboard avoidance along
+    /// with everything else. `.ignoresSafeArea()` with no argument ignores *every* region,
+    /// and `.keyboard` is one of them. So the search field was drawn where it had always
+    /// been drawn, and the keyboard came up over the top of it.
+    ///
+    /// iPhone only — `TARGETED_DEVICE_FAMILY` is 1 — so there is no floating or split
+    /// keyboard to reason about and the frame's height is the whole answer.
+    @State private var keyboard: CGFloat = 0
+
+    /// Where the search field is scrolled to when it takes focus.
+    private static let searchAnchor = "profile.search"
 
     /// How much of the display the sheet takes.
     ///
@@ -40,15 +58,34 @@ struct ProfileScreen: View {
             ZStack(alignment: .top) {
                 // `underlap` extra, so the map runs on behind the sheet's rounded corners
                 // instead of showing the ground through them.
+                //
+                // Sized against the *resting* sheet, never the raised one. The snapshot is
+                // fetched for the shape it fills, keyed on that shape — so growing the
+                // sheet into this number would throw the picture away and ask for a
+                // forty-four point one, then ask for the whole country back on dismissal.
                 AtlasBackdrop(size: CGSize(width: full.width,
                                            height: full.height - sheetTall + AtlasBackdrop.underlap))
 
+                // Typing raises the sheet over the map rather than resizing anything under
+                // it: a search with a keyboard under it has about a hundred and thirty
+                // points to live in at the resting height, which is the field and nothing
+                // it finds.
                 sheet(clearing: proxy.safeAreaInsets.bottom)
-                    .frame(height: sheetTall)
+                    .frame(height: parkFieldFocused ? full.height : sheetTall)
                     .frame(maxHeight: .infinity, alignment: .bottom)
             }
+            .animation(Motion.panel, value: parkFieldFocused)
         }
         .ignoresSafeArea()
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillShowNotification)) { note in
+            let frame = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+            keyboard = frame?.height ?? 0
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboard = 0
+        }
         .sheet(isPresented: $editing) {
             ProfileIdentityEditor()
                 .environment(app)
@@ -71,37 +108,61 @@ struct ProfileScreen: View {
     ///   to write down here.
     private func sheet(clearing bottomInset: CGFloat) -> some View {
         VStack(spacing: 0) {
-            ScrollView(.vertical) {
-                VStack(spacing: 0) {
-                    // Room for the half of the circle that belongs to the sheet. The circle
-                    // itself is an overlay, not a row: a scroll view clips its own content,
-                    // so drawn in here its top half was cut clean off.
-                    identity.padding(.top, 56)
-                    rows.padding(.top, 22)
+            ScrollViewReader { scroller in
+                ScrollView(.vertical) {
+                    VStack(spacing: 0) {
+                        // Room for the half of the circle that belongs to the sheet. The circle
+                        // itself is an overlay, not a row: a scroll view clips its own content,
+                        // so drawn in here its top half was cut clean off.
+                        identity.padding(.top, 56)
+                        rows.padding(.top, 22)
 
-                    if adding { addField.padding(.top, 12) }
+                        if adding { addField.padding(.top, 12).id(Self.searchAnchor) }
 
-                    logOut.padding(.top, 14)
-                    versionBadge.padding(.top, 16)
-                    // The paragraph that used to close this sheet said two things. The
-                    // first — that every panel names its sources — is a claim the panels
-                    // make themselves, on every screen, which is the only place it means
-                    // anything. The second is the travel warning, and it belongs on the
-                    // settings screen with the rest of the small print rather than under
-                    // somebody's own name.
+                        logOut.padding(.top, 14)
+                        versionBadge.padding(.top, 16)
+                        // The paragraph that used to close this sheet said two things. The
+                        // first — that every panel names its sources — is a claim the panels
+                        // make themselves, on every screen, which is the only place it means
+                        // anything. The second is the travel warning, and it belongs on the
+                        // settings screen with the rest of the small print rather than under
+                        // somebody's own name.
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, WP.gutter)
+                    // Clear of the floating tab bar, which this screen sits under — or, while
+                    // the keyboard is up, clear of that instead. The tab bar is behind it and
+                    // no longer the thing to miss, and this is also the slack the scroll needs:
+                    // a scroll view will not run past the end of its content, so without a
+                    // keyboard's worth of room below the field there is nowhere for the field
+                    // to travel to.
+                    .padding(.bottom, keyboard > 0
+                             ? keyboard + 24
+                             : WP.tabBarHeight + 26 + bottomInset)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, WP.gutter)
-                // Clear of the floating tab bar, which this screen sits under.
-                .padding(.bottom, WP.tabBarHeight + 26 + bottomInset)
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                // Reading down puts the keyboard away, which is what every list with a search
+                // on it does.
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: parkFieldFocused) { _, focused in
+                    guard focused else { return }
+                    withAnimation(Motion.panel) {
+                        scroller.scrollTo(Self.searchAnchor, anchor: .top)
+                    }
+                }
             }
-            .scrollIndicators(.hidden)
-            .scrollBounceBehavior(.basedOnSize)
         }
         // Half on the sheet and half on the map, which is the whole idea — so it hangs off
         // the top edge rather than sitting inside anything that could clip it.
         .overlay(alignment: .top) {
-            avatarButton.offset(y: -48)
+            avatarButton
+                .offset(y: -48)
+                // The circle straddles the sheet's top edge. Raised, that edge is the top
+                // of the display and half of it would be off the screen — and a face is
+                // not what somebody typing a park's name is looking at.
+                .opacity(parkFieldFocused ? 0 : 1)
+                .animation(Motion.panel, value: parkFieldFocused)
         }
         .background {
             UnevenRoundedRectangle(topLeadingRadius: 30, bottomLeadingRadius: 0,
@@ -207,7 +268,10 @@ struct ProfileScreen: View {
             Hairline()
             row("Add a park you have visited", adding ? "Searching" : "By hand, if we missed one") {
                 withAnimation(.snappy(duration: 0.2)) { adding.toggle() }
-                if !adding { parkQuery = "" }
+                if !adding {
+                    parkQuery = ""
+                    parkFieldFocused = false
+                }
             }
         }
     }
@@ -274,6 +338,7 @@ struct ProfileScreen: View {
                     .autocorrectionDisabled()
                     .focused($parkFieldFocused)
                 Button("Done") {
+                    parkFieldFocused = false
                     withAnimation(.snappy(duration: 0.2)) { adding = false }
                     parkQuery = ""
                 }
@@ -283,6 +348,11 @@ struct ProfileScreen: View {
             .padding(.horizontal, 15)
             .frame(minHeight: 46)
             .searchFieldSurface(focus: $parkFieldFocused)
+            .task {
+                // Tapping the row is asking to type. Set in a `task` rather than beside
+                // the insertion: focus does not land on a view that is not on screen yet.
+                parkFieldFocused = true
+            }
 
             if parkQuery.trimmingCharacters(in: .whitespaces).count == 1 {
                 Text("One more character and the parks appear.")
@@ -294,6 +364,7 @@ struct ProfileScreen: View {
                         Button {
                             guard !already else { return }
                             app.addVisit(park.code)
+                            parkFieldFocused = false
                             parkQuery = ""
                             withAnimation(.snappy(duration: 0.2)) { adding = false }
                             Haptics.tap()
