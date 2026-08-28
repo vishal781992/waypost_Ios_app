@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           color: #201F1D; background: #EDEDEB; -webkit-font-smoothing: antialiased; }
+    a { color: #7D5411; } a:hover { color: #5A3B0A; }
+    .kick { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #B68235; }
+    .cap { font-size: 11.5px; opacity: .62; line-height: 1.5; }
+    .tick { font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; opacity: .5; }
+    .phone { width: 390px; position: relative; overflow: hidden; background: #EDEDEB; }
+    /* The header: 60%-opaque near-white glass over whatever the tint puts behind it. */
+    .head { position: relative; padding: 62px 20px 11px; }
+    .glass { position: absolute; inset: 0; background: rgba(243,242,242,.60);
+             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+    .tintlayer { position: absolute; inset: 0; }
+    .headinner { position: relative; }
+    .disc { width: 44px; height: 44px; border-radius: 999px; background: #FF9932;
+            display: flex; align-items: center; justify-content: center; flex: none; margin-top: 2px; }
+    .display { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 700;
+               font-size: 44px; letter-spacing: -.4px; line-height: 1.02; margin-top: 2px; }
+    .trough { display: flex; gap: 3px; padding: 3px; background: #EAE7E7; border-radius: 999px; margin-top: 10px; }
+    .seg { flex: 1; text-align: center; font-size: 14px; line-height: 34px; border-radius: 999px; }
+    .seg.on { background: #DBE64C; box-shadow: 0 1px 2px rgba(24,16,8,.18); font-weight: 500; }
+    .seg.off { opacity: .62; }
+    .field { margin-top: 10px; height: 42px; border-radius: 999px; background: #FAFAFA;
+             border: .5px solid rgba(32,31,29,.10); display: flex; align-items: center;
+             padding: 0 16px; font-size: 16px; color: rgba(32,31,29,.42); }
+    .rule { height: .5px; background: rgba(0,0,0,.07); position: relative; }
+    .body { height: 86px; background: #EDEDEB; }
+  </style>
+</helmet>
+
+<div style="width: 390px; background: #EDEDEB">
+  <div style="padding: 22px 20px 12px">
+    <div class="kick" style="color: #B68235">D</div>
+    <div style="font-size: 17px; font-weight: 600; margin-top: 2px">Tinted band</div>
+    <div class="cap" style="margin-top: 3px">The whole header takes an even lime cast, edge to edge.</div>
+  </div>
+  
+  <div class="phone">
+    <div class="head">
+      <div class="tintlayer" style="background: rgba(219,230,76,.72)"></div>
+      <div class="glass"></div>
+      <div class="headinner">
+        <div style="display: flex; align-items: flex-start; gap: 12px">
+          <div style="flex: 1; min-width: 0">
+            <div class="kick">2,963 state parks, one at a time</div>
+            <div class="display">Explore</div>
+          </div>
+          <div class="disc">
+            <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
+              <path d="M2 2 L13 13 M13 2 L2 13" stroke="#201F1D" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="trough"><div class="seg off">National</div><div class="seg on">State</div></div>
+        <div class="field">State park, city or state…</div>
+      </div>
+    </div>
+    <div class="rule" style="background: rgba(0,0,0,.07)"></div>
+    <div class="body"></div>
+  </div>
+  <div class="cap" style="padding: 0 20px 18px">Unmissable, and the one to be careful with. Brass on lime is about 2.7:1 for the kicker — it is already close to that on the plain header, so this makes a weak pairing weaker rather than breaking something that worked.</div>
+</div>
+</x-dc>
+</body>
+</html>
