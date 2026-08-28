@@ -63,6 +63,18 @@ final class TripRouting {
             return path.arrival.code
         }
 
+        /// Where this leg actually begins, for a reader.
+        ///
+        /// The mirror of `arrivesAt`, and it was missing for as long as the drive it names
+        /// was. A flown leg begins at the airport it takes off from; the drive to that
+        /// airport is a leg of its own, so keeping the park's name here would give the trip
+        /// two rows that both set out from the same place and no way to tell them apart —
+        /// exactly the fault `arrivesAt` was written to stop at the other end.
+        var departsFrom: String {
+            guard let path = flightPath, path.toAirport != nil else { return from }
+            return path.departure.code
+        }
+
         /// The drive from the arrival airport to the park, as a leg in its own right.
         ///
         /// This is the point of the whole exercise. Salt Lake City to Yellowstone is 327
@@ -74,6 +86,29 @@ final class TripRouting {
         /// So it is a `Leg` rather than a special case, and it gets all of that by being
         /// one — `LegStops` asks for stops on anything whose `fly` is nil, and this carries
         /// the arrival drive's own geometry for them to be measured along.
+        /// The drive from where this leg starts to the airport it flies out of, as a leg
+        /// in its own right.
+        ///
+        /// The counterpart to `arrivalDrive`, and its absence was a real hole: a trip
+        /// announced that it flew out of Miami without ever saying how Miami was reached.
+        /// `FlightPath` has measured this drive the whole time — the header's "mi by road"
+        /// has been counting it, and the leg's own sheet has been printing it — so the
+        /// distance was on the screen twice while the row that would explain it was
+        /// nowhere. Twenty-six miles out of Biscayne; three hundred and thirty from Big
+        /// Bend to El Paso, which is most of a day nobody was told about.
+        var departureDrive: Leg? {
+            guard let path = flightPath, let drive = path.toAirport else { return nil }
+            return Leg(from: from,
+                       to: path.departure.code,
+                       miles: drive.miles,
+                       drive: drive.drive,
+                       minutes: drive.minutes,
+                       road: drive.road,
+                       coordinates: drive.coordinates,
+                       flight: nil,
+                       flightPath: nil)
+        }
+
         var arrivalDrive: Leg? {
             guard let path = flightPath, let drive = path.fromAirport else { return nil }
             return Leg(from: path.arrival.code,
@@ -91,7 +126,7 @@ final class TripRouting {
         var curated: CuratedLeg {
             // `CuratedFly` and `FlyOption` are the same three strings under two names —
             // one is what the bundled table decodes to, the other what a leg carries.
-            CuratedLeg(from: from, to: arrivesAt, mi: miles, drive: drive, date: "", road: road, ev: [],
+            CuratedLeg(from: departsFrom, to: arrivesAt, mi: miles, drive: drive, date: "", road: road, ev: [],
                        fly: fly.map { CuratedFly(via: $0.via, time: $0.time, note: $0.note) })
         }
     }

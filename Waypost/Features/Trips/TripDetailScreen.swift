@@ -554,6 +554,15 @@ struct TripDetailScreen: View {
                 ForEach(Array(parks.enumerated()), id: \.element.code) { index, park in
                     if index < routed.count {
                         let leg = routed[index]
+                        // A flown leg is three stretches and reads as three rows: the drive
+                        // out to the airport, the flight, and the drive on to the park.
+                        if let departure = leg.departureDrive {
+                            let label = "Driving to \(departure.to)"
+                            legRow(departure.curated, date: "", index: index, label: label) {
+                                app.sheetTrip = trip.id
+                                app.sheet = .routedLeg(departure, label: label)
+                            }
+                        }
                         // A flown leg ends at the arrival airport, and the drive on to the
                         // park follows as a row of its own — so the weather column belongs
                         // to whichever of the two actually arrives at the park.
@@ -588,6 +597,13 @@ struct TripDetailScreen: View {
                     // and the same rule about which of a flight and its arrival drive
                     // carries the column.
                     let back = trip.resolvedOrigin(app.library).map { WeatherStop($0) }
+                    if let departure = home.departureDrive {
+                        let label = "Driving to \(departure.to)"
+                        legRow(departure.curated, date: "", index: parks.count, label: label) {
+                            app.sheetTrip = trip.id
+                            app.sheet = .routedLeg(departure, label: label)
+                        }
+                    }
                     legRow(home.curated, date: "", index: parks.count, label: homeLabel,
                            flyRefusal: home.flyRefusal,
                            arriving: home.arrivalDrive == nil ? back : nil) {
@@ -705,17 +721,29 @@ struct TripDetailScreen: View {
                     }
                     .font(WP.body(14))
                     .padding(.top, 3)
-                    Text("\(leg.mi) mi · \(leg.drive) · \(leg.road)")
-                        .font(WP.body(12)).opacity(0.62).lineSpacing(1)
-                        .multilineTextAlignment(.leading)
                     if let fly = leg.fly {
-                        Text("By air: \(fly.via) · \(fly.time)")
+                        // A flight has no road corridor, and the miles beside it are the
+                        // drive being turned down rather than a distance anybody covers.
+                        // Printing them as this row's own facts is what made a row headed
+                        // "MIA → ELP" claim eighteen hundred miles of interstate.
+                        //
+                        // `fly.via` is not repeated: it names the two airports, and with
+                        // the drive to the first of them now a row of its own, that is what
+                        // this row is already called.
+                        Text("\(fly.time) · instead of \(leg.mi) mi and \(leg.drive) by road")
                             .font(WP.bodyItalic(12)).foregroundStyle(WP.accent700)
-                    } else if let flyRefusal {
-                        Text(flyRefusal)
-                            .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text("\(leg.mi) mi · \(leg.drive) · \(leg.road)")
+                            .font(WP.body(12)).opacity(0.62).lineSpacing(1)
+                            .multilineTextAlignment(.leading)
+                        if let flyRefusal {
+                            Text(flyRefusal)
+                                .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
                 Spacer(minLength: 0)
