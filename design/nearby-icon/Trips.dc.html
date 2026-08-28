@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           color: #201F1D; background: #D1CFA5; -webkit-font-smoothing: antialiased; }
+    a { color: #7D5411; } a:hover { color: #5A3B0A; }
+    .kicker { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #B68235; }
+    .display { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 600; }
+    .cap { font-size: 11.5px; opacity: .64; line-height: 1.5; }
+    .tick { font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; opacity: .5; }
+    .bar { display: inline-flex; padding: 0 6px; height: 62px; align-items: center;
+           border-radius: 999px; background: rgba(250,249,248,.62);
+           backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+           border: 1px solid rgba(0,0,0,.07);
+           box-shadow: inset 0 1px 0 rgba(255,255,255,.72), inset 0 -1px 0 rgba(255,255,255,.42),
+                       0 4px 12px rgba(24,16,8,.10); }
+    .item { width: 68px; height: 52px; border-radius: 999px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 3px; }
+    .item.on { background: rgba(219,230,76,.90); }
+    .label { font-size: 11px; line-height: 1; color: #7D7979; }
+    .item.on .label { font-weight: 600; color: #2D2B2B; }
+    .glyphbox { width: 29px; height: 29px; display: flex; align-items: center; justify-content: center; }
+    .row { display: flex; align-items: center; gap: 20px; }
+  </style>
+</helmet>
+
+<div style="width: 440px; height: 1560px; box-sizing: border-box; padding: 30px 24px; background: #D1CFA5">
+  <div class="kicker">Trips &#183; the glyph</div>
+  <div class="display" style="font-size: 30px; line-height: 1.08; margin-top: 4px">A case, or the namesake</div>
+  <div class="cap" style="margin-top: 8px">
+    Drawn beside Option B for Nearby, so the pair can be judged together. Same 29 points, same
+    solid fills, same 2.1-point line.
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 22px">
+    
+  <div style="display: flex; flex-direction: column; gap: 11px">
+    <div class="row">
+      <div style="width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+                  background: rgba(243,242,242,.5); border: 1px solid rgba(32,31,29,.10); border-radius: 14px">
+        <svg width="46.400000000000006" height="46.400000000000006" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <div class="kicker">Option A</div>
+        <div style="font-size: 15px; font-weight: 600; margin-top: 2px">The milepost, kept</div>
+        <div class="cap" style="margin-top: 1px">Do nothing.</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <div class="bar"><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#7D7979" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+      <div class="bar"><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#2D2B2B" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+    </div>
+    <div class="cap">The one option with an argument no suitcase can answer: a waypost <em>is</em> a milepost. This mark is what the app is named after. It is also the least legible of the four — people read it as a signpost, an arrow, a road sign, and take a moment to land on trips.</div>
+  </div>
+  <div style="height: 1px; background: rgba(32,31,29,.16)"></div>
+  <div style="display: flex; flex-direction: column; gap: 11px">
+    <div class="row">
+      <div style="width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+                  background: rgba(243,242,242,.5); border: 1px solid rgba(32,31,29,.10); border-radius: 14px">
+        <svg width="46.400000000000006" height="46.400000000000006" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="4.4" y="9.4" width="20.2" height="15.2" rx="2.4"/><path d="M10.6 9.4 V7.9 a2 2 0 0 1 2-2 h3.8 a2 2 0 0 1 2 2 V9.4" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <div class="kicker">Option B</div>
+        <div style="font-size: 15px; font-weight: 600; margin-top: 2px">Suitcase</div>
+        <div class="cap" style="margin-top: 1px">A hard case with a handle.</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <div class="bar"><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#7D7979" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="4.4" y="9.4" width="20.2" height="15.2" rx="2.4"/><path d="M10.6 9.4 V7.9 a2 2 0 0 1 2-2 h3.8 a2 2 0 0 1 2 2 V9.4" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+      <div class="bar"><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#2D2B2B" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><rect x="4.4" y="9.4" width="20.2" height="15.2" rx="2.4"/><path d="M10.6 9.4 V7.9 a2 2 0 0 1 2-2 h3.8 a2 2 0 0 1 2 2 V9.4" fill="none" stroke="#7D7979" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+    </div>
+    <div class="cap">Instantly read, at any size, by anyone. The cost is register: a suitcase is an airport, and these trips are a car and a tent. It also sits oddly beside a screen that talks about <em>packs</em> — the offline downloads — which is a different thing wearing the same word.</div>
+  </div>
+  <div style="height: 1px; background: rgba(32,31,29,.16)"></div>
+  <div style="display: flex; flex-direction: column; gap: 11px">
+    <div class="row">
+      <div style="width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+                  background: rgba(243,242,242,.5); border: 1px solid rgba(32,31,29,.10); border-radius: 14px">
+        <svg width="46.400000000000006" height="46.400000000000006" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><path d="M6.8 9.4 h15.4 a2.4 2.4 0 0 1 2.4 2.4 v10.4 a2.4 2.4 0 0 1 -2.4 2.4 h-15.4 a2.4 2.4 0 0 1 -2.4 -2.4 v-10.4 a2.4 2.4 0 0 1 2.4 -2.4 Z M4.4 15.5 h20.2 v2.3 h-20.2 Z" fill-rule="evenodd"/><path d="M10.6 9.4 V7.9 a2 2 0 0 1 2-2 h3.8 a2 2 0 0 1 2 2 V9.4" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <div class="kicker">Option C</div>
+        <div style="font-size: 15px; font-weight: 600; margin-top: 2px">Suitcase with a strap</div>
+        <div class="cap" style="margin-top: 1px">The same case, with a band knocked out of it.</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <div class="bar"><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#7D7979" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><path d="M6.8 9.4 h15.4 a2.4 2.4 0 0 1 2.4 2.4 v10.4 a2.4 2.4 0 0 1 -2.4 2.4 h-15.4 a2.4 2.4 0 0 1 -2.4 -2.4 v-10.4 a2.4 2.4 0 0 1 2.4 -2.4 Z M4.4 15.5 h20.2 v2.3 h-20.2 Z" fill-rule="evenodd"/><path d="M10.6 9.4 V7.9 a2 2 0 0 1 2-2 h3.8 a2 2 0 0 1 2 2 V9.4" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+      <div class="bar"><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#2D2B2B" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M6.8 9.4 h15.4 a2.4 2.4 0 0 1 2.4 2.4 v10.4 a2.4 2.4 0 0 1 -2.4 2.4 h-15.4 a2.4 2.4 0 0 1 -2.4 -2.4 v-10.4 a2.4 2.4 0 0 1 2.4 -2.4 Z M4.4 15.5 h20.2 v2.3 h-20.2 Z" fill-rule="evenodd"/><path d="M10.6 9.4 V7.9 a2 2 0 0 1 2-2 h3.8 a2 2 0 0 1 2 2 V9.4" fill="none" stroke="#7D7979" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+    </div>
+    <div class="cap">The band gives the shape an interior, so it does not read as a plain filled rectangle at a glance — the risk with B in a bar where the bookmark beside it is also a solid block. Slightly more to draw, and the 2.3-point gap is the smallest detail in the set.</div>
+  </div>
+  <div style="height: 1px; background: rgba(32,31,29,.16)"></div>
+  <div style="display: flex; flex-direction: column; gap: 11px">
+    <div class="row">
+      <div style="width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+                  background: rgba(243,242,242,.5); border: 1px solid rgba(32,31,29,.10); border-radius: 14px">
+        <svg width="46.400000000000006" height="46.400000000000006" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="3.4" y="12.2" width="22.2" height="11.6" rx="5.8"/><path d="M10.2 12.2 C10.2 7.4, 18.8 7.4, 18.8 12.2" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <div class="kicker">Option D</div>
+        <div style="font-size: 15px; font-weight: 600; margin-top: 2px">Duffel</div>
+        <div class="cap" style="margin-top: 1px">A soft bag with a carry handle.</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <div class="bar"><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#7D7979" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="3.4" y="12.2" width="22.2" height="11.6" rx="5.8"/><path d="M10.2 12.2 C10.2 7.4, 18.8 7.4, 18.8 12.2" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+      <div class="bar"><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#2D2B2B" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><rect x="3.4" y="12.2" width="22.2" height="11.6" rx="5.8"/><path d="M10.2 12.2 C10.2 7.4, 18.8 7.4, 18.8 12.2" fill="none" stroke="#7D7979" stroke-width="2.1" stroke-linecap="round"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+    </div>
+    <div class="cap">The road-trip answer: a duffel goes in a boot, not an overhead locker, which is the register this app actually lives in. Less immediate than a hard case, and the rounded body is closer in silhouette to the bookmark than the others are.</div>
+  </div>
+  <div style="height: 1px; background: rgba(32,31,29,.16)"></div>
+  </div>
+  <div class="cap" style="font-style: italic; margin-top: 4px">
+    Worth weighing before picking: a <em>waypost</em> is a milepost. Trading it for a suitcase is a
+    decision about what the app is called, not only about what is easiest to read at 29 points.
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

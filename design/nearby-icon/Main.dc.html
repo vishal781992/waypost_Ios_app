@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           color: #201F1D; background: #D1CFA5; -webkit-font-smoothing: antialiased; }
+    a { color: #7D5411; } a:hover { color: #5A3B0A; }
+    .kicker { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #B68235; }
+    .display { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 600; }
+    .cap { font-size: 11.5px; opacity: .64; line-height: 1.5; }
+    .tick { font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; opacity: .5; }
+    .bar { display: inline-flex; padding: 0 6px; height: 62px; align-items: center;
+           border-radius: 999px; background: rgba(250,249,248,.62);
+           backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+           border: 1px solid rgba(0,0,0,.07);
+           box-shadow: inset 0 1px 0 rgba(255,255,255,.72), inset 0 -1px 0 rgba(255,255,255,.42),
+                       0 4px 12px rgba(24,16,8,.10); }
+    .item { width: 68px; height: 52px; border-radius: 999px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 3px; }
+    .item.on { background: rgba(219,230,76,.90); }
+    .label { font-size: 11px; line-height: 1; color: #7D7979; }
+    .item.on .label { font-weight: 600; color: #2D2B2B; }
+    .glyphbox { width: 29px; height: 29px; display: flex; align-items: center; justify-content: center; }
+    .row { display: flex; align-items: center; gap: 20px; }
+  </style>
+</helmet>
+
+<div style="width: 440px; height: 1560px; box-sizing: border-box; padding: 30px 24px; background: #D1CFA5">
+  <div class="kicker">Nearby &#183; the glyph</div>
+  <div class="display" style="font-size: 30px; line-height: 1.08; margin-top: 4px">Four marks for a radius</div>
+  <div class="cap" style="margin-top: 8px">
+    Each drawn at 29 points in the real bar, selected and not, with a 1.6&#215; blow-up beside it.
+    Solid fills and a 2.1-point line — the weight the milepost already carries.
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 22px">
+    
+  <div style="display: flex; flex-direction: column; gap: 11px">
+    <div class="row">
+      <div style="width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+                  background: rgba(243,242,242,.5); border: 1px solid rgba(32,31,29,.10); border-radius: 14px">
+        <svg width="46.400000000000006" height="46.400000000000006" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="5"/><g transform="rotate(0 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(45 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(90 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(135 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(180 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(225 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(270 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(315 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g></svg>
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <div class="kicker">Option A</div>
+        <div style="font-size: 15px; font-weight: 600; margin-top: 2px">The sun, kept</div>
+        <div class="cap" style="margin-top: 1px">Do nothing.</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <div class="bar"><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="5"/><g transform="rotate(0 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(45 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(90 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(135 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(180 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(225 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(270 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(315 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g></svg></div><div class="label">Nearby</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+      <div class="bar"><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="14.5" r="5"/><g transform="rotate(0 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(45 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(90 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(135 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(180 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(225 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(270 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(315 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g></svg></div><div class="label">Nearby</div></div><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+    </div>
+    <div class="cap">Honest option: the mark is not broken, the name was. But eight even rays around a disc is a sun, and a sun means the day — which is the reading Nearby is trying to leave behind.</div>
+  </div>
+  <div style="height: 1px; background: rgba(32,31,29,.16)"></div>
+  <div style="display: flex; flex-direction: column; gap: 11px">
+    <div class="row">
+      <div style="width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+                  background: rgba(243,242,242,.5); border: 1px solid rgba(32,31,29,.10); border-radius: 14px">
+        <svg width="46.400000000000006" height="46.400000000000006" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#2D2B2B" stroke-width="2.1"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <div class="kicker">Option B</div>
+        <div style="font-size: 15px; font-weight: 600; margin-top: 2px">Dot and radius</div>
+        <div class="cap" style="margin-top: 1px">You, and how far this reaches.</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <div class="bar"><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#2D2B2B" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+      <div class="bar"><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="14.5" r="4"/><circle cx="14.5" cy="14.5" r="11.15" fill="none" stroke="#7D7979" stroke-width="2.1"/></svg></div><div class="label">Nearby</div></div><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+    </div>
+    <div class="cap">The screen's own organising line drawn as a mark: a point and a ring at distance. Quietest of the four, and the 2.1pt ring is the exact weight the milepost's post already uses. Watch for it reading as a record button.</div>
+  </div>
+  <div style="height: 1px; background: rgba(32,31,29,.16)"></div>
+  <div style="display: flex; flex-direction: column; gap: 11px">
+    <div class="row">
+      <div style="width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+                  background: rgba(243,242,242,.5); border: 1px solid rgba(32,31,29,.10); border-radius: 14px">
+        <svg width="46.400000000000006" height="46.400000000000006" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="3.2"/><path d="M 7.36 17.10 A 7.6 7.6 0 1 1 19.39 20.32" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round"/><path d="M 3.32 18.57 A 11.9 11.9 0 1 1 22.15 23.62" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <div class="kicker">Option C</div>
+        <div style="font-size: 15px; font-weight: 600; margin-top: 2px">Ripple</div>
+        <div class="cap" style="margin-top: 1px">Two broken rings around the point you are on.</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <div class="bar"><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="3.2"/><path d="M 7.36 17.10 A 7.6 7.6 0 1 1 19.39 20.32" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round"/><path d="M 3.32 18.57 A 11.9 11.9 0 1 1 22.15 23.62" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round"/></svg></div><div class="label">Nearby</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+      <div class="bar"><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="14.5" r="3.2"/><path d="M 7.36 17.10 A 7.6 7.6 0 1 1 19.39 20.32" fill="none" stroke="#7D7979" stroke-width="2.1" stroke-linecap="round"/><path d="M 3.32 18.57 A 11.9 11.9 0 1 1 22.15 23.62" fill="none" stroke="#7D7979" stroke-width="2.1" stroke-linecap="round"/></svg></div><div class="label">Nearby</div></div><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+    </div>
+    <div class="cap">The clearest read of the four — proximity, unmistakably. The gaps are what keep it off a target and off a wifi fan. Busiest silhouette in the bar, though, and the thinnest strokes.</div>
+  </div>
+  <div style="height: 1px; background: rgba(32,31,29,.16)"></div>
+  <div style="display: flex; flex-direction: column; gap: 11px">
+    <div class="row">
+      <div style="width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;
+                  background: rgba(243,242,242,.5); border: 1px solid rgba(32,31,29,.10); border-radius: 14px">
+        <svg width="46.400000000000006" height="46.400000000000006" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><path d="M14.5 2.6 C10.1 2.6 6.6 6.1 6.6 10.5 C6.6 16.2 14.5 23.6 14.5 23.6 C14.5 23.6 22.4 16.2 22.4 10.5 C22.4 6.1 18.9 2.6 14.5 2.6 Z M14.5 13.3 A2.9 2.9 0 1 1 14.5 7.5 A2.9 2.9 0 1 1 14.5 13.3 Z" fill-rule="evenodd"/><path d="M6.4 25.4 C9.4 27.1 19.6 27.1 22.6 25.4" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <div class="kicker">Option D</div>
+        <div style="font-size: 15px; font-weight: 600; margin-top: 2px">Pin on the ground</div>
+        <div class="cap" style="margin-top: 1px">A place, and the ground it stands on.</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 7px">
+      <div class="bar"><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><path d="M14.5 2.6 C10.1 2.6 6.6 6.1 6.6 10.5 C6.6 16.2 14.5 23.6 14.5 23.6 C14.5 23.6 22.4 16.2 22.4 10.5 C22.4 6.1 18.9 2.6 14.5 2.6 Z M14.5 13.3 A2.9 2.9 0 1 1 14.5 7.5 A2.9 2.9 0 1 1 14.5 13.3 Z" fill-rule="evenodd"/><path d="M6.4 25.4 C9.4 27.1 19.6 27.1 22.6 25.4" fill="none" stroke="#2D2B2B" stroke-width="2.1" stroke-linecap="round"/></svg></div><div class="label">Nearby</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+      <div class="bar"><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M14.5 2.6 C10.1 2.6 6.6 6.1 6.6 10.5 C6.6 16.2 14.5 23.6 14.5 23.6 C14.5 23.6 22.4 16.2 22.4 10.5 C22.4 6.1 18.9 2.6 14.5 2.6 Z M14.5 13.3 A2.9 2.9 0 1 1 14.5 7.5 A2.9 2.9 0 1 1 14.5 13.3 Z" fill-rule="evenodd"/><path d="M6.4 25.4 C9.4 27.1 19.6 27.1 22.6 25.4" fill="none" stroke="#7D7979" stroke-width="2.1" stroke-linecap="round"/></svg></div><div class="label">Nearby</div></div><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="8.6" r="3.9"/><path d="M5.5 23.6 C7.3 15.6 21.7 15.6 23.5 23.6 Z"/></svg></div><div class="label">Profile</div></div></div>
+    </div>
+    <div class="cap">Instant to read and needs no learning. It is also the most generic mark in software, it duplicates the pin already in the header above this screen, and it points at one place when the screen is about many.</div>
+  </div>
+  <div style="height: 1px; background: rgba(32,31,29,.16)"></div>
+  </div>
+
+  <div class="cap" style="font-style: italic; margin-top: 4px">
+    The mark that is there today is drawn as eight even capsules around a disc. That is a sun,
+    whatever the comment beside it says — a compass rose has pointed arms of alternating length.
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
