@@ -11,8 +11,8 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: 2.48.0
-    CURRENT_PROJECT_VERSION: 87
+    MARKETING_VERSION: 2.49.0
+    CURRENT_PROJECT_VERSION: 88
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
   configs:
@@ -60,3 +60,8 @@ targets:
         SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
         ENABLE_USER_SCRIPT_SANDBOXING: YES
         ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: NO
+        # Without this the catalog is compiled and the icon inside it is never chosen,
+        # so the app ships with the blank white tile iOS falls back to. XcodeGen sets no
+        # default for it, and `GENERATE_INFOPLIST_FILE: NO` means Xcode will not write
+        # the matching CFBundleIconName either — that is in Info.plist by hand.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
