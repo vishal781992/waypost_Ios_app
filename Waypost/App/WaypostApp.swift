@@ -11,6 +11,7 @@ struct WaypostApp: App {
     /// the one place that knows, and this observes it. Nil until somebody has chosen how to
     /// come in, including choosing not to have an account at all.
     @State private var auth = StubAuthService.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -39,6 +40,25 @@ struct WaypostApp: App {
             // The crossfade the onboarding callback used to run by hand. Written here so it
             // covers both directions — coming in, and logging back out again.
             .animation(.timingCurve(0.32, 0.72, 0, 1, duration: 0.42), value: auth.identity == nil)
+            // A tap on the widget. `parkhop://park/<code>` — the same scheme the calendar
+            // already writes onto the events it creates, so a trip's entry and a widget's
+            // plate come in through one door.
+            //
+            // Written on the scene rather than inside `RootShell`: a link can arrive while
+            // the onboarding screens are still up, and a handler under them would never
+            // hear it. `openPark` pushes onto whichever tab is current, which is where
+            // somebody who tapped a park expects to find their way back from.
+            .onOpenURL { url in
+                guard url.scheme == "parkhop", url.host == "park" else { return }
+                let code = url.lastPathComponent
+                guard !code.isEmpty, code != "/" else { return }
+                app.openPark(code)
+            }
+            // A plate can be saved from without the app ever opening, so coming back is
+            // where the app finds out.
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { app.adoptSharedSaves() }
+            }
         }
     }
 }

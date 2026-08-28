@@ -16,5 +16,17 @@
 	<key>com.apple.developer.weatherkit</key>
 	<true/>
 	-->
+
+	<!-- The app group the widget saves through, switched off for the same reason.
+
+	     It must match WaypostWidgets/WaypostWidgets.entitlements exactly, and both
+	     targets need PARKHOP_APP_GROUP defined, or the app and the widget keep two
+	     separate saved lists and neither knows about the other.
+
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.us.parkhop.waypost</string>
+	</array>
+	-->
 </dict>
 </plist>

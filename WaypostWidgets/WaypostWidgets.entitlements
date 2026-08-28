@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The app group, switched off for the same reason WeatherKit is.
+
+	     App Groups is a capability, and a free personal team cannot generate a
+	     provisioning profile that carries one. Without it the widget and the app have
+	     separate `UserDefaults` and no way to agree on what has been saved.
+
+	     To turn it on: uncomment below, add the identical block to
+	     Waypost/Waypost.entitlements, re-enable CODE_SIGN_ENTITLEMENTS on both targets
+	     in project.yml, add the App Groups capability to both App IDs in the developer
+	     portal, and define PARKHOP_APP_GROUP in both targets' Swift flags.
+
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.us.parkhop.waypost</string>
+	</array>
+	-->
+</dict>
+</plist>

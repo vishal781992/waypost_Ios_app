@@ -1161,6 +1161,27 @@ final class AppState {
         if let data = try? JSONEncoder().encode(snapshot) {
             UserDefaults.standard.set(data, forKey: Self.key)
         }
+        // The one field a widget also holds. It writes only when the list has actually
+        // moved, so the rest of what `persist` saves costs nothing here.
+        SharedSaves.write(saved)
+    }
+
+    /// Takes in anything saved from a widget since the app was last looked at.
+    ///
+    /// The plate writes into the shared list directly — that is the whole point of an
+    /// interactive widget, that it does not have to open the app to do its one job — so
+    /// coming back to the foreground is where the two are reconciled. The shared list
+    /// wins: it is the newer of the two, and it is the only one a tap on a plate can
+    /// change.
+    ///
+    /// A no-op with no app group, which is the state this ships in.
+    func adoptSharedSaves() {
+        guard let codes = SharedSaves.read() else { return }
+        guard Set(codes) != Set(saved) else { return }
+        // Anything the register no longer knows is dropped rather than carried as a code
+        // that resolves to no park.
+        saved = codes.filter { park($0) != nil }
+        persist()
     }
 
     private func restore() {

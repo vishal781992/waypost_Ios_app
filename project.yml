@@ -11,8 +11,8 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: 2.52.2
-    CURRENT_PROJECT_VERSION: 98
+    MARKETING_VERSION: 2.53.0
+    CURRENT_PROJECT_VERSION: 99
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
   configs:
@@ -43,6 +43,8 @@ targets:
     platform: iOS
     dependencies:
       - package: Appwrite
+      # The widget rides in the app's own bundle, so the app has to build it.
+      - target: WaypostWidgets
     sources:
       - path: Waypost
     settings:
@@ -65,3 +67,33 @@ targets:
         # default for it, and `GENERATE_INFOPLIST_FILE: NO` means Xcode will not write
         # the matching CFBundleIconName either — that is in Info.plist by hand.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  # The widget extension. Its own process, its own bundle and its own memory budget —
+  # which is why it carries a copy of the park register and five colours rather than
+  # importing the app's design system.
+  WaypostWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: WaypostWidgets
+      # The register, into the extension's own bundle. A widget cannot read the app's.
+      - path: Waypost/Resources/national-parks.json
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: us.parkhop.waypost.widgets
+        PRODUCT_NAME: WaypostWidgets
+        INFOPLIST_FILE: WaypostWidgets/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+        SKIP_INSTALL: YES
+        # The app group is switched off for the reason WeatherKit is: it is a capability,
+        # and a free personal team cannot sign one. With it off the plate still shows a
+        # park and still opens it — only the save control is withheld, because a button
+        # that cannot write where the app will read is a button that does nothing.
+        #
+        # To turn it on: uncomment both entitlement blocks, both CODE_SIGN_ENTITLEMENTS
+        # lines, and add PARKHOP_APP_GROUP to both targets' SWIFT_ACTIVE_COMPILATION_CONDITIONS.
+        # CODE_SIGN_ENTITLEMENTS: WaypostWidgets/WaypostWidgets.entitlements
