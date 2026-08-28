@@ -161,7 +161,14 @@ struct DiscoverScreen: View {
             // national one is sixty-three from a register. Nothing said which of the two
             // you were in except the lime pill, and a pill is the control rather than the
             // state. The light behind the Island is the state.
-            ScreenHeader(glow: app.discoverShowsState ? WP.lime : nil) {
+            //
+            // Two colours, and they are not carried at the same strength. Lime is lighter
+            // than the header, so it reads as light on it; pine is far darker, and a dark
+            // colour on a pale ground can only ever read as shade. At full strength it
+            // stops being a halo and becomes a smudge with the Island lost inside it, so
+            // it is taken at a third — which `IslandBloom` needs no knowledge of, because
+            // `opacity` multiplies through the gradient's own stops.
+            ScreenHeader(glow: app.discoverShowsState ? WP.lime : WP.pine.opacity(0.34)) {
                 // A way out that does not depend on knowing about the back-swipe. This was
                 // a tab, so it never needed one; reached from the Nearby header it does.
                 HStack(alignment: .top, spacing: 12) {
