@@ -28,14 +28,15 @@ struct ParkPlateProvider: TimelineProvider {
     ///
     /// Not "every unlock" — WidgetKit gives no unlock to hang anything on. A widget draws
     /// the entry whose date has passed, so the picture changes on a clock rather than on a
-    /// gesture. Six parks a quarter of an hour apart is a new one nearly every time the
-    /// phone is picked up, at a dozen or so timeline builds a day, which is well inside
-    /// the refresh budget iOS allows.
+    /// gesture. Four parks twenty minutes apart is a new one most times the phone is
+    /// picked up, at a dozen or so timeline builds a day, which is well inside the refresh
+    /// budget iOS allows.
     ///
-    /// Six is also a memory number. Every photograph in a timeline is held at once, and an
-    /// extension has tens of megabytes for everything.
-    private static let count = 6
-    private static let step: TimeInterval = 15 * 60
+    /// Four is a memory number and a time one. Every photograph in a timeline is held at
+    /// once, and every one not already on disk is a request the provider has to finish
+    /// before WidgetKit stops waiting and takes the extension down.
+    private static let count = 4
+    private static let step: TimeInterval = 20 * 60
 
     func placeholder(in context: Context) -> ParkEntry {
         ParkEntry(date: Date(), park: Self.fallback, photo: nil, isSaved: false)
@@ -52,8 +53,8 @@ struct ParkPlateProvider: TimelineProvider {
         }
         Task {
             let park = Self.rota(count: 1).first ?? Self.fallback
-            completion(ParkEntry(date: Date(), park: park,
-                                 photo: await Self.photo(for: park, family: context.family),
+            let photos = await ParkPhoto.prepare([park])
+            completion(ParkEntry(date: Date(), park: park, photo: photos[park.code],
                                  isSaved: SavedParks.contains(park.code)))
         }
     }
@@ -63,11 +64,16 @@ struct ParkPlateProvider: TimelineProvider {
             let saved = SavedParks.codes()
             let parks = Self.rota(count: Self.count)
 
+            // Every picture at once rather than one after another. Parks fetched in a row
+            // is two round trips each end to end, which ran past what a provider is given
+            // before it is killed — and a provider killed halfway returns no timeline at
+            // all, which is why the plate stayed on its colours.
+            let photos = await ParkPhoto.prepare(parks)
+
             var entries: [ParkEntry] = []
             var when = Date()
             for park in parks {
-                entries.append(ParkEntry(date: when, park: park,
-                                         photo: await Self.photo(for: park, family: context.family),
+                entries.append(ParkEntry(date: when, park: park, photo: photos[park.code],
                                          isSaved: saved.contains(park.code)))
                 when = when.addingTimeInterval(Self.step)
             }
@@ -77,13 +83,6 @@ struct ParkPlateProvider: TimelineProvider {
             let timeline = entries.isEmpty ? [placeholder(in: context)] : entries
             completion(Timeline(entries: timeline, policy: .after(when)))
         }
-    }
-
-    /// One park's photograph, at the size the family will draw it.
-    private static func photo(for park: WidgetPark, family: WidgetFamily) async -> UIImage? {
-        let width = family == .systemSmall ? 480 : 900
-        guard let url = await ParkPhoto.url(for: park, width: width) else { return nil }
-        return await ParkPhoto.image(at: url, maxPixel: width)
     }
 
     /// The parks this timeline will show, in an order that moves between builds.
