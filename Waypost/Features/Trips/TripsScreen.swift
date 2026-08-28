@@ -347,7 +347,7 @@ struct RouteMapPlate: View {
     var points: [(lat: Double, lon: Double)]
     /// The trip as stretches, each knowing how it is travelled.
     ///
-    /// `TripRouting.Leg` has carried OSRM's own geometry all along and this plate drew a
+    /// `TripRouting.Leg` has carried the router's own geometry all along and this plate drew a
     /// straight line between origin and park regardless — so a trip over the Sierra read
     /// as a ruler laid across the mountains, through country with no road in it. That was
     /// fixed by drawing the road; this is the other half of the same fault. A leg the app

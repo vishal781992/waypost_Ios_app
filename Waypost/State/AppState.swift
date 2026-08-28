@@ -1278,6 +1278,18 @@ struct SavedTrip: Codable, Hashable, Identifiable {
     /// What the traveller has put on this trip's list — the third tab. Optional, so a trip
     /// saved before the list existed decodes with an empty one rather than failing.
     var plan: [PlanItem]? = nil
+    /// The day the trip starts, as a date rather than as a sentence.
+    ///
+    /// `dates` is a label for a reader — "5 – 14 August 2026" — and for a long time it was
+    /// also the only record of when a trip was. Everything that needed a real day got it by
+    /// reading that sentence back with a `DateFormatter`, which works in English and in no
+    /// other language the phone can be set to: the month is matched as a word. A trip
+    /// planned on a Spanish phone parsed to nothing, and a trip that parses to nothing has
+    /// no days, no weather, no clash check and never counts as visited.
+    ///
+    /// Optional, so a trip saved before this existed still decodes — and those still parse,
+    /// which is why the parser stays.
+    var startsOn: Date? = nil
 
     /// Where this trip actually starts. Prefers the searched city; falls back to the code.
     func resolvedOrigin(_ library: CuratedLibrary) -> TripOrigin? {
@@ -1289,13 +1301,18 @@ struct SavedTrip: Codable, Hashable, Identifiable {
         }
     }
 
+    /// The day the trip starts.
+    ///
+    /// The stored date where there is one, and otherwise the label read back — every trip
+    /// saved before `startsOn` existed has only the label.
+    var startDate: Date? { startsOn ?? parsedStartDate }
+
     /// The day the trip starts, recovered from its display label.
     ///
-    /// `dates` being a formatted English string rather than a `Date` is its own problem,
-    /// but the weather panel needs a real day to ask about — otherwise a park opened from
-    /// a trip next month reports today's forecast. Handles both "12 September 2026" and
-    /// the seed's "5 – 14 August 2026", taking the first day number in either.
-    var startDate: Date? {
+    /// Kept for trips saved before the date was stored, and for nothing else. Handles both
+    /// "12 September 2026" and the seed's "5 – 14 August 2026", taking the first day number
+    /// in either. English only — which is the fault `startsOn` exists to stop repeating.
+    private var parsedStartDate: Date? {
         let parts = dates.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
         guard let day = parts.first(where: { $0.allSatisfy(\.isNumber) }),
               let month = parts.first(where: { $0.allSatisfy(\.isLetter) }),
@@ -1312,14 +1329,20 @@ struct SavedTrip: Codable, Hashable, Identifiable {
         SavedTrip(
             id: "seed",
             title: "The Colorado Plateau loop",
-            dates: "5 – 14 August 2026",
+            dates: Self.seedLabel,
             route: "Denver · Rocky Mountain · Arches · Zion",
             codes: ["romo", "arch", "zion"],
             origin: "den",
             tag: "Day \(dayNumber) · under way",
-            live: true
+            live: true,
+            startsOn: Self.seedStart
         )
     }
+
+    /// The seed's own dates, written once so the label and the day cannot disagree.
+    private static let seedLabel = "5 – 14 August 2026"
+    private static let seedStart = Calendar.current.date(
+        from: DateComponents(year: 2026, month: 8, day: 5))
 
 }
 
@@ -1555,7 +1578,8 @@ final class TripBuilder {
             originLat: start?.lat,
             originLon: start?.lon,
             days: days,
-            flyWhenFaster: flyWhenFaster
+            flyWhenFaster: flyWhenFaster,
+            startsOn: startDate
         )
     }
 }

@@ -428,9 +428,9 @@ final class TripDays {
 
         // A cheap filter first: anything within forty miles of a point on the route is
         // worth measuring. Routing all four hundred units would be four hundred round
-        // trips. The geometry OSRM returns is simplified, so on a thousand-mile leg its
-        // points are far apart — sampling every sixth rather than every twelfth keeps the
-        // corridor from having holes a whole state wide.
+        // trips. The geometry a leg carries is thinned to a couple of hundred points, so
+        // on a thousand-mile leg they are far apart — sampling every sixth rather than
+        // every twelfth keeps the corridor from having holes a whole state wide.
         let samples = Self.sample(leg.coordinates, every: 6)
         let near = register.compactMap { unit -> (Park, Double)? in
             let closest = samples

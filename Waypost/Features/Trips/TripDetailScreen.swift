@@ -374,18 +374,18 @@ struct TripDetailScreen: View {
         case .routed(let origin, let source):
             switch source {
             case .chosen:
-                return "Legs routed by OSRM from \(origin), the origin this trip was planned from, through the parks in visiting order."
+                return "Legs routed by Apple Maps from \(origin), the origin this trip was planned from, through the parks in visiting order."
             case .device:
-                return "Legs routed by OSRM from your location — \(origin) — through the parks in visiting order."
+                return "Legs routed by Apple Maps from your location — \(origin) — through the parks in visiting order."
             case .approximate:
-                return "Legs routed by OSRM from \(origin). This iPhone did not give a precise location, so the first leg starts from there."
+                return "Legs routed by Apple Maps from \(origin). This iPhone did not give a precise location, so the first leg starts from there."
             }
         case .unrouted(let why):
             return why
         }
     }
 
-    /// Whether OSRM is still working on this trip's legs.
+    /// Whether the router is still working on this trip's legs.
     private var isRouting: Bool {
         switch app.routing.phase(for: trip) {
         case .idle, .routing: return true
@@ -573,8 +573,8 @@ struct TripDetailScreen: View {
                         // One leg is asked for per park, in order, before the router is
                         // called — so the count here is not a guess about what will come
                         // back but the number of answers this screen is waiting on. The
-                        // park rows used to sit directly on top of one another until OSRM
-                        // replied and then a drive pushed in above each one.
+                        // park rows used to sit directly on top of one another until the
+                        // router replied and then a drive pushed in above each one.
                         awaitedLeg(index: index)
                     }
                     parkRow(park, date: trip.dates, days: 2, numeral: ["I", "II", "III", "IV", "V"][min(index, 4)])
@@ -740,7 +740,7 @@ struct TripDetailScreen: View {
     /// A leg the router has been asked for and has not returned.
     ///
     /// The kicker is real — "LEG II" is this screen's own numbering and does not come from
-    /// OSRM — and so is the rule beside it. Only the two lines the router actually answers
+    /// the router — and so is the rule beside it. Only the two lines the router actually answers
     /// with are grey: where the drive runs, and how far and how long it is.
     ///
     /// No skeleton is drawn for the drive home. Whether a trip has one depends on the

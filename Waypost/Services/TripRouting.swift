@@ -6,10 +6,14 @@ import Foundation
 /// no distance, no wheel time, no roads, and no first leg out of where the traveller
 /// actually is. The parks were there; the travelling was not.
 ///
-/// This routes it. Every leg is a real query to OSRM, which is open and needs no key, so
-/// it works on a phone that has never been given the proxy. The first leg starts from the
-/// origin the traveller chose for the trip; only a trip with no origin measures from the
-/// device instead. Every phase says which of the two it used.
+/// This routes it. Every leg is a real query to Apple Maps, which needs no key and no
+/// proxy, and whose allowance belongs to this phone rather than to the app — so a leg does
+/// not get slower because other people are planning trips too. Apple's estimate also
+/// accounts for conditions rather than only measuring the road. Where Apple declines, the
+/// open routing server answers behind it, so a leg is measured either way.
+///
+/// The first leg starts from the origin the traveller chose for the trip; only a trip with
+/// no origin measures from the device instead. Every phase says which of the two it used.
 @MainActor
 @Observable
 final class TripRouting {
@@ -22,8 +26,9 @@ final class TripRouting {
         var minutes: Int = 0
         /// The numbered highways actually driven, e.g. "I-70 → US-191".
         var road: String
-        /// The shape of the drive. OSRM returns it and this threw it away, so nothing
-        /// downstream could ask what was *on* the route — only where it started and ended.
+        /// The shape of the drive. The router returns it and this threw it away, so
+        /// nothing downstream could ask what was *on* the route — only where it started
+        /// and ended.
         var coordinates: [(lat: Double, lon: Double)] = []
         /// What flying this leg would cost against driving it — `nil` on a trip that never
         /// asked, `.drives(why)` on one that asked and was told no.
@@ -173,7 +178,8 @@ final class TripRouting {
         case idle
         case routing
         case routed(origin: String, source: OriginSource)
-        /// OSRM did not answer. The trip still lists its parks; it just has no distances.
+        /// Neither router answered. The trip still lists its parks; it just has no
+        /// distances.
         case unrouted(String)
     }
 
@@ -280,7 +286,8 @@ final class TripRouting {
                      toName: String, toLat: Double, toLon: Double,
                      comparesFlights: Bool) async -> Leg? {
         guard let route = await routing.route(fromLat: from.lat, fromLon: from.lon,
-                                              toLat: toLat, toLon: toLon) else { return nil }
+                                              toLat: toLat, toLon: toLon,
+                                              preferring: .apple) else { return nil }
 
         // Asked only of a trip that wants flights. A trip planned to drive is not told
         // which of its legs it could have flown.
@@ -294,9 +301,11 @@ final class TripRouting {
         var path: FlightPath?
         if case .flies(let option) = verdict, let departure = option.from, let arrival = option.to {
             async let toHub = routing.route(fromLat: from.lat, fromLon: from.lon,
-                                            toLat: departure.lat, toLon: departure.lon)
+                                            toLat: departure.lat, toLon: departure.lon,
+                                            preferring: .apple)
             async let fromHub = routing.route(fromLat: arrival.lat, fromLon: arrival.lon,
-                                              toLat: toLat, toLon: toLon)
+                                              toLat: toLat, toLon: toLon,
+                                              preferring: .apple)
             path = FlightPath(
                 departure: departure,
                 arrival: arrival,
@@ -313,7 +322,8 @@ final class TripRouting {
             miles: route.miles,
             drive: route.drive,
             minutes: route.minutes,
-            // No corridor means OSRM returned no numbered roads, not that there are none.
+            // No corridor means neither router named a numbered road, not that there
+            // are none on the drive.
             road: route.corridor ?? "Roads not named by the routing service",
             coordinates: route.coordinates,
             flight: verdict,

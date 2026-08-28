@@ -411,7 +411,11 @@ final class LegStops {
 
     // MARK: Traffic
 
-    /// Apple's own estimate for a drive, which unlike OSRM's accounts for conditions.
+    /// Apple's estimate for a drive on a stated departure, rather than in general.
+    ///
+    /// The leg's own hours are now Apple's too, for the road as it usually drives. This is
+    /// the same road on a named hour, which is a different question and the reason it is
+    /// asked separately.
     ///
     /// `departing` is what makes it a conditions estimate rather than a road measurement:
     /// Apple predicts the traffic for the hour you say you are leaving. Asking twice — once

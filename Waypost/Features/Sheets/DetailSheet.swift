@@ -433,7 +433,7 @@ struct DetailSheet: View {
 
                 // The branch above this drew the rule that closes the sheet, either over
                 // the driving-either-side kicker or over the paragraph.
-                SourceLine("Airports from the OurAirports table of large US hubs. The two drives are measured by OSRM over the roads named; the hours in the air are modelled. No airline schedule is published to this app, so this names the airports the leg would be flown between rather than a flight — check fares and times with an airline before planning around it.", ruled: false)
+                SourceLine("Airports from the OurAirports table of large US hubs. The two drives are measured by Apple Maps over the roads named; the hours in the air are modelled. No airline schedule is published to this app, so this names the airports the leg would be flown between rather than a flight — check fares and times with an airline before planning around it.", ruled: false)
                     .padding(.top, 16)
             } else {
                 // Places first, then the roadside. A long leg lists thirty petrol stations
@@ -455,7 +455,7 @@ struct DetailSheet: View {
                     .padding(.top, 14)
                     .overlay(alignment: .top) { if !stopsDrewTheirOwnRule(leg) { Hairline() } }
 
-                SourceLine("Distance and wheel time from OSRM over the roads listed. Fuel, charging, food and somewhere to sleep along the way from Apple Maps — add any of them and they are handed to Maps as stops on the drive. Traffic is added on the day of the drive, when a leaving-now time means something.", ruled: false)
+                SourceLine("Distance and wheel time from Apple Maps over the roads listed, its estimate for the road as it usually drives. Fuel, charging, food and somewhere to sleep along the way from Apple Maps — add any of them and they are handed to Maps as stops on the drive. Traffic is added on the day of the drive, when a leaving-now time means something.", ruled: false)
                     .padding(.top, 16)
             }
         }

@@ -1,10 +1,36 @@
 import Foundation
+import MapKit
 
-/// Real drive distance and time from OSRM's open routing server, plus a corridor
-/// synthesised from the numbered highways actually driven.
+/// Real drive distance and time, plus a corridor of the numbered highways actually driven.
+///
+/// Two routers answer here, and which one is asked is the caller's decision rather than a
+/// preference buried in here.
+///
+/// **Apple Maps** answers the handful of drives a reader actually looks at — the legs of a
+/// trip, and the two ends of a flown one. Its estimate accounts for conditions rather than
+/// only measuring the road, its geometry is the full shape rather than a simplification,
+/// and — the reason this exists — its quota is the device's own. A thousand people using
+/// this app do not share one allowance, which is exactly what they do on the alternative.
+///
+/// **OSRM's public demo server** answers the dozens of measurements taken to *rank* things
+/// nobody has asked to see yet: which of twenty roadside units is the smallest detour, how
+/// far the nearest ten parks are. That work arrives in bursts, and Apple throttles bursts —
+/// `MKError.loadingThrottled` is a refusal this app already has to handle. It is also work
+/// where an approximate answer is enough, because it only decides an order.
+///
+/// So the split is by shape of demand, not by which router is better: a few careful
+/// measurements to Apple, many rough ones to the open server.
 @MainActor
 struct RoutingService {
     let failures: FailureLog
+
+    /// Which router is asked.
+    enum Preference {
+        /// Apple Maps, with the open server behind it — for the drives a reader is shown.
+        case apple
+        /// The open server alone — for measurements taken by the dozen to sort candidates.
+        case open
+    }
 
     struct Route {
         var miles: Int
@@ -14,11 +40,136 @@ struct RoutingService {
         /// needs it unparsed.
         var minutes: Int
         var corridor: String?
-        /// Simplified geometry, for the map.
+        /// The shape of the drive, at a couple of hundred points — for the map, and for
+        /// working out what is near the road.
         var coordinates: [(lat: Double, lon: Double)]
     }
 
-    func route(fromLat: Double, fromLon: Double, toLat: Double, toLon: Double) async -> Route? {
+    /// One drive, measured.
+    ///
+    /// The default is `.open` on purpose: the callers that take measurements by the dozen
+    /// are the ones that must not change, and a default they do not name cannot drift.
+    func route(fromLat: Double, fromLon: Double, toLat: Double, toLon: Double,
+               preferring: Preference = .open) async -> Route? {
+        guard preferring == .apple else {
+            return await openRoute(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
+        }
+        guard var route = await appleRoute(fromLat: fromLat, fromLon: fromLon,
+                                           toLat: toLat, toLon: toLon) else {
+            // Apple refused — throttled, or no road between the two points it will admit
+            // to. The open server is the fallback rather than the leg going unmeasured.
+            return await openRoute(fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon)
+        }
+        // Apple measured the drive but named no numbered road on it. That happens where
+        // the instructions come back in a language this does not read, and on drives short
+        // enough to be all local streets. The miles and the hours are Apple's either way;
+        // only the corridor is worth a second request, and only when there is none.
+        if route.corridor == nil {
+            route.corridor = await openRoute(fromLat: fromLat, fromLon: fromLon,
+                                             toLat: toLat, toLon: toLon)?.corridor
+        }
+        return route
+    }
+
+    // MARK: Apple Maps
+
+    private func appleRoute(fromLat: Double, fromLon: Double,
+                            toLat: Double, toLon: Double) async -> Route? {
+        let request = MKDirections.Request()
+        request.source = MKMapItem(placemark: MKPlacemark(
+            coordinate: CLLocationCoordinate2D(latitude: fromLat, longitude: fromLon)))
+        request.destination = MKMapItem(placemark: MKPlacemark(
+            coordinate: CLLocationCoordinate2D(latitude: toLat, longitude: toLon)))
+        request.transportType = .automobile
+        // One route. Alternates cost the same request and nothing here reads them.
+        request.requestsAlternateRoutes = false
+
+        do {
+            let response = try await MKDirections(request: request).calculate()
+            failures.ok("routing (Apple Maps)")
+            // Apple answered, and the answer is that it knows no road between those two
+            // points — a coastline, an island, a park pin dropped in backcountry. That is
+            // not a failure and must not be filed as one, or the connections screen would
+            // call Apple Maps down on a leg it answered perfectly well. The open server is
+            // asked next in case it is less fussy.
+            guard let route = response.routes.first else { return nil }
+
+            // The roads driven, from the turn instructions. Apple gives no `ref` field, so
+            // the designator is read out of the instruction itself — "Merge onto I-70 W" —
+            // and the step's own distance says how far it was driven, which is the same
+            // measurement the open server's corridor is built from.
+            var order: [String] = []
+            var travelled: [String: Double] = [:]
+            for step in route.steps {
+                guard let ref = Self.roadRef(step.instructions) else { continue }
+                if travelled[ref] == nil { travelled[ref] = 0; order.append(ref) }
+                travelled[ref]? += step.distance
+            }
+            var corridor = Self.corridor(order: order, travelled: travelled)
+            // Nothing named in the instructions, but the route itself carries a name, and
+            // where that name is a road number it is the road with most of the driving on
+            // it. Only taken when it *is* a number: "Main St" is not a corridor.
+            if corridor == nil, let ref = Self.roadRef(route.name) {
+                corridor = ref
+            }
+
+            return Route(miles: Int((route.distance / 1609.34).rounded()),
+                         drive: Self.label(seconds: route.expectedTravelTime),
+                         minutes: Int((route.expectedTravelTime / 60).rounded()),
+                         corridor: corridor,
+                         coordinates: Self.thin(route.polyline))
+        } catch {
+            failures.note("routing (Apple Maps)", error)
+            return nil
+        }
+    }
+
+    /// The full polyline, cut down to about the density the open server returns.
+    ///
+    /// Apple hands back every vertex of the road — thousands of them on a day's drive.
+    /// Everything downstream was written against `overview=simplified`, and one of them
+    /// measures four hundred park units against every sampled point of the route, so
+    /// handing it thirty times as many points would multiply that work by thirty for no
+    /// better answer. Two hundred points is a comparable shape.
+    private static func thin(_ line: MKPolyline) -> [(lat: Double, lon: Double)] {
+        let count = line.pointCount
+        guard count > 0 else { return [] }
+        var points = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: count)
+        line.getCoordinates(&points, range: NSRange(location: 0, length: count))
+
+        let every = max(1, Int((Double(count) / 200).rounded(.up)))
+        var out: [(lat: Double, lon: Double)] = []
+        for (index, point) in points.enumerated() where index % every == 0 {
+            out.append((point.latitude, point.longitude))
+        }
+        // The far end always, or a thinned route stops short of where it arrives.
+        if let last = points.last, out.last?.lat != last.latitude || out.last?.lon != last.longitude {
+            out.append((last.latitude, last.longitude))
+        }
+        return out
+    }
+
+    /// A US route designator inside a sentence — "I-70", "US-191", "UT-128".
+    ///
+    /// The hyphen is required on purpose. Without it the pattern matches a house number in
+    /// a street name, and a corridor reading "N 12 → Main 9" is worse than no corridor at
+    /// all. Missing a road named some other way costs nothing: the caller asks the open
+    /// server for the corridor when this finds none.
+    private static let roadPattern = try? NSRegularExpression(
+        pattern: "\\b(?:I|[A-Z]{2})-\\d{1,3}[A-Z]?\\b")
+
+    private static func roadRef(_ text: String) -> String? {
+        guard let roadPattern = Self.roadPattern else { return nil }
+        let whole = NSRange(text.startIndex..., in: text)
+        guard let match = roadPattern.firstMatch(in: text, range: whole),
+              let found = Range(match.range, in: text) else { return nil }
+        return String(text[found])
+    }
+
+    // MARK: OSRM
+
+    private func openRoute(fromLat: Double, fromLon: Double,
+                           toLat: Double, toLon: Double) async -> Route? {
         let path = "\(fromLon),\(fromLat);\(toLon),\(toLat)"
         guard let url = URL(string: "https://router.project-osrm.org/route/v1/driving/\(path)?overview=simplified&geometries=geojson&steps=true") else { return nil }
         do {
@@ -26,11 +177,6 @@ struct RoutingService {
             guard let route = (obj["routes"] as? [[String: Any]])?.first,
                   let distance = route["distance"] as? Double,
                   let duration = route["duration"] as? Double else { return nil }
-
-            let miles = Int((distance / 1609.34).rounded())
-            var h = Int(duration / 3600)
-            var m = Int(((duration.truncatingRemainder(dividingBy: 3600)) / 60 / 5).rounded()) * 5
-            if m == 60 { h += 1; m = 0 }
 
             let legs = route["legs"] as? [[String: Any]] ?? []
             let steps = legs.flatMap { ($0["steps"] as? [[String: Any]]) ?? [] }
@@ -44,28 +190,45 @@ struct RoutingService {
                 if travelled[label] == nil { travelled[label] = 0; order.append(label) }
                 travelled[label]? += (step["distance"] as? Double) ?? 0
             }
-            // Roads driven more than ~10 miles; if none qualify, the four longest, kept
-            // in the order they were driven so the corridor reads as a route.
-            var sequence = order.filter { (travelled[$0] ?? 0) > 16093 }
-            if sequence.isEmpty {
-                sequence = order.sorted { (travelled[$0] ?? 0) > (travelled[$1] ?? 0) }
-                    .prefix(4)
-                    .sorted { (order.firstIndex(of: $0) ?? 0) < (order.firstIndex(of: $1) ?? 0) }
-            }
-            let corridor = sequence.isEmpty ? nil : sequence.prefix(7).joined(separator: " → ")
 
             let geometry = (route["geometry"] as? [String: Any])?["coordinates"] as? [[Double]] ?? []
             let coords = geometry.compactMap { pair -> (lat: Double, lon: Double)? in
                 pair.count == 2 ? (pair[1], pair[0]) : nil
             }
 
-            return Route(miles: miles, drive: m > 0 ? "\(h) h \(m) m" : "\(h) h",
+            return Route(miles: Int((distance / 1609.34).rounded()),
+                         drive: Self.label(seconds: duration),
                          minutes: Int((duration / 60).rounded()),
-                         corridor: corridor, coordinates: coords)
+                         corridor: Self.corridor(order: order, travelled: travelled),
+                         coordinates: coords)
         } catch {
             failures.note("routing (OSRM)", error)
             return nil
         }
+    }
+
+    // MARK: Shared
+
+    /// Seconds of driving, as a label rounded to five minutes.
+    private static func label(seconds: Double) -> String {
+        var h = Int(seconds / 3600)
+        var m = Int(((seconds.truncatingRemainder(dividingBy: 3600)) / 60 / 5).rounded()) * 5
+        if m == 60 { h += 1; m = 0 }
+        return m > 0 ? "\(h) h \(m) m" : "\(h) h"
+    }
+
+    /// The corridor, from roads driven and how far each was driven.
+    ///
+    /// Roads driven more than ~10 miles; if none qualify, the four longest, kept in the
+    /// order they were driven so the corridor reads as a route.
+    private static func corridor(order: [String], travelled: [String: Double]) -> String? {
+        var sequence = order.filter { (travelled[$0] ?? 0) > 16093 }
+        if sequence.isEmpty {
+            sequence = order.sorted { (travelled[$0] ?? 0) > (travelled[$1] ?? 0) }
+                .prefix(4)
+                .sorted { (order.firstIndex(of: $0) ?? 0) < (order.firstIndex(of: $1) ?? 0) }
+        }
+        return sequence.isEmpty ? nil : sequence.prefix(7).joined(separator: " → ")
     }
 }
 

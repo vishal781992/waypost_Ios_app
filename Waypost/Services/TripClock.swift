@@ -17,7 +17,7 @@ struct TripPace: Hashable {
     /// about five hundred miles. Past ten it stops being a holiday.
     var wheelHours: Double = 8
 
-    /// What the router does not count. OSRM returns pure driving time: no fuel, no food,
+    /// What the router does not count. A routed hour is time moving: no fuel, no food,
     /// no legs stretched, no queue at the park gate. Fifteen per cent is the usual
     /// allowance. It does not shorten the driving — it decides when the driving ends, so a
     /// full eight-hour day set off at eight gets in a little after six rather than at four.
