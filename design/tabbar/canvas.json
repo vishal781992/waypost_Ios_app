@@ -1,0 +1,58 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 780
+    },
+    {
+      "file": "DirectionA.dc.html",
+      "x": 490,
+      "y": 0,
+      "w": 420,
+      "h": 370
+    },
+    {
+      "file": "DirectionB.dc.html",
+      "x": 1010,
+      "y": 0,
+      "w": 420,
+      "h": 370
+    },
+    {
+      "file": "DirectionC.dc.html",
+      "x": 1530,
+      "y": 0,
+      "w": 420,
+      "h": 370
+    },
+    {
+      "file": "DirectionD.dc.html",
+      "x": 490,
+      "y": 500,
+      "w": 420,
+      "h": 370
+    },
+    {
+      "file": "DirectionE.dc.html",
+      "x": 1010,
+      "y": 500,
+      "w": 420,
+      "h": 370
+    }
+  ],
+  "annotations": [
+    {
+      "id": "why",
+      "x": 1530,
+      "y": 500,
+      "w": 420,
+      "text": "The problem all five are solving:\n\nThe bar's other three glyphs are monochrome vectors that carry selection by going #7D7979 -> #2D2B2B. A colour emoji ignores that entirely.\n\nSo the real question is not \"can the emoji go in the bar\" \u2014 it is \"how does an untintable thing say on and off\"."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

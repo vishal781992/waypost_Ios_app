@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           color: #201F1D; background: #D1CFA5; -webkit-font-smoothing: antialiased; }
+    a { color: #7D5411; } a:hover { color: #5A3B0A; }
+    .kicker { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #B68235; }
+    .display { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 600; }
+    .cap { font-size: 12px; opacity: .64; line-height: 1.5; }
+    .tick { font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; opacity: .5; }
+    /* The bar: 6px gutter, four 68x52 items, a 62pt glass plate behind them. */
+    .bar { display: inline-flex; padding: 0 6px; height: 62px; align-items: center;
+           border-radius: 999px; background: rgba(250,249,248,.62);
+           backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+           border: 1px solid rgba(0,0,0,.07);
+           box-shadow: inset 0 1px 0 rgba(255,255,255,.72), inset 0 -1px 0 rgba(255,255,255,.42),
+                       0 4px 12px rgba(24,16,8,.10); }
+    .item { width: 68px; height: 52px; border-radius: 999px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 3px; }
+    .item.on { background: rgba(219,230,76,.90); }
+    .label { font-size: 11px; line-height: 1; color: #7D7979; }
+    .item.on .label { font-weight: 600; color: #2D2B2B; }
+    .glyphbox { width: 29px; height: 29px; display: flex; align-items: center; justify-content: center; }
+    .emoji { line-height: 1; }
+  </style>
+</helmet>
+
+<div style="width: 420px; height: 370px; box-sizing: border-box; padding: 26px 24px; background: #D1CFA5">
+  <div class="kicker">Option B</div>
+  <div class="display" style="font-size: 27px; line-height: 1.1; margin-top: 4px">In a ring</div>
+  <div class="cap" style="margin-top: 7px">A 26-point disc, filled with accent100 when selected and drawn as a hairline when not. The emoji sits at 15 points inside it.</div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px">
+    <div style="display: flex; flex-direction: column; gap: 8px"><div class="tick">Profile selected</div><div class="bar"><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><circle cx="14.5" cy="14.5" r="5"/><g transform="rotate(0 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(45 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(90 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(135 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(180 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(225 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(270 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(315 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g></svg></div><div class="label">Today</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item on"><div class="glyphbox"><div style="width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center; background: #FFF3E4; border: 1px solid rgba(90,59,10,.22)"><span class="emoji" style="font-size: 15px">🏔️</span></div></div><div class="label">Profile</div></div></div></div>
+    <div style="display: flex; flex-direction: column; gap: 8px"><div class="tick">Profile not selected</div><div class="bar"><div class="item on"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#2D2B2B" aria-hidden="true"><circle cx="14.5" cy="14.5" r="5"/><g transform="rotate(0 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(45 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(90 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(135 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(180 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(225 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(270 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g><g transform="rotate(315 14.5 14.5)"><rect x="13.45" y="2.8" width="2.1" height="4.6" rx="1.05"/></g></svg></div><div class="label">Today</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><rect x="13.45" y="5.8" width="2.1" height="17.4" rx="1"/><path d="M15.1 7.5 h5.76 L23.1 10 l-2.24 2.5 H15.1 Z"/><path d="M13.9 15 H8.14 L5.9 17.5 l2.24 2.5 H13.9 Z"/><rect x="11.5" y="22.1" width="6" height="2" rx="1"/></svg></div><div class="label">Trips</div></div><div class="item"><div class="glyphbox"><svg width="29" height="29" viewBox="0 0 29 29" fill="#7D7979" aria-hidden="true"><path d="M9.1 5.7 h10.8 l1.1 1.1 v16.9 L14.5 20.6 8 23.7 V6.8 Z"/></svg></div><div class="label">Saved</div></div><div class="item"><div class="glyphbox"><div style="width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid rgba(125,121,121,.45)"><span class="emoji" style="font-size: 15px">🏔️</span></div></div><div class="label">Profile</div></div></div></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
