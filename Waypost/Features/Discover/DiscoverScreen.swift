@@ -157,7 +157,11 @@ struct DiscoverScreen: View {
         @Bindable var app = app
 
         VStack(spacing: 0) {
-            ScreenHeader {
+            // The state catalogue is three thousand parks from a table on the phone; the
+            // national one is sixty-three from a register. Nothing said which of the two
+            // you were in except the lime pill, and a pill is the control rather than the
+            // state. The light behind the Island is the state.
+            ScreenHeader(glow: app.discoverShowsState ? WP.lime : nil) {
                 // A way out that does not depend on knowing about the back-swipe. This was
                 // a tab, so it never needed one; reached from the Nearby header it does.
                 HStack(alignment: .top, spacing: 12) {

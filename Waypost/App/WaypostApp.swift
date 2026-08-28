@@ -239,6 +239,12 @@ struct RootShell: View {
 
 /// A screen header: the glass plate every destination hangs its title from.
 struct ScreenHeader<Content: View>: View {
+    /// A colour to bloom behind the Dynamic Island, or `nil` for a plain header.
+    ///
+    /// Over the glass and under the content, which is the only order that works: behind
+    /// the glass it arrives at forty per cent — the header tint is `#F3F2F2` at 0.60 — and
+    /// over the content it washes the type it is meant to sit beside.
+    var glow: Color? = nil
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -250,13 +256,60 @@ struct ScreenHeader<Content: View>: View {
         .padding(.top, WP.headerTop)
         .padding(.bottom, 11)
         .background {
-            Color.clear
-                .liquidGlass(.header, radius: 0)
-                .ignoresSafeArea(edges: .top)
+            ZStack(alignment: .top) {
+                Color.clear.liquidGlass(.header, radius: 0)
+                if let glow { IslandBloom(colour: glow).transition(.opacity) }
+            }
+            // Keyed on the glow alone, not on whatever the screen above changed to turn
+            // it on: the light comes up and goes down on the app's own curve, and the
+            // header's own words and rows are left to appear the way they always did.
+            .animation(Motion.panel, value: glow)
+            .ignoresSafeArea(edges: .top)
         }
         .overlay(alignment: .bottom) {
             Rectangle().fill(Color.black.opacity(0.07)).frame(height: 0.5)
         }
+    }
+}
+
+/// Light behind the Dynamic Island.
+///
+/// The app owns this strip: the header's glass already runs up under the Island because it
+/// ignores the top safe area. So the glow is drawn there and the system's black pill sits
+/// over the middle of it, which is what makes the light look like it is coming from behind
+/// the Island rather than being painted around it.
+///
+/// A soft radial on purpose, and not a ring traced around the pill. There is no public API
+/// for the Island's frame, and it is not one size: 14, 15 and 16 Pro differ, the Max models
+/// differ again, a notch is a different shape entirely and some phones have neither. A
+/// traced outline that misses by four points is worse than no outline. A bloom that misses
+/// by four points is a bloom. It survives a Live Activity expanding the Island for the same
+/// reason.
+private struct IslandBloom: View {
+    var colour: Color
+
+    /// Where the Island's middle sits: about eleven points down, and about thirty-seven
+    /// tall. Close enough on every phone that has one, and harmless on the phones that
+    /// do not — there the light simply sits at the top of the screen.
+    private static let centreY: CGFloat = 30
+    private static let radius: CGFloat = 140
+    /// Wider than it is tall, the way the Island is.
+    private static let stretch: CGFloat = 1.72
+
+    var body: some View {
+        RadialGradient(
+            gradient: Gradient(stops: [
+                .init(color: colour.opacity(0.92), location: 0),
+                .init(color: colour.opacity(0.34), location: 0.46),
+                .init(color: colour.opacity(0), location: 0.76),
+            ]),
+            center: .center, startRadius: 0, endRadius: Self.radius
+        )
+        .frame(width: Self.radius * 2, height: Self.radius * 2)
+        .scaleEffect(x: Self.stretch, anchor: .center)
+        .offset(y: Self.centreY - Self.radius)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
