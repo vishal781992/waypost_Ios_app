@@ -159,8 +159,6 @@ struct RootShell: View {
                 // there was no way back but the button. The toolbar API hides only the
                 // bar.
                 .toolbar(.hidden, for: .navigationBar)
-                // The system bar is off everywhere; `CompactTabBar` stands in for it.
-                .toolbar(.hidden, for: .tabBar)
                 .navigationDestination(for: PushedScreen.self) { screen in
                     // Every pushed screen gets its own paper, here rather than in each
                     // screen. Discover never painted one — it read the page colour off the
@@ -174,9 +172,22 @@ struct RootShell: View {
                     }
                     .toolbar(.hidden, for: .navigationBar)
                     .zoomDestination(screen.id, in: zoom)
-                    .toolbar(.hidden, for: .tabBar)
                 }
         }
+        // The system bar is off everywhere; `CompactTabBar` stands in for it.
+        //
+        // On the stack, not on the screen inside it. Hiding a tab bar is a *preference*:
+        // it is set by a view and read by the `TabView` above, and it only takes hold once
+        // it has travelled the distance between them. Set two layers down — on a tab root
+        // inside its own `NavigationStack` — that journey does not finish before the first
+        // frame is drawn, so the system's own bar rendered once at launch and then went.
+        // It spans the whole width where ours hugs its four items, which is why it read as
+        // a second bar sitting behind this one.
+        //
+        // This is the outermost view that is still the tab's content, so it is the
+        // earliest the preference can be set. A pushed screen needs no repeat: the stack
+        // carries it, and nothing inside puts the bar back.
+        .toolbar(.hidden, for: .tabBar)
     }
 
     /// One destination. The push stack is the system's now, so the interactive back-swipe
