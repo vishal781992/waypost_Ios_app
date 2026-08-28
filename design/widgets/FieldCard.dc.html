@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           color: #201F1D; background: #D1CFA5; -webkit-font-smoothing: antialiased; }
+    a { color: #7D5411; } a:hover { color: #5A3B0A; }
+    .kick { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #B68235; }
+    .cap { font-size: 11.5px; opacity: .64; line-height: 1.55; }
+    .tick { font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase; opacity: .45; }
+    .display { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 600; }
+    /* The home screen a widget actually sits on. */
+    .home { background: linear-gradient(150deg, #2b3a33 0%, #1d241f 55%, #14171a 100%);
+            border-radius: 26px; padding: 26px 24px; }
+    .w { border-radius: 22px; overflow: hidden; position: relative;
+         box-shadow: 0 10px 26px rgba(0,0,0,.34); }
+    .scrim { position: absolute; inset: 0;
+             background: linear-gradient(to top, rgba(16,16,16,.72) 0%, rgba(16,16,16,.20) 46%, rgba(16,16,16,.06) 100%); }
+    .sweep { position: absolute; inset: 0;
+             background: linear-gradient(118deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,0) 42%); }
+    .toplight { position: absolute; top: 0; left: 0; right: 0; height: 1px; background: rgba(255,255,255,.34); }
+    /* The lime save control, at the app's own fill and stroke. */
+    .save { background: #DBE64C; border: .5px solid rgba(0,0,0,.14);
+            box-shadow: 0 3px 7px rgba(24,16,8,.26); color: #201F1D; }
+    .saved { background: rgba(243,242,242,.90); border: .5px solid rgba(0,0,0,.10); color: #5A3B0A; }
+  </style>
+</helmet>
+
+<div style="width: 440px; background: #D1CFA5; padding: 24px 22px 26px; box-sizing: border-box">
+  <div class="kick">Two</div>
+  <div class="display" style="font-size: 27px; line-height: 1.1; margin-top: 3px">The Field Card</div>
+  <div class="cap" style="margin-top: 6px">Paper, not photograph. The app&#39;s own page colour with the picture inset on the left and the park typeset beside it, the way a row in the list is set.</div>
+  <div class="home" style="margin-top: 18px"><div class="w" style="width: 338px; height: 158px; background: #D1CFA5">
+  <div style="position: absolute; inset: 0; padding: 14px; display: flex; gap: 14px">
+    <div style="flex: none; width: 108px; border-radius: 14px; overflow: hidden; position: relative"><div style="position: absolute; inset: 0; background: #2E5F7A"></div><div style="position: absolute; inset: -30%; filter: blur(24px); opacity: .95; background: radial-gradient(46% 52% at 16% 18%, #2E5F7A 0%, transparent 62%), radial-gradient(40% 50% at 88% 12%, #6FA9A0 0%, transparent 62%), radial-gradient(50% 48% at 52% 96%, #4E8FA8 0%, transparent 64%)"></div><div class="sweep"></div><div class="toplight"></div></div>
+    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+      <div class="tick" style="color: #B68235; opacity: 1">Saved for later</div>
+      <div class="display" style="font-size: 27px; line-height: 1.04; margin-top: 3px">Acadia</div>
+      <div style="font-size: 11.5px; opacity: .62; margin-top: 3px">Maine &#183; National Park</div>
+      <div style="flex: 1"></div>
+      <div style="height: 1px; background: rgba(32,31,29,.16)"></div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 9px">
+        <div class="save" style="height: 30px; border-radius: 999px; padding: 0 13px; display: flex;
+             align-items: center; gap: 6px; font-size: 12px; font-weight: 600"><svg width="12" height="12" viewBox="0 0 24 24" fill="#201F1D" aria-hidden="true"><path d="M6.6 3.2 h10.8 l1.1 1.1 v16.9 L12 18.1 5.5 21.2 V4.3 Z"/></svg> Save</div>
+        <div style="font-size: 11.5px; opacity: .55">64&#176; &#183; clear</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+  <div style="margin-top: 14px"><div style="display: flex; gap: 9px; margin-top: 9px"><div style="flex: none; width: 5px; height: 5px; border-radius: 999px; background: #B68235; margin-top: 6px"></div><div class="cap" style="flex: 1">Type on paper survives the tinted and dark widget modes iOS 18 applies; a full-bleed photograph is desaturated by them.</div></div><div style="display: flex; gap: 9px; margin-top: 9px"><div style="flex: none; width: 5px; height: 5px; border-radius: 999px; background: #B68235; margin-top: 6px"></div><div class="cap" style="flex: 1">The save is a labelled pill rather than a disc, because there is room for a word and a word is never ambiguous.</div></div><div style="display: flex; gap: 9px; margin-top: 9px"><div style="flex: none; width: 5px; height: 5px; border-radius: 999px; background: #B68235; margin-top: 6px"></div><div class="cap" style="flex: 1">Quietest of the five on a busy home screen &#8212; which is either its virtue or its problem, depending on the wallpaper.</div></div></div>
+</div>
+</x-dc>
+</body>
+</html>

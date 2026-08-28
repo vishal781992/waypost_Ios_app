@@ -1,0 +1,51 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 560,
+      "h": 470
+    },
+    {
+      "file": "FieldCard.dc.html",
+      "x": 640,
+      "y": 0,
+      "w": 440,
+      "h": 470
+    },
+    {
+      "file": "Passport.dc.html",
+      "x": 1160,
+      "y": 0,
+      "w": 440,
+      "h": 470
+    },
+    {
+      "file": "Rail.dc.html",
+      "x": 640,
+      "y": 570,
+      "w": 440,
+      "h": 690
+    },
+    {
+      "file": "TwoUp.dc.html",
+      "x": 1160,
+      "y": 570,
+      "w": 440,
+      "h": 470
+    }
+  ],
+  "annotations": [
+    {
+      "id": "rules",
+      "x": 0,
+      "y": 570,
+      "w": 560,
+      "text": "What a widget can and cannot do, since it shapes all five:\n\n\u00b7 Real sizes. Small 158x158, medium 338x158, large 338x354 on a 393pt iPhone. Drawn here at those sizes, not scaled up.\n\n\u00b7 A small widget gets ONE tap target for the whole tile. Separate buttons need medium or large.\n\n\u00b7 The save button is real from iOS 17 \u2014 a Button backed by an AppIntent. The app targets 17, so this is available.\n\n\u00b7 No scrolling, no swiping, no live data. A widget draws a timeline entry, so the photo and the weather are whatever was last fetched.\n\n\u00b7 iOS 18 renders widgets tinted and dark on request. Photographs desaturate; paper and type do not."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

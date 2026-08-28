@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           color: #201F1D; background: #D1CFA5; -webkit-font-smoothing: antialiased; }
+    a { color: #7D5411; } a:hover { color: #5A3B0A; }
+    .kick { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #B68235; }
+    .cap { font-size: 11.5px; opacity: .64; line-height: 1.55; }
+    .tick { font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase; opacity: .45; }
+    .display { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 600; }
+    /* The home screen a widget actually sits on. */
+    .home { background: linear-gradient(150deg, #2b3a33 0%, #1d241f 55%, #14171a 100%);
+            border-radius: 26px; padding: 26px 24px; }
+    .w { border-radius: 22px; overflow: hidden; position: relative;
+         box-shadow: 0 10px 26px rgba(0,0,0,.34); }
+    .scrim { position: absolute; inset: 0;
+             background: linear-gradient(to top, rgba(16,16,16,.72) 0%, rgba(16,16,16,.20) 46%, rgba(16,16,16,.06) 100%); }
+    .sweep { position: absolute; inset: 0;
+             background: linear-gradient(118deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,0) 42%); }
+    .toplight { position: absolute; top: 0; left: 0; right: 0; height: 1px; background: rgba(255,255,255,.34); }
+    /* The lime save control, at the app's own fill and stroke. */
+    .save { background: #DBE64C; border: .5px solid rgba(0,0,0,.14);
+            box-shadow: 0 3px 7px rgba(24,16,8,.26); color: #201F1D; }
+    .saved { background: rgba(243,242,242,.90); border: .5px solid rgba(0,0,0,.10); color: #5A3B0A; }
+  </style>
+</helmet>
+
+<div style="width: 560px; background: #D1CFA5; padding: 24px 22px 26px; box-sizing: border-box">
+  <div class="kick">One</div>
+  <div class="display" style="font-size: 27px; line-height: 1.1; margin-top: 3px">The Plate</div>
+  <div class="cap" style="margin-top: 6px">The photograph is the widget. Everything else sits on it: a kicker at the top, the name in Cormorant at the foot, and the save disc in the corner it already lives in everywhere else in the app.</div>
+  <div class="home" style="margin-top: 18px"><div style="display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap"><div class="w" style="width: 158px; height: 158px">
+  <div style="position: absolute; inset: 0; background: #9A5B33"></div><div style="position: absolute; inset: -30%; filter: blur(24px); opacity: .95; background: radial-gradient(46% 52% at 16% 18%, #9A5B33 0%, transparent 62%), radial-gradient(40% 50% at 88% 12%, #7A4A6B 0%, transparent 62%), radial-gradient(50% 48% at 52% 96%, #C98A4B 0%, transparent 64%)"></div><div class="sweep"></div><div class="scrim"></div><div class="toplight"></div>
+  <div style="position: absolute; inset: 0; padding: 13px; display: flex; flex-direction: column">
+    <div style="font-size: 9px; letter-spacing: 1.3px; text-transform: uppercase; color: rgba(255,255,255,.72)">Arizona &#183; NP</div>
+    <div style="flex: 1"></div>
+    <div class="display" style="font-size: 25px; line-height: 1.02; color: #fff; letter-spacing: -.2px">Grand Canyon</div>
+  </div>
+  <div style="position: absolute; right: 11px; bottom: 11px"><div class="save" style="width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center"><svg width="13" height="13" viewBox="0 0 24 24" fill="#201F1D" aria-hidden="true"><path d="M6.6 3.2 h10.8 l1.1 1.1 v16.9 L12 18.1 5.5 21.2 V4.3 Z"/></svg></div></div>
+</div><div class="w" style="width: 338px; height: 158px">
+  <div style="position: absolute; inset: 0; background: #3E6B4F"></div><div style="position: absolute; inset: -30%; filter: blur(24px); opacity: .95; background: radial-gradient(46% 52% at 16% 18%, #3E6B4F 0%, transparent 62%), radial-gradient(40% 50% at 88% 12%, #5C8F6B 0%, transparent 62%), radial-gradient(50% 48% at 52% 96%, #8FA85C 0%, transparent 64%)"></div><div class="sweep"></div><div class="scrim"></div><div class="toplight"></div>
+  <div style="position: absolute; inset: 0; padding: 15px 16px; display: flex; flex-direction: column">
+    <div style="font-size: 9px; letter-spacing: 1.3px; text-transform: uppercase; color: rgba(255,255,255,.72)">Utah &#183; National Park</div>
+    <div style="flex: 1"></div>
+    <div class="display" style="font-size: 31px; line-height: 1.02; color: #fff; letter-spacing: -.3px">Canyonlands</div>
+    <div style="font-size: 11.5px; color: rgba(255,255,255,.74); margin-top: 3px">Timed entry &#183; 78&#176; today</div>
+  </div>
+  <div style="position: absolute; right: 13px; bottom: 13px"><div class="save" style="width: 36px; height: 36px; border-radius: 999px; display: flex; align-items: center; justify-content: center"><svg width="15" height="15" viewBox="0 0 24 24" fill="#201F1D" aria-hidden="true"><path d="M6.6 3.2 h10.8 l1.1 1.1 v16.9 L12 18.1 5.5 21.2 V4.3 Z"/></svg></div></div>
+</div></div></div>
+  <div style="margin-top: 14px"><div style="display: flex; gap: 9px; margin-top: 9px"><div style="flex: none; width: 5px; height: 5px; border-radius: 999px; background: #B68235; margin-top: 6px"></div><div class="cap" style="flex: 1">Closest to <em>DiscoverCard</em>, so a widget and the app read as one thing.</div></div><div style="display: flex; gap: 9px; margin-top: 9px"><div style="flex: none; width: 5px; height: 5px; border-radius: 999px; background: #B68235; margin-top: 6px"></div><div class="cap" style="flex: 1">Small has one tap target for the whole tile, which is a WidgetKit rule &#8212; the disc cannot be a separate button at that size. Medium can carry both.</div></div><div style="display: flex; gap: 9px; margin-top: 9px"><div style="flex: none; width: 5px; height: 5px; border-radius: 999px; background: #B68235; margin-top: 6px"></div><div class="cap" style="flex: 1">The photo stand-in here is the app&#39;s own <em>BlobField</em>: three blurred blobs in the park&#39;s OKLCH triple. It is what the app draws before a photograph lands, so the widget is never empty.</div></div></div>
+</div>
+</x-dc>
+</body>
+</html>
