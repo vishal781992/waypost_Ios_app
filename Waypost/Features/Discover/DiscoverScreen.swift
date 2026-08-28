@@ -124,7 +124,7 @@ struct DiscoverScreen: View {
     /// What the line over the masthead is counting — the catalogue the toggle is on.
     private var kicker: String {
         app.discoverShowsState
-            ? "\(StateParkList.table.count.formatted()) state parks, one at a time"
+            ? "\(StateParkTable.all.count.formatted()) state parks, one at a time"
             : "Sixty-three parks, one at a time"
     }
 
@@ -311,6 +311,10 @@ struct DiscoverScreen: View {
                     nearby = (fix.lat, fix.lon)
                 }
             }
+            // Opening Explore is at least one deliberate action before the State switch
+            // can be reached, so the table is read while the screen is arriving rather
+            // than under the tap that first asks for it.
+            .task { await StateParkTable.warm() }
         }
         .onAppear {
             if app.focusSearchOnAppear {
@@ -483,14 +487,22 @@ struct NothingByThatName: View {
 /// The state-park table: a name and a location for every unit, and nothing else. It is
 /// on the phone, so it answers with no network — and the note says plainly that hours,
 /// fees and campsites are a link rather than a number.
-struct StateParkList: View {
-    @Environment(AppState.self) private var app
-
-    /// A row and how far it is from whatever the list is ranked around.
-    struct Ranked: Identifiable {
-        var row: StateParkRow
-        var miles: Int
-        var id: String { StateParkList.key(row) }
+/// The shipped state-park table, read and prepared once.
+///
+/// A plain type rather than members on the view that reads it. A `View` carries its own
+/// actor isolation, and a table that is loaded off the main thread and then read from a
+/// view body should not have to argue with it — this has no isolation to inherit.
+enum StateParkTable {
+    /// A row with the two strings it is searched and deduplicated by, worked out once.
+    ///
+    /// Both were being rebuilt from scratch on every redraw, three thousand times over:
+    /// `key` lowercases a name, strips a suffix and filters it character by character, and
+    /// the name search lowercased every name again on top of that.
+    struct Entry {
+        let row: StateParkRow
+        let key: String
+        /// Lowercased once, for the `contains` the name search does.
+        let name: String
     }
 
     /// The table, with the same park listed once.
@@ -501,22 +513,44 @@ struct StateParkList: View {
     /// a distance-ordered list — the same park twice, forty-three miles away, twice — and
     /// two rows with one name are also two identical `ForEach` ids, which is a list that
     /// animates wrongly on top of reading wrongly.
-    static let table: [StateParkRow] = {
-        var seen = Set<String>()
-        return Datasets.shared.stateParks.filter { seen.insert(key($0)).inserted }
+    static let all: [Entry] = {
+        let rows = Datasets.shared.stateParks
+        var seen = Set<String>(minimumCapacity: rows.count)
+        var out: [Entry] = []
+        out.reserveCapacity(rows.count)
+        for row in rows {
+            let rowKey = key(row)
+            guard seen.insert(rowKey).inserted else { continue }
+            out.append(Entry(row: row, key: rowKey, name: row.n.lowercased()))
+        }
+        return out
     }()
 
-    /// A park's identity: its state, and its name with the designation and the
-    /// punctuation taken off — "Alfred B. Maclay Gardens State Park" and "Alfred B Maclay
-    /// Gardens State Park" are the same gardens.
-    static func key(_ row: StateParkRow) -> String {
-        var name = row.n.lowercased()
-        for suffix in [" state park & recreation area", " state park and recreation area",
-                       " state recreation area", " state park"] where name.hasSuffix(suffix) {
-            name = String(name.dropLast(suffix.count))
-            break
-        }
-        return row.s + "|" + name.filter { $0.isLetter || $0.isNumber }
+    /// Reads the table into memory away from the main thread.
+    ///
+    /// `all` is a `static let`, so the first thing to touch it pays for the whole chain:
+    /// four hundred and thirty-seven kilobytes off the bundle, three thousand rows through
+    /// `JSONDecoder`, and three thousand keys. That first thing was the tap on State — the
+    /// kicker asks for a count, and the count is at the far end of all of it. So the tap
+    /// sat there.
+    ///
+    /// Called when Explore opens, which is at least one deliberate action before anybody
+    /// can reach the switch.
+    static func warm() async {
+        await Task.detached(priority: .utility) { _ = all.count }.value
+    }
+}
+
+struct StateParkList: View {
+    @Environment(AppState.self) private var app
+
+    /// A row and how far it is from whatever the list is ranked around.
+    struct Ranked: Identifiable {
+        var row: StateParkRow
+        var miles: Int
+        /// Handed in from `StateParkTable.Entry` rather than worked out here: `id` is
+        /// read for every row on every redraw, and `key` builds two strings per call.
+        var id: String
     }
 
     /// Where the phone is. Handed down from the screen, which has asked for it once —
@@ -527,13 +561,13 @@ struct StateParkList: View {
 
     /// The shipped table matched the only two ways it can be: a park's own name, or its
     /// state. A city is not in the table at all, which is what `ranked` is for.
-    private var named: [StateParkRow] {
+    private var named: [StateParkTable.Entry] {
         guard !query.isEmpty else { return [] }
         let q = query.lowercased()
         let abbreviation = USStates.abbreviation(for: query)
-        let hits = Self.table.filter { row in
-            if let abbreviation, row.s == abbreviation { return true }
-            return row.n.lowercased().contains(q)
+        let hits = StateParkTable.all.filter { entry in
+            if let abbreviation, entry.row.s == abbreviation { return true }
+            return entry.name.contains(q)
         }
         return Array(hits.prefix(40))
     }
@@ -556,20 +590,22 @@ struct StateParkList: View {
     /// and is still the answer to the question.
     private var ranked: [Ranked] {
         guard let anchor else { return [] }
-        let skip = Set(named.map { Self.key($0) })
+        let skip = Set(named.map(\.key))
         let point = (lat: anchor.lat, lon: anchor.lon)
-        var out = Self.table
-            .filter { !skip.contains(Self.key($0)) }
-            .map { (row: $0, miles: Geo.haversine(point, ($0.lat, $0.lon))) }
+        var out = StateParkTable.all
+            .filter { !skip.contains($0.key) }
+            .map { (entry: $0, miles: Geo.haversine(point, ($0.row.lat, $0.row.lon))) }
         out.sort { $0.miles < $1.miles }
         if !query.isEmpty { out = out.filter { $0.miles <= 200 } }
-        return out.prefix(40).map { Ranked(row: $0.row, miles: Int($0.miles.rounded())) }
+        return out.prefix(40).map {
+            Ranked(row: $0.entry.row, miles: Int($0.miles.rounded()), id: $0.entry.key)
+        }
     }
 
     /// What the live directory found for the same words, minus anything already listed.
     private var liveRows: [CuratedPark] {
         guard !query.isEmpty else { return [] }
-        var already = Set(named.map { $0.n.lowercased() })
+        var already = Set(named.map(\.name))
         already.formUnion(ranked.map { $0.row.n.lowercased() })
         return app.directory.hits.map(\.park)
             .filter { !already.contains($0.full.lowercased()) }
@@ -647,10 +683,10 @@ struct StateParkList: View {
             cards(ranked)
         } else {
             SectionRule(dot: WP.live, tint: Color(oklch: 0.40, 0.10, 150),
-                        title: "State parks", tail: "\(Self.table.count) units")
+                        title: "State parks", tail: "\(StateParkTable.all.count) units")
             VStack(spacing: 20) {
-                ForEach(Array(Self.table.prefix(40)), id: \.self) { row in
-                    DiscoverCard(park: CuratedPark(stateRow: row)).liftOnScroll()
+                ForEach(StateParkTable.all.prefix(40), id: \.key) { entry in
+                    DiscoverCard(park: CuratedPark(stateRow: entry.row)).liftOnScroll()
                 }
             }
             .padding(.top, 4)
@@ -669,7 +705,7 @@ struct StateParkList: View {
             SectionRule(dot: WP.live, tint: Color(oklch: 0.40, 0.10, 150),
                         title: "Matching \u{201C}\(query)\u{201D}",
                         tail: named.count == 1 ? "1 unit" : "\(named.count) units")
-            cards(named.map { Ranked(row: $0, miles: 0) }, showMiles: false)
+            cards(named.map { Ranked(row: $0.row, miles: 0, id: $0.key) }, showMiles: false)
         }
     }
 
