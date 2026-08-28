@@ -29,20 +29,18 @@ struct ParkPlateView: View {
     @ViewBuilder
     private var ground: some View {
         if let photo = entry.photo {
-            // `widgetAccentedRenderingMode` arrived in iOS 18 and the app targets 17, so
-            // it is asked for where it exists and skipped where it does not. It hands the
-            // photograph to the tinted and dark renderings deliberately, rather than
-            // letting those treatments arrive at it and leave a grey rectangle.
-            if #available(iOS 18.0, *) {
-                Image(uiImage: photo)
-                    .resizable()
-                    .scaledToFill()
-                    .widgetAccentedRenderingMode(.accented)
-            } else {
-                Image(uiImage: photo)
-                    .resizable()
-                    .scaledToFill()
-            }
+            // No `widgetAccentedRenderingMode` here, deliberately.
+            //
+            // It is a method on `Image`, not a view modifier, so it has to come before
+            // `scaledToFill` rather than after it — and it exists only from iOS 18, which
+            // this target does not require. It buys one thing: a say in how the picture is
+            // treated when somebody tints their home screen. Without it iOS still renders
+            // the plate in those modes, desaturated, which is the same answer every other
+            // photographic widget gives. Worth adding back once the rest of this is known
+            // to build, not worth another round of guessing at an API from here.
+            Image(uiImage: photo)
+                .resizable()
+                .scaledToFill()
         } else {
             // What the app draws before a photograph lands, rather than an empty frame:
             // three soft fields in the park's own colours, hashed off its code so the same

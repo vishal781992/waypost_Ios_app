@@ -11,8 +11,16 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: 2.53.0
-    CURRENT_PROJECT_VERSION: 99
+    # Signing. Both targets need a team, and picking one in Xcode does not survive the
+    # next `xcodegen generate` — the project is built from this file. Paste the ten
+    # character Team ID from developer.apple.com (or from Xcode's Accounts pane, beside
+    # the team name) and uncomment, and it holds through every regeneration.
+    #
+    # Left commented rather than filled in with a guess: a wrong team is a harder error
+    # to read than a missing one.
+    # DEVELOPMENT_TEAM: XXXXXXXXXX
+    MARKETING_VERSION: 2.53.1
+    CURRENT_PROJECT_VERSION: 100
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
   configs:
