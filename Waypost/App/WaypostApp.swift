@@ -330,10 +330,19 @@ struct TabIcon: View {
     /// glyphs and nothing else — a view that reaches into app state to decide what it is
     /// cannot be put anywhere app state is not.
     ///
-    /// `nil` covers both of the reasons there would be no emoji: the tab is not the one
-    /// selected, and nobody has picked one. Neither needs a case of its own, because the
-    /// answer to both is the same drawn person.
+    /// `nil` means nobody has picked one, and the drawn person stands in.
     var worn: String? = nil
+
+    /// Whether this is the tab being looked at.
+    ///
+    /// The three drawn glyphs need no such flag: they take their colour from the bar and
+    /// go from `neutral600` to `neutral900` on their own. An emoji cannot be tinted, so it
+    /// is the one glyph that has to be told, and it says the same thing a different way —
+    /// grey and held back when the tab is not the one you are on.
+    ///
+    /// Without that it would be the only colour in a bar of grey marks at all times, and
+    /// the tab nobody is on would be the loudest thing on the screen.
+    var lit: Bool = true
 
     var body: some View {
         switch tab {
@@ -348,7 +357,10 @@ struct TabIcon: View {
                 // Twenty-three points rather than the twenty-nine the frame allows: an
                 // emoji is drawn with its own margin, so a glyph set to the box overshoots
                 // the three that are drawn to it.
-                Text(worn).font(.system(size: 23))
+                Text(worn)
+                    .font(.system(size: 23))
+                    .grayscale(lit ? 0 : 1)
+                    .opacity(lit ? 1 : 0.55)
             } else {
                 VStack(spacing: 1.4) {
                     Circle().frame(width: 7.8, height: 7.8)

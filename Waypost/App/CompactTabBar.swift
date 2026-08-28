@@ -16,14 +16,13 @@ import SwiftUI
 struct CompactTabBar: View {
     @Binding var selection: AppTab
     var isMinimized: Bool
-    /// The emoji the traveller chose for their profile, worn by the Profile tab while that
-    /// tab is the one selected.
+    /// The emoji the traveller chose for their profile, worn by the Profile tab.
     ///
-    /// Only while selected, and that is the whole design: the four glyphs are the app's
-    /// own drawings and an emoji is not one — it carries its own colour, so a Profile tab
-    /// wearing one at rest would be the loudest thing in a bar of grey marks, and the tab
-    /// somebody is *not* on would outshout the one they are. Arriving on your own tab is
-    /// where a face belongs.
+    /// Worn at all times rather than only on arrival — somebody who picks a face wants to
+    /// see it, and a mark that appears once you are already there is telling you something
+    /// you know. The glyph is the one thing in the bar that cannot be tinted, so it takes
+    /// the bar's own on-and-off the only way it can: full colour on the tab you are on,
+    /// grey and held back everywhere else. That is `TabIcon.lit`.
     ///
     /// Handed in rather than read from the environment: the bar takes a selection, a state
     /// and now this, and stays a view that can be drawn anywhere.
@@ -101,7 +100,7 @@ struct CompactTabBar: View {
                 // places — so the bar folds rather than emptying, and the destination you
                 // want is where it was a moment ago.
                 if !isMinimized {
-                    TabIcon(tab: tab, worn: isSelected ? profileEmoji : nil)
+                    TabIcon(tab: tab, worn: profileEmoji, lit: isSelected)
                         .frame(width: 29, height: 29)
                 }
                 Text(tab.label)

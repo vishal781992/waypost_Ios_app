@@ -15,7 +15,7 @@
       "x": 0,
       "y": 0,
       "w": 390,
-      "h": 800,
+      "h": 840,
       "page": "page-1"
     },
     {
@@ -61,20 +61,20 @@
   ],
   "annotations": [
     {
-      "id": "why",
-      "x": 490,
-      "y": 500,
-      "w": 420,
-      "page": "page-1",
-      "text": "Why this one solves the problem:\n\nThe bar's other three glyphs are monochrome vectors that carry selection by going #7D7979 -> #2D2B2B. A colour emoji cannot.\n\nOption D sidesteps it rather than working around it \u2014 the emoji only ever appears on the tab that is already selected, so it never has to say \"off\"."
-    },
-    {
       "id": "notpicked",
       "x": 520,
       "y": 500,
       "w": 420,
       "page": "page-2",
       "text": "The four that were not taken, kept for the record.\n\nA and C left the emoji visible at rest, where it outshouts the tab you are actually on. B rings it in a disc but drops it to 15 points. E keeps both marks in one 29-point box, which is busy at the size a tab bar gets looked at."
+    },
+    {
+      "id": "why",
+      "x": 490,
+      "y": 500,
+      "w": 420,
+      "page": "page-1",
+      "text": "The problem the five were solving:\n\nThe bar's other glyphs are monochrome vectors that carry selection by going #7D7979 -> #2D2B2B. A colour emoji cannot.\n\nShipped first as option D \u2014 the emoji only on the selected tab. That hid it almost always, which is most of the point of choosing one. It now shows at all times and takes the bar's on-and-off through grayscale instead, which is option C."
     }
   ],
   "launch": {
