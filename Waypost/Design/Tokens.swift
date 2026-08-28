@@ -83,11 +83,11 @@ enum WP {
     /// The deep pine off the app's own icon, for the light behind the Dynamic Island on
     /// the national catalogue.
     ///
-    /// Always carried at a fraction of itself — `WP.pine.opacity(0.34)` where it is used.
-    /// A colour darker than the surface it lies on cannot read as light on it, only as
-    /// shade, and at full strength this one stops being a halo and becomes a smudge with
-    /// the Island dissolved into the middle of it. A third of the way there is a soft
-    /// vignette, which is the most a dark colour can be on a pale header.
+    /// Carried at full strength, the same as the lime it alternates with. It is much
+    /// darker than the header it lies on, so it reads as a deep shadow around the Island
+    /// rather than as light coming off it — which is the intended weight: the two
+    /// catalogues answer each other, one bright and one dark, and a pine held back to a
+    /// third would have been the quieter of the two rather than its equal.
     static let pine = Color(hex: 0x0B2B26)
     /// Destructive actions, and the park service's dangers and closures — the design's
     /// `oklch(0.55 0.21 27)`.
