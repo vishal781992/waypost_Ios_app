@@ -4,15 +4,24 @@ import SwiftUI
 // MARK: - Navigation
 
 enum AppTab: String, CaseIterable, Identifiable {
-    /// Discover was a fifth tab. It is reached from the Today header now — the same
+    /// Discover was a fifth tab. It is reached from the Nearby header now — the same
     /// catalogue, one tab lighter, and no longer duplicated by a quick-search sheet that
     /// asked the same question in a smaller box.
+    ///
+    /// `today` keeps its name although the tab is called Nearby. The raw value is what the
+    /// snapshot stores to reopen on the tab somebody left — rename the case and every
+    /// phone that had this tab open comes back to the default one instead. The name a
+    /// reader sees is `label`, and that is the only place the two need to agree.
     case today, trips, saved, me
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .today: return "Today"
+        // Today was a claim the screen did not make. Nothing on it is about the date: it
+        // is a gallery of parks near here, a rail of the nearest with the radius printed
+        // over it, the stamps within reach, and — only on the days there is one — the leg
+        // being driven. All of it is measured from where the reader is standing.
+        case .today: return "Nearby"
         case .trips: return "Trips"
         case .saved: return "Saved"
         case .me: return "Profile"
@@ -20,7 +29,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// What the Today screen makes of the day. The design ships three takes and lets you
+/// What the Nearby screen makes of the day. The design ships three takes and lets you
 /// switch between them; the switch lives in Profile on device.
 enum TodayTake: String, CaseIterable {
     case field, timeline, dash
@@ -388,7 +397,7 @@ final class AppState {
         return today.leg.flatMap { library.legs.indices.contains($0) ? library.legs[$0] : nil }
     }
 
-    /// The next driving day after today, and its leg — what the Today screen previews.
+    /// The next driving day after today, and its leg — what the Nearby screen previews.
     var nextLegDay: (day: CuratedDay, leg: CuratedLeg)? {
         guard let next = library.days.first(where: { $0.d > today.d && $0.isLeg }),
               let index = next.leg, library.legs.indices.contains(index) else { return nil }

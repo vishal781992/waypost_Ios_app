@@ -10,7 +10,7 @@ struct DiscoverScreen: View {
     @State private var closing = false
 
     /// Where the phone is. Asked for here rather than read off the recommender, which only
-    /// has a fix once the Today screen has run — open the app straight onto Discover and it
+    /// has a fix once the Nearby screen has run — open the app straight onto Discover and it
     /// is nil, which is exactly the case this ordering is for.
     @State private var nearby: (lat: Double, lon: Double)?
 
@@ -159,7 +159,7 @@ struct DiscoverScreen: View {
         VStack(spacing: 0) {
             ScreenHeader {
                 // A way out that does not depend on knowing about the back-swipe. This was
-                // a tab, so it never needed one; reached from the Today header it does.
+                // a tab, so it never needed one; reached from the Nearby header it does.
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 0) {
                         // The kicker counts whichever catalogue is on screen. It said

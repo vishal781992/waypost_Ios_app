@@ -557,7 +557,7 @@ struct Kicker: View {
 }
 
 /// A section heading with a rule running to the right and an optional trailing note —
-/// the pattern used all down the Today screen.
+/// the pattern used all down the Nearby screen.
 struct RuledHeading<Trailing: View>: View {
     var title: String
     @ViewBuilder var trailing: Trailing
@@ -977,7 +977,7 @@ struct SelectedControl: ViewModifier {
 /// at opposite ends of the same gesture should be the same size and the same material.
 /// A word where a `GlassDisc` would be, in the same orange.
 ///
-/// The Today header carried a "+" that opened a park search. A plus means *make a thing* —
+/// The Nearby header carried a "+" that opened a park search. A plus means *make a thing* —
 /// it means exactly that on the Trips header — and what it actually opened was a catalogue
 /// to read. A labelled control can say so.
 struct MarkPill: View {
@@ -993,7 +993,7 @@ struct MarkPill: View {
                 .padding(.horizontal, 22)
                 .frame(height: height)
                 // Opaque, for the same reason the discs are: glass takes its colour from
-                // whatever sits behind it, and the Today header sits over a different park
+                // whatever sits behind it, and the Nearby header sits over a different park
                 // photograph every day. The crown and the edge keep the glass reading.
                 .background(WP.mark, in: Capsule())
                 .overlay(alignment: .top) {

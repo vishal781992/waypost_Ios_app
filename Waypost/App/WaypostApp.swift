@@ -132,7 +132,7 @@ struct RootShell: View {
         // not reliably reach the window: it held at launch and was lost the first time a
         // reader came back from another tab.
         //
-        // Only at the root of Today. A park pushed out of it is a paper screen again.
+        // Only at the root of Nearby. A park pushed out of it is a paper screen again.
         .preferredColorScheme(currentTab == .today && app.path(for: .today).isEmpty ? .dark : .light)
         .sheet(item: Binding(get: { currentSheet }, set: { app.sheet = $0 })) { sheet in
             // The sheets are paper whatever is behind them, so they say so rather than
@@ -165,7 +165,7 @@ struct RootShell: View {
                     // Every pushed screen gets its own paper, here rather than in each
                     // screen. Discover never painted one — it read the page colour off the
                     // tab root showing through behind it, which worked only because the
-                    // window was light everywhere. Now that Today puts the window into the
+                    // window was light everywhere. Now that Nearby puts the window into the
                     // dark scheme for its status bar, that show-through is black, and
                     // Discover pushed in over a black page before its own content landed.
                     ZStack {
@@ -338,22 +338,9 @@ struct TabIcon: View {
     var body: some View {
         switch tab {
         case .today:
-            ZStack {
-                Circle().frame(width: 10, height: 10)
-                ForEach(0..<8, id: \.self) { index in
-                    Capsule()
-                        .frame(width: 2.1, height: 4.6)
-                        .offset(y: -9.4)
-                        .rotationEffect(.degrees(Double(index) * 45))
-                }
-            }
+            NavigationDart()
         case .trips:
-            ZStack {
-                RoundedRectangle(cornerRadius: 1).frame(width: 2.1, height: 17.4)
-                MilepostArrow().frame(width: 8, height: 5).offset(x: 4.6, y: -4.5)
-                MilepostArrow().frame(width: 8, height: 5).scaleEffect(x: -1).offset(x: -4.6, y: 3)
-                RoundedRectangle(cornerRadius: 1).frame(width: 6, height: 2).offset(y: 8.6)
-            }
+            SuitcaseShape()
         case .saved:
             BookmarkShape()
         case .me:
@@ -373,16 +360,68 @@ struct TabIcon: View {
     }
 }
 
-private struct MilepostArrow: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: 0, y: 0))
-        p.addLine(to: CGPoint(x: rect.width * 0.72, y: 0))
-        p.addLine(to: CGPoint(x: rect.width, y: rect.midY))
-        p.addLine(to: CGPoint(x: rect.width * 0.72, y: rect.maxY))
-        p.addLine(to: CGPoint(x: 0, y: rect.maxY))
-        p.closeSubpath()
-        return p
+/// Nearby's mark: the dart every map draws where you are standing.
+///
+/// It replaced a disc with eight even rays around it. Whatever the comment beside that one
+/// said, eight even rays is a *sun* — a compass rose has pointed arms of alternating length
+/// — and a sun says the day. It suited a tab called Today and says nothing about a screen
+/// organised by how far things are from here.
+///
+/// Drawn to the 29-point box the caller frames it in, the way `BookmarkShape` is. The
+/// corners are rounded by stroking the same outline underneath the fill rather than by
+/// arcing four vertices at four different angles by hand; the stroke inherits the tab's
+/// colour, so both halves change together on selection.
+private struct NavigationDart: View {
+    /// Inset from the box by half the stroke, so the rounding grows into the frame rather
+    /// than out of it.
+    private var outline: Path {
+        Path { p in
+            p.move(to: CGPoint(x: 23.2, y: 5.8))
+            p.addLine(to: CGPoint(x: 6.0, y: 13.4))
+            p.addLine(to: CGPoint(x: 12.9, y: 16.1))
+            p.addLine(to: CGPoint(x: 15.6, y: 23.0))
+            p.closeSubpath()
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            outline
+            outline.stroke(style: StrokeStyle(lineWidth: 2.8, lineCap: .round, lineJoin: .round))
+        }
+    }
+}
+
+/// Trips' mark: a hard case with a handle.
+///
+/// This replaced the milepost — a post, two arrows and a base — which was the app's
+/// namesake mark and the least legible thing in the bar: read as a signpost, an arrow or a
+/// road sign before it was read as trips. The trade was made deliberately, and the milepost
+/// is in the history at this commit if it is ever wanted back.
+///
+/// The handle is a 2.1-point line, which is the weight the milepost's own post carried, so
+/// the set keeps one line thickness between all four glyphs.
+private struct SuitcaseShape: View {
+    private var handle: Path {
+        Path { p in
+            p.move(to: CGPoint(x: 10.6, y: 9.4))
+            p.addLine(to: CGPoint(x: 10.6, y: 7.9))
+            p.addQuadCurve(to: CGPoint(x: 12.6, y: 5.9), control: CGPoint(x: 10.6, y: 5.9))
+            p.addLine(to: CGPoint(x: 16.4, y: 5.9))
+            p.addQuadCurve(to: CGPoint(x: 18.4, y: 7.9), control: CGPoint(x: 18.4, y: 5.9))
+            p.addLine(to: CGPoint(x: 18.4, y: 9.4))
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            handle.stroke(style: StrokeStyle(lineWidth: 2.1, lineCap: .round, lineJoin: .round))
+            // Centred by the stack and then dropped, so the case hangs under its handle:
+            // 14.5 + 2.5 puts it between 9.4 and 24.6 in the 29-point box.
+            RoundedRectangle(cornerRadius: 2.4, style: .continuous)
+                .frame(width: 20.2, height: 15.2)
+                .offset(y: 2.5)
+        }
     }
 }
 

@@ -152,7 +152,7 @@ extension View {
     /// has on iOS 26, which went away with the system bar.
     ///
     /// It goes on the scroll view itself rather than on the shell because a screen like
-    /// Today also carries horizontal rails, and a shell-level observer would take a sideways
+    /// Nearby also carries horizontal rails, and a shell-level observer would take a sideways
     /// flick through one of those for a downward read of the page.
     func tracksTabBarMinimize() -> some View {
         modifier(TabBarMinimizeTracker())
