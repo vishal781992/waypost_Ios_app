@@ -15,6 +15,44 @@ Entries below carry a fourth number where one exists — `2.27.0.26` is `MARKETI
 followed by `CURRENT_PROJECT_VERSION`, the pair the Profile badge reads out of the bundle
 so a tester can say which build they were looking at.
 
+## 2.44.0 — Appwrite, wired but carrying nothing
+
+The project's first external dependency, and the first thing in it that is not this phone.
+
+**Declared in `project.yml`, not in Xcode.** `Waypost.xcodeproj` is generated from that file
+and gitignored, so a package added through Xcode's own UI is deleted by the next
+`xcodegen generate`. Pinned `from: 18.3.0` — semver, so patches and minors come, and 19
+does not until somebody looks at it.
+
+**`Backend`, not `Appwrite`.** A type of that name inside a module that also imports the
+`Appwrite` module fights itself: every `Appwrite.Client` after it is ambiguous between the
+module and the type. `Backend` is also what the profile already calls this.
+
+**The ping lives where every other outside connection does.** Preferences › Connections
+gained an Appwrite row and a **Send a ping** button under it. Every other row on that screen
+reports what the app happened to ask for while somebody used it; this one asks on purpose,
+which is the only way to tell a backend that is down from a backend nothing has needed yet.
+The answer arrives the same way every other source's does — through `FailureLog`, so the row
+turns without the button knowing that screen exists.
+
+Not on the home screen: `TodayScreen` is a photographic carousel, and a ping button there
+reads as debug scaffolding somebody forgot to remove.
+
+**Nothing of the traveller's goes through it.** The only call made is `ping`, which asks the
+endpoint whether it is there and carries no data at all. Two pieces of copy in this app say
+the phone sends nothing — "Nothing is sent anywhere" in the profile editor, "Nothing here has
+left this phone" in the erase alert — and both are still true. The first trip, name or
+account that travels through `account` makes them false, and they have to be rewritten that
+day.
+
+`Account` is built and unused on purpose: `StubAuthService` was written so that wiring a real
+provider behind it moves nothing above it, and this is that provider when accounts are
+wanted.
+
+The endpoint and the project id are hard-coded because Appwrite's client configuration is
+public by design — access is decided by the project's permissions, not by an id being
+unknown.
+
 ## 2.43.4 — The atlas stops juddering on its way in
 
 Only two live maps exist in this app, and the atlas is the one anybody reaches first.

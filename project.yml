@@ -11,8 +11,8 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: 2.43.4
-    CURRENT_PROJECT_VERSION: 81
+    MARKETING_VERSION: 2.44.0
+    CURRENT_PROJECT_VERSION: 82
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
   configs:
@@ -26,10 +26,23 @@ settings:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: ""
       SWIFT_COMPILATION_MODE: wholemodule
 
+# The project's first external dependency. Declared here rather than added through
+# Xcode's package UI, because `Waypost.xcodeproj` is generated from this file and
+# gitignored: a package added in Xcode is deleted by the next `xcodegen generate`.
+#
+# Pinned to a major. Appwrite's Apple SDK follows semver and 19 will break the call sites,
+# so `from` takes the patches and the minors and stops before that.
+packages:
+  Appwrite:
+    url: https://github.com/appwrite/sdk-for-apple
+    from: 18.3.0
+
 targets:
   Waypost:
     type: application
     platform: iOS
+    dependencies:
+      - package: Appwrite
     sources:
       - path: Waypost
     settings:

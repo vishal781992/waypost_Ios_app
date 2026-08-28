@@ -43,6 +43,10 @@ final class Connections {
 
     /// What the app talks to, in the order it matters.
     static let sources: [Source] = [
+        Source(name: "Appwrite",
+               what: "This app's own backend. Nothing of yours goes through it yet — the only thing it is asked is whether it is there, which is what the ping below does. Not essential: everything the app does today, it does on this phone.",
+               keys: [Backend.key],
+               hosts: ["sfo.cloud.appwrite.io"]),
         Source(name: "National Park Service",
                what: "Fees, opening times, alerts, campgrounds and things to do — the substance of every park screen. Reached through the Waypost proxy, which holds the key.",
                keys: ["NPS API"],

@@ -444,6 +444,26 @@ struct ConnectionsScreen: View {
                         }
                     }
 
+                    Text("Ask the backend".uppercased())
+                        .font(WP.body(10)).tracking(1.4).opacity(0.5)
+                        .padding(.top, 26).padding(.bottom, 8)
+
+                    // Every other row on this screen reports what the app happened to ask
+                    // for while somebody used it. This one asks on purpose — which is the
+                    // only way to tell a backend that is down from a backend nothing has
+                    // needed yet.
+                    GlowButton(title: Backend.shared.isPinging ? "Pinging…" : "Send a ping",
+                               minHeight: 52) {
+                        Haptics.tap()
+                        Task { await sendPing() }
+                    }
+                    .disabled(Backend.shared.isPinging)
+
+                    Text(pingCaption)
+                        .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 8)
+
                     SourceLine("Read from the app itself, not from a status page. A source is marked heard from when a request to it came back, and did not answer when one failed — with the reason. Not needed yet means nothing has had cause to ask since the app opened, which is not a fault: a park screen nobody opened asks the park service nothing.",
                                ruled: false)
                         .padding(.top, 18)
@@ -460,6 +480,21 @@ struct ConnectionsScreen: View {
             connections.watch()
             await connections.checkProxy(ProxyConfig())
         }
+    }
+
+    // MARK: The backend, asked on purpose
+
+    private func sendPing() async {
+        let answered = await Backend.shared.ping()
+        app.show(answered ? "Appwrite answered" : "Appwrite did not answer")
+    }
+
+    /// What the last ping came back with, or what pressing it will do.
+    private var pingCaption: String {
+        if let answer = Backend.shared.lastPing, !answer.isEmpty {
+            return "Answered: \(answer.prefix(100))"
+        }
+        return "Asks \(Backend.endpoint) whether it is there. Nothing of yours goes with it."
     }
 
     // MARK: The two that are asked directly
