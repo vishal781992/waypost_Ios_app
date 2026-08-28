@@ -484,9 +484,6 @@ struct NothingByThatName: View {
     }
 }
 
-/// The state-park table: a name and a location for every unit, and nothing else. It is
-/// on the phone, so it answers with no network — and the note says plainly that hours,
-/// fees and campsites are a link rather than a number.
 /// The shipped state-park table, read and prepared once.
 ///
 /// A plain type rather than members on the view that reads it. A `View` carries its own
@@ -505,6 +502,19 @@ enum StateParkTable {
         let name: String
     }
 
+    /// A park's identity: its state, and its name with the designation and the
+    /// punctuation taken off — "Alfred B. Maclay Gardens State Park" and "Alfred B Maclay
+    /// Gardens State Park" are the same gardens.
+    static func key(_ row: StateParkRow) -> String {
+        var name = row.n.lowercased()
+        for suffix in [" state park & recreation area", " state park and recreation area",
+                       " state recreation area", " state park"] where name.hasSuffix(suffix) {
+            name = String(name.dropLast(suffix.count))
+            break
+        }
+        return row.s + "|" + name.filter { $0.isLetter || $0.isNumber }
+    }
+
     /// The table, with the same park listed once.
     ///
     /// The shipped file holds 3,003 rows and several dozen of them are repeats: "Ray
@@ -519,7 +529,7 @@ enum StateParkTable {
         var out: [Entry] = []
         out.reserveCapacity(rows.count)
         for row in rows {
-            let rowKey = key(row)
+            let rowKey = Self.key(row)
             guard seen.insert(rowKey).inserted else { continue }
             out.append(Entry(row: row, key: rowKey, name: row.n.lowercased()))
         }
@@ -537,10 +547,13 @@ enum StateParkTable {
     /// Called when Explore opens, which is at least one deliberate action before anybody
     /// can reach the switch.
     static func warm() async {
-        await Task.detached(priority: .utility) { _ = all.count }.value
+        await Task.detached(priority: .utility) { _ = StateParkTable.all.count }.value
     }
 }
 
+/// The state-park table: a name and a location for every unit, and nothing else. It is
+/// on the phone, so it answers with no network — and the note says plainly that hours,
+/// fees and campsites are a link rather than a number.
 struct StateParkList: View {
     @Environment(AppState.self) private var app
 
