@@ -907,6 +907,16 @@ struct DividedRow<Content: View>: View {
 }
 
 /// The pill the design floats above the tab bar when something happens.
+///
+/// Glass rather than a flat ink fill, and this is the one place in the app where that is
+/// unarguable: a transient that floats over whatever happens to be underneath — a
+/// photograph on one tab, a page on the next — is what the material is for. It also sat a
+/// dozen points above a tab bar that *is* glass, so a solid pill was the one thing on that
+/// corner of the screen not made of the same stuff.
+///
+/// `.control` is the app's dark glass with light type on it, which is what this already
+/// was by hand: `WP.ink` under `WP.onInk`. The tint is 88% opaque, so the words do not
+/// depend on what is behind them.
 struct ToastView: View {
     var text: String
 
@@ -916,8 +926,8 @@ struct ToastView: View {
             .lineLimit(1)
             .padding(.horizontal, 16)
             .padding(.vertical, 9)
-            .background(WP.ink, in: Capsule())
             .foregroundStyle(WP.onInk)
+            .liquidGlass(.control, radius: 999)
             .shadow(color: WP.neutral900.opacity(0.22), radius: 16, y: 8)
             .transition(.move(edge: .bottom).combined(with: .opacity))
     }
