@@ -13,6 +13,11 @@ struct YearPassCard: View {
     @Environment(AppState.self) private var app
     @State private var tilt = DeviceTilt.shared
 
+    /// Where a finger is on the card, as the same two numbers the gyroscope gives, or
+    /// nothing while nobody is touching it. A finger outranks the wrist: while one is
+    /// down the card is being held, not carried.
+    @State private var touch: CGPoint?
+
     /// A credit card, near enough: 85.6 by 54 millimetres.
     static let ratio: CGFloat = 300.0 / 190.0
 
@@ -32,6 +37,25 @@ struct YearPassCard: View {
     /// starts reading as a room rather than as a card on a table.
     private static let turn: Double = 9
 
+    /// A finger goes further than a wrist. Carrying the phone is incidental and wants to
+    /// stay subtle; pushing on the card is deliberate, and should give under the push.
+    private static let grip: Double = 1.6
+
+    /// The two numbers everything on the surface is drawn from — the specular, the foil,
+    /// and both rotations. One source, so the card reads as a single thing being turned
+    /// rather than as three effects that happen to move together.
+    private var lean: (roll: Double, pitch: Double) {
+        guard let touch else { return (tilt.roll, tilt.pitch) }
+        return (Double(touch.x), Double(touch.y))
+    }
+
+    private var swing: Double { touch == nil ? Self.turn : Self.turn * Self.grip }
+
+    /// How hard the surface is catching the light. A card being pressed on catches it
+    /// harder; `opacity` cannot say so, since anything over one is clamped, so the
+    /// highlight's own colours carry it.
+    private var lit: Double { touch == nil ? 1 : 1.4 }
+
     var body: some View {
         ZStack {
             photograph
@@ -46,16 +70,61 @@ struct YearPassCard: View {
         }
         .frame(width: side, height: height)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: Color(hex: 0x000000, opacity: 0.52), radius: 22, y: 14)
+        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // Before the rotations, so the finger is reported against the flat card rather
+        // than against the turned one — otherwise pressing an edge that has tipped away
+        // reads back as a point somewhere past the edge, and the card chases itself.
+        .gesture(hold)
+        .shadow(color: Color(hex: 0x000000, opacity: touch == nil ? 0.52 : 0.6),
+                radius: touch == nil ? 22 : 30, y: touch == nil ? 14 : 20)
         // Two axes, chained. A single combined axis turns the card about a diagonal, which
         // reads as a wobble rather than as a thing being tipped.
-        .rotation3DEffect(.degrees(-tilt.pitch * Self.turn),
+        .rotation3DEffect(.degrees(-lean.pitch * swing),
                           axis: (x: 1, y: 0, z: 0), perspective: 0.55)
-        .rotation3DEffect(.degrees(tilt.roll * Self.turn * 1.4),
+        .rotation3DEffect(.degrees(lean.roll * swing * 1.4),
                           axis: (x: 0, y: 1, z: 0), perspective: 0.55)
+        // Lifted a little off the sheet while it is held, which is most of why a pressed
+        // card feels picked up rather than merely tilted.
+        .scaleEffect(touch == nil ? 1 : 1.035)
         .readsTilt()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spoken)
+    }
+
+    /// Holding the card.
+    ///
+    /// The point under the finger is pushed in, the far corner comes up, and the surface
+    /// follows immediately — a card being pressed on has no lag in it. Letting go is the
+    /// only part that is animated, and it springs back to wherever the phone is being
+    /// held rather than to flat, so there is no jump at the end of the return.
+    private var hold: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                let point = CGPoint(x: Self.reach(value.location.x / side),
+                                    y: -Self.reach(value.location.y / height))
+                // The grab is animated; the drag after it is not. Springing into the
+                // press keeps the card from snapping under the first touch, and the eye
+                // reads any lag after that as the surface being slow rather than heavy.
+                if touch == nil {
+                    Haptics.tap()
+                    withAnimation(.spring(response: 0.24, dampingFraction: 0.7)) {
+                        touch = point
+                    }
+                } else {
+                    touch = point
+                }
+            }
+            .onEnded { _ in
+                withAnimation(.spring(response: 0.55, dampingFraction: 0.58)) {
+                    touch = nil
+                }
+            }
+    }
+
+    /// A fraction of the way across the card, as a number from -1 at one edge to 1 at the
+    /// other. Clamped, because a drag that starts on the card carries on reporting past it.
+    private static func reach(_ fraction: CGFloat) -> CGFloat {
+        min(1, max(-1, fraction * 2 - 1))
     }
 
     // MARK: The picture
@@ -160,10 +229,10 @@ struct YearPassCard: View {
     /// The highlight, wherever the light would be coming from. This is what sells metal.
     private var sheen: some View {
         RadialGradient(
-            colors: [Color(hex: 0xFFF6E0, opacity: 0.38),
-                     Color(hex: 0xFFF0D2, opacity: 0.11),
+            colors: [Color(hex: 0xFFF6E0, opacity: 0.38 * lit),
+                     Color(hex: 0xFFF0D2, opacity: 0.11 * lit),
                      Color(hex: 0xFFFFFF, opacity: 0)],
-            center: UnitPoint(x: 0.5 + tilt.roll * 0.42, y: 0.42 - tilt.pitch * 0.34),
+            center: UnitPoint(x: 0.5 + lean.roll * 0.42, y: 0.42 - lean.pitch * 0.34),
             startRadius: 0, endRadius: side * 0.62
         )
         .blendMode(.screen)
@@ -175,7 +244,7 @@ struct YearPassCard: View {
         AngularGradient(
             colors: [WP.accent700, WP.lime, Color(hex: 0x8ECFB4), WP.accent, WP.accent700],
             center: .center,
-            angle: .degrees(tilt.roll * 180)
+            angle: .degrees(lean.roll * 180)
         )
         .blendMode(.colorDodge)
         .opacity(0.16)
@@ -251,6 +320,12 @@ struct YearPassBackdrop: View {
     var size: CGSize
     var onAtlas: () -> Void
 
+    @State private var tilt = DeviceTilt.shared
+
+    /// How far the contours slide against the card as the phone turns. Small: this is
+    /// parallax, which only has to be believed, not noticed.
+    private static let drift: CGFloat = 14
+
     var body: some View {
         // The same floor the card keeps, for the same reason: the first layout pass hands
         // a `GeometryReader` nothing, and every number here is arithmetic on that.
@@ -264,6 +339,7 @@ struct YearPassBackdrop: View {
             RadialGradient(colors: [Color(hex: 0x24322C), Color(hex: 0x101314, opacity: 0)],
                            center: UnitPoint(x: 0.5, y: 0.22),
                            startRadius: 0, endRadius: across * 0.9)
+            ground(across: across, down: down)
 
             YearPassCard(width: min(330, across - WP.gutter * 2))
                 // Clear of the sheet's top edge and the avatar that straddles it.
@@ -272,6 +348,31 @@ struct YearPassBackdrop: View {
         .frame(width: across, height: down)
         .clipped()
         .overlay(alignment: .bottomTrailing) { atlas }
+    }
+
+    /// The ground the pass lies on: contours of a hill that is not anywhere.
+    ///
+    /// Two passes of the same field. The wide, dim one reads as the shading between lines
+    /// at a distance; the fine one is the engraving itself. Both drift against the card as
+    /// the phone turns, which is the only thing that puts any air between them.
+    private func ground(across: CGFloat, down: CGFloat) -> some View {
+        // Drawn larger than the frame so sliding it never walks an edge into view.
+        let wide = across + Self.drift * 4
+        let tall = down + Self.drift * 4
+
+        return ZStack {
+            ContourField().stroke(Color(hex: 0x7FA894, opacity: 0.10), lineWidth: 2.4)
+            ContourField().stroke(Color(hex: 0xBBD6C4, opacity: 0.22), lineWidth: 0.7)
+        }
+        .frame(width: wide, height: tall)
+        .offset(x: CGFloat(tilt.roll) * Self.drift,
+                y: CGFloat(tilt.pitch) * Self.drift * 0.55)
+        // Faded at the foot, where the sheet takes over, so the lines do not run into it.
+        .mask(
+            LinearGradient(colors: [.white, .white, Color.white.opacity(0)],
+                           startPoint: .top, endPoint: .bottom)
+        )
+        .allowsHitTesting(false)
     }
 
     /// The way into the atlas, and now a real button.
