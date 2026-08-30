@@ -44,17 +44,23 @@ final class DeviceTilt {
 
         origin = nil
         motion.deviceMotionUpdateInterval = 1.0 / 40
-        motion.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
-            guard let self, let motion else { return }
-            let attitude = motion.attitude
-            let base = origin ?? (attitude.roll, attitude.pitch)
-            if origin == nil { origin = base }
-
-            let r = Self.clamp((attitude.roll - base.roll) / Self.span)
-            let p = Self.clamp((attitude.pitch - base.pitch) / Self.span)
-            roll = roll * Self.smoothing + r * (1 - Self.smoothing)
-            pitch = pitch * Self.smoothing + p * (1 - Self.smoothing)
+        // Delivered on the main queue, and said so to the compiler. Everything this touches
+        // is `@MainActor`; reaching it from a handler the compiler believes might be on any
+        // thread is a data race whether or not it happens to be on the right one.
+        motion.startDeviceMotionUpdates(to: .main) { [weak self] reading, _ in
+            guard let reading else { return }
+            MainActor.assumeIsolated { self?.take(reading.attitude) }
         }
+    }
+
+    private func take(_ attitude: CMAttitude) {
+        let base = origin ?? (attitude.roll, attitude.pitch)
+        if origin == nil { origin = base }
+
+        let r = Self.clamp((attitude.roll - base.roll) / Self.span)
+        let p = Self.clamp((attitude.pitch - base.pitch) / Self.span)
+        roll = roll * Self.smoothing + r * (1 - Self.smoothing)
+        pitch = pitch * Self.smoothing + p * (1 - Self.smoothing)
     }
 
     func end() {

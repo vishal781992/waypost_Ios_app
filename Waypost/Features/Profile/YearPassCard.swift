@@ -17,7 +17,16 @@ struct YearPassCard: View {
     static let ratio: CGFloat = 300.0 / 190.0
 
     var width: CGFloat
-    private var height: CGFloat { width / Self.ratio }
+
+    /// Never zero, never negative.
+    ///
+    /// A `GeometryReader` reports nothing on its first pass, and the size this is handed is
+    /// arithmetic on that — a width less two gutters, a height less the sheet. On the pass
+    /// where the reader says nothing, both come out negative, and a negative frame is not a
+    /// small card: it is a trap in SwiftUI, and so is a radial gradient with a negative
+    /// radius. Everything below is measured off `side`, so one floor covers all of it.
+    private var side: CGFloat { max(120, width) }
+    private var height: CGFloat { side / Self.ratio }
 
     /// How far the card turns at the ends of the range. Past about ten degrees a rectangle
     /// starts reading as a room rather than as a card on a table.
@@ -35,7 +44,7 @@ struct YearPassCard: View {
             sheen
             rim
         }
-        .frame(width: width, height: height)
+        .frame(width: side, height: height)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .shadow(color: Color(hex: 0x000000, opacity: 0.52), radius: 22, y: 14)
         // Two axes, chained. A single combined axis turns the card about a diagonal, which
@@ -98,7 +107,7 @@ struct YearPassCard: View {
                 // Over the sky, the one part of a landscape with nothing to read under it,
                 // so the year can be large without crowding anything.
                 Text(String(year))
-                    .font(WP.display(width * 0.12))
+                    .font(WP.display(side * 0.12))
                     .foregroundStyle(WP.brass)
                     .shadow(color: .black.opacity(0.55), radius: 10, y: 2)
             }
@@ -107,7 +116,7 @@ struct YearPassCard: View {
 
             HStack(alignment: .bottom, spacing: 14) {
                 Text(holder)
-                    .font(WP.body(width * 0.047)).tracking(2.4)
+                    .font(WP.body(side * 0.047)).tracking(2.4)
                     .foregroundStyle(Color(hex: 0xF0E4CB))
                     .lineLimit(1).minimumScaleFactor(0.7)
                 Spacer(minLength: 0)
@@ -117,9 +126,9 @@ struct YearPassCard: View {
                 }
             }
         }
-        .padding(.horizontal, width * 0.053)
-        .padding(.top, width * 0.043)
-        .padding(.bottom, width * 0.047)
+        .padding(.horizontal, side * 0.053)
+        .padding(.top, side * 0.043)
+        .padding(.bottom, side * 0.047)
     }
 
     private func stat(_ label: String, _ value: String) -> some View {
@@ -155,7 +164,7 @@ struct YearPassCard: View {
                      Color(hex: 0xFFF0D2, opacity: 0.11),
                      Color(hex: 0xFFFFFF, opacity: 0)],
             center: UnitPoint(x: 0.5 + tilt.roll * 0.42, y: 0.42 - tilt.pitch * 0.34),
-            startRadius: 0, endRadius: width * 0.62
+            startRadius: 0, endRadius: side * 0.62
         )
         .blendMode(.screen)
         .allowsHitTesting(false)
@@ -243,19 +252,24 @@ struct YearPassBackdrop: View {
     var onAtlas: () -> Void
 
     var body: some View {
-        ZStack {
+        // The same floor the card keeps, for the same reason: the first layout pass hands
+        // a `GeometryReader` nothing, and every number here is arithmetic on that.
+        let across = max(120, size.width)
+        let down = max(120, size.height)
+
+        return ZStack {
             // The stage. Darker at the foot so the sheet has something to stand on rather
             // than a hard edge to cut against.
             WP.ink
             RadialGradient(colors: [Color(hex: 0x24322C), Color(hex: 0x101314, opacity: 0)],
                            center: UnitPoint(x: 0.5, y: 0.22),
-                           startRadius: 0, endRadius: size.width * 0.9)
+                           startRadius: 0, endRadius: across * 0.9)
 
-            YearPassCard(width: min(330, size.width - WP.gutter * 2))
+            YearPassCard(width: min(330, across - WP.gutter * 2))
                 // Clear of the sheet's top edge and the avatar that straddles it.
                 .offset(y: -(Self.underlap / 2) - 18)
         }
-        .frame(width: size.width, height: size.height)
+        .frame(width: across, height: down)
         .clipped()
         .overlay(alignment: .bottomTrailing) { atlas }
     }
