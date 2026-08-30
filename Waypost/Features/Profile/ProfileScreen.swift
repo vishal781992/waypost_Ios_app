@@ -56,15 +56,17 @@ struct ProfileScreen: View {
             let sheetTall = sheetHeight(full.height)
 
             ZStack(alignment: .top) {
-                // `underlap` extra, so the map runs on behind the sheet's rounded corners
-                // instead of showing the ground through them.
+                // `underlap` extra, so the ground runs on behind the sheet's rounded
+                // corners instead of showing the page through them.
                 //
-                // Sized against the *resting* sheet, never the raised one. The snapshot is
-                // fetched for the shape it fills, keyed on that shape — so growing the
-                // sheet into this number would throw the picture away and ask for a
-                // forty-four point one, then ask for the whole country back on dismissal.
-                AtlasBackdrop(size: CGSize(width: full.width,
-                                           height: full.height - sheetTall + AtlasBackdrop.underlap))
+                // Sized against the *resting* sheet, never the raised one: growing the
+                // sheet into this number would shrink the card to a strip and grow it back
+                // again on dismissal, which reads as the pass being thrown away.
+                YearPassBackdrop(
+                    size: CGSize(width: full.width,
+                                 height: full.height - sheetTall + YearPassBackdrop.underlap),
+                    onAtlas: { app.push(.atlas); Haptics.tap() }
+                )
 
                 // Typing raises the sheet over the map rather than resizing anything under
                 // it: a search with a keyboard under it has about a hundred and thirty
