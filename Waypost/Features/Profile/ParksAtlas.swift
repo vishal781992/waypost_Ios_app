@@ -109,109 +109,6 @@ enum AtlasFilter: Hashable, CaseIterable {
     }
 }
 
-// MARK: - The ground under the profile
-
-/// The atlas as the profile's ground.
-///
-/// The profile used to carry the collection as a card among other cards — a hundred and
-/// eighty points of country between a heading and a settings row. It is the whole screen
-/// now: the country in black and white under a black tint, with the profile itself resting
-/// on it. The tap does what the card's tap did, so the map is still the door to the atlas
-/// and not merely a picture of one.
-///
-/// A drawn picture rather than a live map, for the reason the trip plates are: a map re-
-/// streams its basemap on every appearance and comes up blank with no signal. It is the
-/// same snapshot the card asked for, at the same size and out of the same cache — which is
-/// why opening the profile a second time is a read from disk.
-struct AtlasBackdrop: View {
-    @Environment(AppState.self) private var app
-
-    /// How far the map runs on behind the sheet's rounded corners, so nothing shows through
-    /// them. Stated here because two things need it and they must agree: the caller adds it
-    /// to the height it asks for, and the hint below insets itself by it to stay in view.
-    static let underlap: CGFloat = 44
-
-    /// The whole area the map is to fill — the display less whatever the sheet takes, plus
-    /// `underlap`. Handed in rather than measured: the sheet's height is decided one layer
-    /// up, and a `GeometryReader` here would be a second opinion about the same number.
-    var size: CGSize
-
-    @State private var plate: UIImage?
-
-    var body: some View {
-        let visited = Set(app.visitRail.map(\.id))
-        return Button {
-            app.push(.atlas)
-            Haptics.tap()
-        } label: {
-            ZStack {
-                // The ground the tint is mixed into, so a phone with no picture yet — no
-                // signal, first launch — is a dark screen rather than a pale rectangle.
-                WP.ink
-
-                if let plate {
-                    Image(uiImage: plate)
-                        .resizable()
-                        .scaledToFill()
-                        .transition(.opacity)
-                }
-
-                // The black tint. Even across the map so the country keeps its own contrast,
-                // and deepening toward the foot so the sheet has something to stand on rather
-                // than a hard edge to cut against.
-                Color(hex: 0x101010, opacity: 0.30)
-                LinearGradient(
-                    colors: [Color(hex: 0x101010, opacity: 0), Color(hex: 0x101010, opacity: 0.45)],
-                    startPoint: .center, endPoint: .bottom
-                )
-            }
-            .frame(width: size.width, height: size.height)
-            .overlay(alignment: .bottomTrailing) { hint }
-            .clipped()
-            .contentShape(Rectangle())
-        }
-        // No press scale. Everything else in the app answers a touch by shrinking; a whole
-        // display doing it would read as the screen coming loose.
-        .buttonStyle(.plain)
-        .animation(.easeOut(duration: 0.32), value: plate != nil)
-        // Asked for at the shape it is going to fill. A picture of the country's own
-        // proportions dropped into a portrait hole either letterboxes — which is the black
-        // band this used to draw — or crops half the country away.
-        .task(id: "\(Int(size.width))x\(Int(size.height))|\(visited.sorted().joined(separator: ","))") {
-            plate = await AtlasSnapshot.shared.backdrop(visited: visited, size: size)
-        }
-        .accessibilityLabel("\(visited.count) of \(NationalParks.all.count) national parks visited. Open the atlas.")
-    }
-
-    /// What says the map can be opened.
-    ///
-    /// The card this replaced carried "Open the atlas" and a chevron along its foot, and
-    /// losing that row lost the only thing on the screen that said the picture was a door.
-    /// A whole display is a generous tap target and an invisible one: nothing about a map
-    /// filling a screen suggests it goes anywhere, and a reader who does not try it never
-    /// finds out.
-    ///
-    /// Inside the button's own label rather than beside it, and deaf to touches — there is
-    /// one tap target here and this is a sign on it, not a second control. Bottom trailing:
-    /// the circle owns the middle, the status bar owns the top, and this corner is ocean on
-    /// every phone.
-    private var hint: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "map")
-                .font(.system(size: 11, weight: .semibold))
-            Text("Open the atlas").font(WP.headingUI(12.5))
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-        }
-        .padding(.horizontal, 13)
-        .frame(minHeight: 36)
-        .glassControl()
-        .padding(.trailing, WP.gutter)
-        .padding(.bottom, Self.underlap + 16)
-        .allowsHitTesting(false)
-    }
-}
-
 // MARK: - The screen
 
 /// The atlas, on a whole display.
@@ -233,7 +130,20 @@ struct AtlasScreen: View {
     /// rather than a map. The rest stay pins until you go closer.
     private static let tileCap = 3
 
-    @State private var camera: MapCameraPosition = .region(AtlasSnapshot.region)
+    /// The lower forty-eight, framed once: where the atlas opens.
+    ///
+    /// Alaska, Hawai‘i and the territories are outside it deliberately — this is a real
+    /// map and pans to them, and opening wide enough to hold them would put the whole of
+    /// the country's middle in a strip. It lived on the snapshotter while there was one
+    /// and has come home to the only thing that ever used it.
+    private static var opening: MKCoordinateRegion {
+        MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 39.6, longitude: -98.4),
+            span: MKCoordinateSpan(latitudeDelta: 25.5, longitudeDelta: 61)
+        )
+    }
+
+    @State private var camera: MapCameraPosition = .region(AtlasScreen.opening)
     @State private var filter: AtlasFilter = .all
     @State private var visible: MKCoordinateRegion?
 
