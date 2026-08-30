@@ -1,0 +1,53 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 560,
+      "h": 470,
+      "is_interactive": true
+    },
+    {
+      "file": "Build.dc.html",
+      "x": 640,
+      "y": 0,
+      "w": 560,
+      "h": 690
+    },
+    {
+      "file": "Tilt.dc.html",
+      "x": 0,
+      "y": 800,
+      "w": 1080,
+      "h": 480
+    },
+    {
+      "file": "Enamel.dc.html",
+      "x": 1280,
+      "y": 0,
+      "w": 400,
+      "h": 480
+    },
+    {
+      "file": "Letterpress.dc.html",
+      "x": 1280,
+      "y": 560,
+      "w": 400,
+      "h": 480
+    }
+  ],
+  "annotations": [
+    {
+      "id": "notreal",
+      "x": 640,
+      "y": 740,
+      "w": 560,
+      "text": "One rule this design is built around:\n\nThe America the Beautiful annual pass is a real federal credential. This is deliberately not it \u2014 different name, different shape, ParkHop's own colours, and \"a keepsake, not an entry pass\" set into the card itself.\n\nA screenshot of a park pass that reads as the genuine article at a gate is not a thing worth shipping, however good it looks."
+    }
+  ],
+  "launch": {
+    "view": "focused",
+    "file": "Main.dc.html"
+  }
+}

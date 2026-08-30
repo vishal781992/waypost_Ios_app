@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           color: #201F1D; background: #D1CFA5; -webkit-font-smoothing: antialiased; }
+    a { color: #7D5411; } a:hover { color: #5A3B0A; }
+    .kick { font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #B68235; }
+    .cap { font-size: 11.5px; opacity: .64; line-height: 1.55; }
+    .display { font-family: "Cormorant Garamond", Georgia, serif; font-weight: 600; }
+    .stage { background: radial-gradient(120% 100% at 50% 0%, #23302a 0%, #14181a 70%);
+             border-radius: 22px; padding: 40px 30px; perspective: 900px; }
+    /* The card itself: pine, with a brass rim that catches the light. */
+    .pass { width: 300px; height: 190px; border-radius: 18px; position: relative; overflow: hidden;
+            background: linear-gradient(160deg, #12332c 0%, #0B2B26 52%, #071d19 100%);
+            box-shadow: 0 22px 44px rgba(0,0,0,.52), 0 2px 0 rgba(255,255,255,.06) inset;
+            transform-style: preserve-3d; transition: transform .18s ease-out; }
+    .rim { position: absolute; inset: 0; border-radius: 18px; pointer-events: none;
+           border: 1px solid rgba(198,158,86,.55);
+           box-shadow: inset 0 1px 0 rgba(255,225,170,.34), inset 0 -1px 0 rgba(0,0,0,.4); }
+    .sheen { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; }
+    .foil  { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: color-dodge; opacity: .30; }
+    .brass { color: #E8C88B; }
+  </style>
+</helmet>
+
+<div style="width: 560px; background: #D1CFA5; padding: 24px 22px 26px; box-sizing: border-box">
+  <div class="kick">The year pass</div>
+  <div class="display" style="font-size: 30px; line-height: 1.08; margin-top: 3px">Brass on pine</div>
+  <div class="cap" style="margin-top: 6px">
+    Move the pointer across it. The card turns, the light rakes over the engraving, and the
+    foil shifts hue &#8212; all three driven by one pair of numbers, which on a phone come from
+    the gyroscope instead of a cursor.
+  </div>
+  <div class="stage" style="margin-top: 18px; display: flex; justify-content: center">
+    <div class="pass" style="{{cardStyle}}" onMouseMove="{{move}}" onMouseLeave="{{leave}}">
+      
+  <div class="rim"></div>
+  <svg width="300" height="190" viewBox="0 0 300 190" style="position:absolute; inset:0" aria-hidden="true"><path d="M -10 26 C 60 17, 120 35, 190 20.6 S 300 30.5, 320 26" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 41 C 60 28, 120 54, 190 33.2 S 300 47.5, 320 41" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 56 C 60 39, 120 73, 190 45.8 S 300 64.5, 320 56" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 71 C 60 50, 120 92, 190 58.4 S 300 81.5, 320 71" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 86 C 60 77, 120 95, 190 80.6 S 300 90.5, 320 86" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 101 C 60 88, 120 114, 190 93.2 S 300 107.5, 320 101" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 116 C 60 99, 120 133, 190 105.8 S 300 124.5, 320 116" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 131 C 60 110, 120 152, 190 118.4 S 300 141.5, 320 131" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 146 C 60 137, 120 155, 190 140.6 S 300 150.5, 320 146" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 161 C 60 148, 120 174, 190 153.2 S 300 167.5, 320 161" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/><path d="M -10 176 C 60 159, 120 193, 190 165.8 S 300 184.5, 320 176" fill="none" stroke="#C69E56" stroke-width="0.9" opacity=".46"/></svg>
+  <div style="position: absolute; inset: 0; padding: 17px 19px; display: flex; flex-direction: column">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between">
+      <div>
+        <div style="font-size: 8.5px; letter-spacing: 1.6px; text-transform: uppercase; color: rgba(232,200,139,.72)">ParkHop</div>
+        <div class="display brass" style="font-size: 27px; line-height: 1.04; margin-top: 1px">Year Pass</div>
+      </div>
+      <div class="display brass" style="font-size: 34px; line-height: 1; opacity: .92">2026</div>
+    </div>
+    <div style="flex: 1"></div>
+    <div style="display: flex; align-items: flex-end; justify-content: space-between">
+      <div>
+        <div style="font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(232,200,139,.55)">Holder</div>
+        <div style="font-size: 13px; letter-spacing: 2.2px; color: #F0E4CB; margin-top: 3px">V. SHARMA</div>
+      </div>
+      <div style="text-align: right">
+        <div style="font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(232,200,139,.55)">Stood in</div>
+        <div style="font-size: 13px; color: #DBE64C; margin-top: 3px">6 of 63</div>
+      </div>
+    </div>
+  </div>
+  <div style="position: absolute; left: 19px; bottom: -6px; font-size: 7px; letter-spacing: 1.3px;
+              text-transform: uppercase; color: rgba(240,228,203,.30)">A keepsake &#183; not an entry pass</div>
+      <div class="foil" style="{{foilStyle}}"></div>
+      <div class="sheen" style="{{sheenStyle}}"></div>
+    </div>
+  </div>
+  <div class="cap" style="margin-top: 14px">
+    Engraved with contour lines rather than a crest: it is a park app, and the one mark that
+    belongs to all sixty-three is the shape of the ground.
+  </div>
+</div>
+<script data-dc-script>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { rx: 0, ry: 0, mx: 50, my: 40, on: false }; }
+  renderVals() {
+    const s = this.state;
+    const lift = s.on ? 1.02 : 1;
+    return {
+      move: (e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width;
+        const py = (e.clientY - r.top) / r.height;
+        this.setState({ rx: (0.5 - py) * 15, ry: (px - 0.5) * 22, mx: px * 100, my: py * 100, on: true });
+      },
+      leave: () => this.setState({ rx: 0, ry: 0, mx: 50, my: 40, on: false }),
+      cardStyle: `transform: perspective(900px) rotateX(${s.rx}deg) rotateY(${s.ry}deg) scale(${lift})`,
+      sheenStyle: `background: radial-gradient(42% 58% at ${s.mx}% ${s.my}%, rgba(255,246,224,.40) 0%, rgba(255,240,210,.12) 40%, rgba(255,255,255,0) 68%)`,
+      foilStyle: `background: conic-gradient(from ${s.mx * 3.6}deg at 50% 50%, #7D5411, #DBE64C, #8ECFB4, #B68235, #7D5411)`,
+    };
+  }
+}
+</script>
+</x-dc>
+</body>
+</html>
