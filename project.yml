@@ -19,8 +19,8 @@ settings:
     # Left commented rather than filled in with a guess: a wrong team is a harder error
     # to read than a missing one.
     # DEVELOPMENT_TEAM: XXXXXXXXXX
-    MARKETING_VERSION: 2.53.3
-    CURRENT_PROJECT_VERSION: 102
+    MARKETING_VERSION: 2.54.0
+    CURRENT_PROJECT_VERSION: 103
     SWIFT_VERSION: "5.0"
     CODE_SIGN_STYLE: Automatic
   configs:

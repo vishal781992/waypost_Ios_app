@@ -80,6 +80,10 @@ enum WP {
     /// `color-mix(in srgb, var(--color-neutral-900) 94%, black)` — the ink plate.
     static let ink = Color(hex: 0x2A2829)
 
+    /// Struck brass, for the year pass. Warm enough to read as metal against a
+    /// photograph, and light enough that the specular over it has somewhere to go.
+    static let brass = Color(hex: 0xE8C88B)
+
     /// The deep pine off the app's own icon, for the light behind the Dynamic Island on
     /// the national catalogue.
     ///
