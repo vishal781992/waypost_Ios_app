@@ -236,7 +236,9 @@ struct PassportBook: View {
                     .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 11)
-                VStack(spacing: 8) {
+                // Ten rather than eight: these plates carry their own shadow now, and two
+                // of them eight points apart share it.
+                VStack(spacing: 10) {
                     ForEach(watch.nearby) { ranked in
                         NearbyStampRow(ranked: ranked)
                     }

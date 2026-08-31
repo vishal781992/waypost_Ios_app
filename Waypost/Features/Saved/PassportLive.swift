@@ -14,10 +14,10 @@ import SwiftUI
 
 /// The plate at the top of the book: where you are, and the one thing to do about it.
 ///
-/// Ink glass rather than the page's own surface, for the reason every control in the app
-/// is ink glass: it is a thing you press, not a panel you read, and dark glass still
-/// refracts the page under it so it reads as an object on the book rather than a hole in
-/// it.
+/// The app's own tile, the one a trip on the shelf is drawn on: an ink plate with a dusk
+/// bloom at the top left, a brass one at the bottom right, and a lit top edge. Where you
+/// are standing is the same weight of thing as a trip you have planned, and the two should
+/// not be two different objects on two different surfaces.
 struct StampNowCard: View {
     @Environment(AppState.self) private var app
     @State private var watch = StampWatch.shared
@@ -79,8 +79,7 @@ struct StampNowCard: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
-        .foregroundStyle(WP.onInk)
-        .liquidGlass(.control, radius: 22)
+        .inkPlate(radius: 22)
     }
 
     @ViewBuilder
@@ -239,6 +238,11 @@ private struct DwellRing: View {
 // MARK: - What is near
 
 /// One place near enough to be worth naming, and not near enough to stamp.
+///
+/// The trip tile at a row's size: the same ink plate, the same weather, the same lit edge,
+/// with the blooms brought down so they still read as light rather than as a wash. The
+/// only thing on it that is the passport's own is the dashed disc — a page waiting to be
+/// cancelled, which is what this row is about.
 struct NearbyStampRow: View {
     var ranked: RankedStamp
 
@@ -246,41 +250,40 @@ struct NearbyStampRow: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle().strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
-                    .foregroundStyle(WP.neutral400)
+                    .foregroundStyle(.white.opacity(0.34))
                 Text(short)
                     .font(WP.headingUI(9.5))
                     .multilineTextAlignment(.center)
                     .lineLimit(2).minimumScaleFactor(0.7)
                     .padding(5)
-                    .foregroundStyle(WP.neutral600)
+                    .opacity(0.78)
             }
             .frame(width: 42, height: 42)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(ranked.place.name)
-                    .font(WP.rowTitle(14.5))
-                    .lineLimit(1)
+                    .font(WP.display(19))
+                    .lineLimit(1).minimumScaleFactor(0.8)
                 Text(subtitle)
-                    .font(WP.body(11.5))
-                    .foregroundStyle(WP.neutral600)
+                    .font(WP.bodyItalic(11.5)).opacity(0.68)
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 3) {
                 Text(String(format: "%.0f mi", ranked.miles))
                     .font(WP.body(13, semibold: true)).monospacedDigit()
                 // How much further there is to go before it can be stamped, which is a
                 // different number from how far away it is — and the one that matters
                 // when a park's reach is thirty miles wide.
                 Text(String(format: "%.0f to go", ranked.toEdge))
-                    .font(WP.bodyItalic(10.5))
-                    .foregroundStyle(WP.neutral600)
+                    .font(WP.bodyItalic(10.5)).opacity(0.6)
+                    .monospacedDigit()
             }
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 11)
-        .liquidGlass(.pill, radius: 16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .inkPlate(radius: 18, scale: 0.5)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(ranked.place.name), \(subtitle), \(Int(ranked.miles)) miles away")
     }

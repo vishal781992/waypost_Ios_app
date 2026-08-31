@@ -540,6 +540,59 @@ struct StampShape: Shape {
     }
 }
 
+// MARK: - The ink plate
+
+extension View {
+    /// The app's tile: an ink plate with its own weather inside it.
+    ///
+    /// A dusk bloom at the top left, a brass one at the bottom right, a lit top edge and a
+    /// hairline round the whole thing. It is what a trip on the shelf is drawn on, and it
+    /// was written inline there — so anything else that wanted to be the same tile had to
+    /// be a copy of twenty-five lines, and would drift the first time one of them changed.
+    ///
+    /// `scale` brings the blooms down for a smaller plate. They are drawn at a size rather
+    /// than a fraction, because a bloom that scales with its box stops reading as light
+    /// falling on something and starts reading as a gradient fill — so a row-sized plate
+    /// takes a smaller bloom, not a stretched one.
+    func inkPlate(radius: CGFloat = 20, scale: CGFloat = 1) -> some View {
+        modifier(InkPlate(radius: radius, scale: scale))
+    }
+}
+
+private struct InkPlate: ViewModifier {
+    var radius: CGFloat
+    var scale: CGFloat
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return content
+            .background {
+                ZStack {
+                    Color(hex: 0x231F1D)
+                    Ellipse().fill(Color(oklch: 0.55, 0.10, 250)).opacity(0.34)
+                        .frame(width: 240 * scale, height: 190 * scale)
+                        .offset(x: -110 * scale, y: -80 * scale)
+                        .blur(radius: 26 * scale)
+                    Ellipse().fill(WP.accent700).opacity(0.3)
+                        .frame(width: 230 * scale, height: 200 * scale)
+                        .offset(x: 120 * scale, y: 120 * scale)
+                        .blur(radius: 26 * scale)
+                }
+                .clipShape(shape)
+                .overlay(alignment: .top) {
+                    LinearGradient(colors: [.clear, .white.opacity(0.55), .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(height: 1)
+                        .padding(.horizontal, 18 * scale)
+                }
+            }
+            .foregroundStyle(WP.onInk)
+            .clipShape(shape)
+            .overlay(shape.stroke(.white.opacity(0.18), lineWidth: 0.5))
+            .shadow(color: Color(hex: 0x181008, opacity: 0.3), radius: 15 * scale, y: 12 * scale)
+    }
+}
+
 // MARK: - Components
 
 /// `.card-kicker` and the design's section kickers.

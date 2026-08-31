@@ -285,29 +285,10 @@ struct TripCard: View {
             .padding(.horizontal, 15)
             .padding(.top, 15)
             .padding(.bottom, 13)
-            .background {
-                // Round 2 puts the trip on an ink plate with its own weather inside it:
-                // a dusk bloom top-left, a brass one bottom-right, a lit top edge.
-                ZStack {
-                    Color(hex: 0x231F1D)
-                    Ellipse().fill(Color(oklch: 0.55, 0.10, 250)).opacity(0.34)
-                        .frame(width: 240, height: 190).offset(x: -110, y: -80).blur(radius: 26)
-                    Ellipse().fill(WP.accent700).opacity(0.3)
-                        .frame(width: 230, height: 200).offset(x: 120, y: 120).blur(radius: 26)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(alignment: .top) {
-                    LinearGradient(colors: [.clear, .white.opacity(0.55), .clear],
-                                   startPoint: .leading, endPoint: .trailing)
-                        .frame(height: 1)
-                        .padding(.horizontal, 18)
-                }
-            }
-            .foregroundStyle(WP.onInk)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(.white.opacity(0.18), lineWidth: 0.5))
-            .shadow(color: Color(hex: 0x181008, opacity: 0.3), radius: 15, y: 12)
+            // The ink plate with its own weather inside it — a dusk bloom top-left, a
+            // brass one bottom-right, a lit top edge. It lives in `Glass` now, because
+            // the passport wears the same tile and a second copy of it would drift.
+            .inkPlate()
             .zoomSource("trip:" + trip.id, in: zoom, clip: .card(20))
         }
         .buttonStyle(PressStyle(scale: 0.99))
