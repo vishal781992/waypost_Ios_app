@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           color: #201F1D; -webkit-font-smoothing: antialiased; }
+    a { color: #7D5411; } a:hover { color: #5A3B0A; }
+    .dsp { font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif; font-weight: 600; }
+    .kick { font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: #7D5411; }
+    .ital { font-style: italic; }
+    .stamp { clip-path: polygon(50.00% 0.00%, 55.30% 6.32%, 61.97% 1.45%, 65.60% 8.86%, 73.24% 5.73%, 74.99% 13.79%, 83.16% 12.57%, 82.93% 20.82%, 91.15% 21.60%, 88.96% 29.55%, 96.75% 32.27%, 92.72% 39.47%, 99.64% 43.97%, 94.00% 50.00%, 99.64% 56.03%, 92.72% 60.53%, 96.75% 67.73%, 88.96% 70.45%, 91.15% 78.40%, 82.93% 79.18%, 83.16% 87.43%, 74.99% 86.21%, 73.24% 94.27%, 65.60% 91.14%, 61.97% 98.55%, 55.30% 93.68%, 50.00% 100.00%, 44.70% 93.68%, 38.03% 98.55%, 34.40% 91.14%, 26.76% 94.27%, 25.01% 86.21%, 16.84% 87.43%, 17.07% 79.18%, 8.85% 78.40%, 11.04% 70.45%, 3.25% 67.73%, 7.28% 60.53%, 0.36% 56.03%, 6.00% 50.00%, 0.36% 43.97%, 7.28% 39.47%, 3.25% 32.27%, 11.04% 29.55%, 8.85% 21.60%, 17.07% 20.82%, 16.84% 12.57%, 25.01% 13.79%, 26.76% 5.73%, 34.40% 8.86%, 38.03% 1.45%, 44.70% 6.32%);
+             background: radial-gradient(circle at 32% 24%, #FCFAF3 0%, #FFF3E4 46%, #E4BE7C 100%); }
+    .ring { position: absolute; inset: 12%; border-radius: 50%; border: 1px solid rgba(160,111,36,0.65); }
+  </style>
+</helmet>
+<div style="position: relative; width: 390px; min-height: 844px; background: linear-gradient(170deg, #3B4A44 0%, #1E2724 55%, #141917 100%); padding: 60px 18px 40px 18px; box-sizing: border-box;">
+  <div style="font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: rgba(219,230,76,0.8); padding-bottom: 4px;">What arrives</div>
+  <div class="dsp" style="font-size: 38px; line-height: 1.04; color: #F3F2F2; letter-spacing: -0.4px;">Two notices</div>
+  <div class="ital" style="font-size: 12.5px; color: rgba(243,242,242,0.6); line-height: 1.55; padding: 8px 0 26px 0;">One when you arrive. One only if the fifteen minutes ran out without you.</div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="border-radius: 20px; background: rgba(255,255,255,0.82); box-shadow: 0 8px 22px rgba(0,0,0,0.22); padding: 13px 15px; backdrop-filter: blur(20px);">
+  <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 6px;">
+    <div style="width: 17px; height: 17px; border-radius: 4px; background: #5A3B0A; display: flex; align-items: center; justify-content: center; color: #FFF3E4; font-size: 10px; font-weight: 700;">P</div>
+    <div style="font-size: 11.5px; letter-spacing: 0.3px; text-transform: uppercase; color: rgba(32,31,29,0.55); flex-grow: 1;">ParkHop</div>
+    <div style="font-size: 11.5px; color: rgba(32,31,29,0.5);">now</div>
+  </div>
+  <div style="font-size: 14.5px; font-weight: 600; padding-bottom: 2px;">You&rsquo;re at Hovenweep</div>
+  <div style="font-size: 14px; line-height: 1.35; color: rgba(32,31,29,0.78);">Stamp the page while you&rsquo;re here. Or don&rsquo;t &mdash; it stamps itself in 15 minutes.</div>
+</div>
+    <div style="display: flex; gap: 8px; padding-left: 4px;">
+      <div style="padding: 8px 15px; border-radius: 999px; background: #DBE64C; color: #201F1D; font-size: 13.5px; font-weight: 600;">Stamp it</div>
+      <div style="padding: 8px 15px; border-radius: 999px; background: rgba(243,242,242,0.16); color: #F3F2F2; font-size: 13.5px;">Not this one</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px; padding: 30px 4px 16px 4px;">
+    <div style="height: 1px; flex-grow: 1; background: rgba(243,242,242,0.16);"></div>
+    <div style="font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(243,242,242,0.5);">fifteen minutes later</div>
+    <div style="height: 1px; flex-grow: 1; background: rgba(243,242,242,0.16);"></div>
+  </div>
+
+  <div style="border-radius: 20px; background: rgba(255,255,255,0.82); box-shadow: 0 8px 22px rgba(0,0,0,0.22); padding: 13px 15px; backdrop-filter: blur(20px);">
+  <div style="display: flex; align-items: center; gap: 8px; padding-bottom: 6px;">
+    <div style="width: 17px; height: 17px; border-radius: 4px; background: #5A3B0A; display: flex; align-items: center; justify-content: center; color: #FFF3E4; font-size: 10px; font-weight: 700;">P</div>
+    <div style="font-size: 11.5px; letter-spacing: 0.3px; text-transform: uppercase; color: rgba(32,31,29,0.55); flex-grow: 1;">ParkHop</div>
+    <div style="font-size: 11.5px; color: rgba(32,31,29,0.5);">5:49 pm</div>
+  </div>
+  <div style="font-size: 14.5px; font-weight: 600; padding-bottom: 2px;">Hovenweep is in the book</div>
+  <div style="font-size: 14px; line-height: 1.35; color: rgba(32,31,29,0.78);">You stayed, so it stamped itself. Collected today at 5:49 pm.</div>
+</div>
+
+  <div style="margin-top: 30px; border-radius: 18px; padding: 15px 16px; background: rgba(243,242,242,0.07); box-shadow: inset 0 0 0 0.5px rgba(243,242,242,0.14);">
+    <div style="font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(219,230,76,0.82); padding-bottom: 7px;">Honest about the second one</div>
+    <div style="font-size: 13px; line-height: 1.6; color: rgba(243,242,242,0.8);">iOS will not run a fifteen-minute timer for an app nobody is looking at. The stamp lands the moment the phone next tells us anything &mdash; leaving the boundary, opening the app, a background wake. It is dated to the visit, never to the noticing, so it is right even when it is late.</div>
+  </div>
+
+  <div style="margin-top: 12px; border-radius: 18px; padding: 15px 16px; background: rgba(243,242,242,0.07); box-shadow: inset 0 0 0 0.5px rgba(243,242,242,0.14);">
+    <div style="font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(219,230,76,0.82); padding-bottom: 7px;">What it costs</div>
+    <div style="font-size: 13px; line-height: 1.6; color: rgba(243,242,242,0.8);">Arriving-notices need <strong style="font-weight: 600;">Always</strong> location and notification permission. With <strong style="font-weight: 600;">While Using</strong> only, everything still works &mdash; it just waits until the app is open. Asked for at the first stamp, never at launch.</div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",   "x": 0,    "y": 0,    "w": 390,  "h": 1240 },
+    { "file": "Reach.dc.html",  "x": 500,  "y": 0,    "w": 390,  "h": 844 },
+    { "file": "Notify.dc.html", "x": 990,  "y": 0,    "w": 390,  "h": 844 },
+    { "file": "Rules.dc.html",  "x": 0,    "y": 1400, "w": 1040, "h": 900 }
+  ],
+  "annotations": [
+    { "id": "open-question", "x": 1490, "y": 0, "w": 300,
+      "text": "One thing to decide.\n\nThe twelve-stop book at the foot of Main is the only part still hard-coded. Keep it as the trip's own book with a denominator to fill, or drop it and let the page be nothing but what is near you and what you have?\n\nDrawn here as kept." },
+    { "id": "reach-note", "x": 1490, "y": 300, "w": 300,
+      "text": "The band is one card in one place. It is absent entirely when nothing is within reach, so the page does not carry a permanent empty slot." },
+    { "id": "rules-note", "x": 1100, "y": 1400, "w": 300,
+      "text": "This board is the argument, not a screen. The four blocks are the decisions I need you to agree with before any of it is built." }
+  ],
+  "launch": { "view": "canvas" }
+}
