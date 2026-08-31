@@ -110,3 +110,19 @@ targets:
         # To turn it on: uncomment both entitlement blocks, both CODE_SIGN_ENTITLEMENTS
         # lines, and add PARKHOP_APP_GROUP to both targets' SWIFT_ACTIVE_COMPILATION_CONDITIONS.
         # CODE_SIGN_ENTITLEMENTS: WaypostWidgets/WaypostWidgets.entitlements
+
+  # Unit tests over the pure parts. `PlacesService.isNear` and `places(from:…)` are the
+  # rule both Maps search sites go through, so the suite needs neither a network nor a
+  # live park — the coordinates are real and the distances between them are arithmetic.
+  WaypostTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: WaypostTests
+    dependencies:
+      - target: Waypost
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: us.parkhop.waypost.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1"

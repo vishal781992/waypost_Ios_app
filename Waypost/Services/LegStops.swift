@@ -315,6 +315,14 @@ final class LegStops {
             .compactMap { item -> (MKMapItem, CLLocationDistance)? in
                 guard item.name != nil else { return nil }
                 let where_ = item.placemark.coordinate
+                // The nearest of what came back is not the same as something near the road.
+                // Taking the minimum without this put a filling station hundreds of miles
+                // from the route on a driving day, because the worded fallback treats its
+                // region as a hint and answers with what is near the phone when the stretch
+                // of road has nothing. An empty stretch is an answer; the screen says so.
+                guard PlacesService.isNear(where_, to: centre, withinMetres: radius) else {
+                    return nil
+                }
                 return (item, origin.distance(from: CLLocation(latitude: where_.latitude,
                                                               longitude: where_.longitude)))
             }
@@ -356,9 +364,16 @@ final class LegStops {
             return try await retrying {
                 let words = MKLocalSearch.Request()
                 words.naturalLanguageQuery = kind.phrase
+                // `latitudinalMeters` is the full span, not the radius — covering a
+                // circle of `radius` takes twice it.
                 words.region = MKCoordinateRegion(center: centre,
                                                   latitudinalMeters: radius * 2,
                                                   longitudinalMeters: radius * 2)
+                // A region alone is only a bias, and Maps answers outside it whenever the
+                // stretch of road has none of this kind. From iOS 18 it can be a condition.
+                if #available(iOS 18.0, *) {
+                    words.regionPriority = .required
+                }
                 words.pointOfInterestFilter = MKPointOfInterestFilter(including: kind.categories)
                 return try await MKLocalSearch(request: words).start().mapItems
             }

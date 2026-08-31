@@ -174,25 +174,10 @@ final class PlacesService {
 
             do {
                 let response = try await search(request, fallback: kind, centre: centre, metres: metres)
-                let origin = CLLocation(latitude: park.lat, longitude: park.lon)
-                let places = response.mapItems.compactMap { item -> Place? in
-                    guard let name = item.name else { return nil }
-                    let coordinate = item.placemark.coordinate
-                    let distance = origin.distance(from: CLLocation(latitude: coordinate.latitude,
-                                                                   longitude: coordinate.longitude))
-                    return Place(
-                        id: "\(kind.rawValue):\(name):\(coordinate.latitude),\(coordinate.longitude)",
-                        name: name,
-                        kind: kind,
-                        miles: distance / 1609.34,
-                        locality: item.placemark.locality,
-                        phone: item.phoneNumber,
-                        url: item.url,
-                        lat: coordinate.latitude,
-                        lon: coordinate.longitude
-                    )
-                }
-                .sorted { $0.miles < $1.miles }
+                let places = Self.places(from: response.mapItems,
+                                         kind: kind,
+                                         origin: centre,
+                                         withinMetres: metres)
 
                 results[park.code, default: [:]][kind] = places
                 failed[key] = nil
@@ -205,6 +190,64 @@ final class PlacesService {
         }
     }
 
+    /// Whether a result Maps returned is close enough to the point that was asked about.
+    ///
+    /// This is the one rule both search sites in the app go through — the park screen's
+    /// `load`, and `LegStops` for a stop along a drive — because both had the same hole.
+    ///
+    /// Only one of the two ways either of them asks respects a radius.
+    /// `MKLocalPointsOfInterestRequest` bounds its search server-side. The natural-language
+    /// request underneath it does not: `MKLocalSearch.Request.region` is a *bias*, and Maps
+    /// answers outside it freely — which it does exactly when the region holds none of what
+    /// was asked for, falling back to what is near the device. Nothing downstream checked,
+    /// so Pinnacles in California listed its nearest charger as an EVgo in Denver, 907 miles
+    /// away, under a heading carrying the park's name.
+    ///
+    /// A point Maps could not place comes back at (0, 0) — the Atlantic off Ghana. It would
+    /// fail the radius anyway; it is named separately because "not located" and "far away"
+    /// are different facts.
+    static func isNear(_ coordinate: CLLocationCoordinate2D,
+                       to origin: CLLocationCoordinate2D,
+                       withinMetres: Double) -> Bool {
+        guard CLLocationCoordinate2DIsValid(coordinate),
+              !(coordinate.latitude == 0 && coordinate.longitude == 0) else { return false }
+        let from = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
+        let to = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        return from.distance(from: to) <= withinMetres
+    }
+
+    /// What Maps answered, turned into rows — with anything outside the radius dropped.
+    ///
+    /// A category with nothing inside the radius now yields no rows, which the chip already
+    /// draws as "none". That is the true answer, and it is not an invitation to widen the
+    /// search until something turns up.
+    static func places(from items: [MKMapItem],
+                       kind: Kind,
+                       origin: CLLocationCoordinate2D,
+                       withinMetres: Double) -> [Place] {
+        let from = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
+        return items.compactMap { item -> Place? in
+            guard let name = item.name else { return nil }
+            let coordinate = item.placemark.coordinate
+            guard isNear(coordinate, to: origin, withinMetres: withinMetres) else { return nil }
+
+            let distance = from.distance(from: CLLocation(latitude: coordinate.latitude,
+                                                          longitude: coordinate.longitude))
+            return Place(
+                id: "\(kind.rawValue):\(name):\(coordinate.latitude),\(coordinate.longitude)",
+                name: name,
+                kind: kind,
+                miles: distance / 1609.34,
+                locality: item.placemark.locality,
+                phone: item.phoneNumber,
+                url: item.url,
+                lat: coordinate.latitude,
+                lon: coordinate.longitude
+            )
+        }
+        .sorted { $0.miles < $1.miles }
+    }
+
     /// The points-of-interest request first, then the same question in words.
     ///
     /// The POI request is the better one — it filters server-side by category rather than
@@ -215,17 +258,35 @@ final class PlacesService {
                         fallback kind: Kind,
                         centre: CLLocationCoordinate2D,
                         metres: Double) async throws -> MKLocalSearch.Response {
-        do {
-            return try await MKLocalSearch(request: request).start()
-        } catch {
-            let words = MKLocalSearch.Request()
-            words.naturalLanguageQuery = kind.phrase
-            words.region = MKCoordinateRegion(center: centre,
-                                              latitudinalMeters: metres * 2,
-                                              longitudinalMeters: metres * 2)
-            words.pointOfInterestFilter = MKPointOfInterestFilter(including: kind.categories)
-            return try await MKLocalSearch(request: words).start()
+        // The category request answers with nothing at all on some installs — sometimes by
+        // throwing `MKErrorGEOError -8`, sometimes by returning an empty list. Only the
+        // throwing case used to reach the worded search below, so on an install where it
+        // answers "none" instead of refusing, every park showed an empty panel and the
+        // fallback that exists for exactly this never ran.
+        if let byCategory = try? await MKLocalSearch(request: request).start(),
+           !byCategory.mapItems.isEmpty {
+            return byCategory
         }
+
+        let words = MKLocalSearch.Request()
+        words.naturalLanguageQuery = kind.phrase
+        // `latitudinalMeters` is the region's full span, not its radius — so covering a
+        // 30-mile radius takes twice that. Passing the radius drew a box half the size of
+        // the search and hid genuinely near places behind its edge.
+        words.region = MKCoordinateRegion(center: centre,
+                                          latitudinalMeters: metres * 2,
+                                          longitudinalMeters: metres * 2)
+        // On its own a region is only a bias: Maps answers outside it, and does whenever
+        // the park has none of this kind nearby — which is how a park in California came to
+        // list a charger in Denver. From iOS 18 the region can be made a condition instead
+        // of a hint, which is what this is. `places(from:…)` still measures every row,
+        // because iOS 17 has no such setting and a backstop that costs nothing is worth
+        // keeping.
+        if #available(iOS 18.0, *) {
+            words.regionPriority = .required
+        }
+        words.pointOfInterestFilter = MKPointOfInterestFilter(including: kind.categories)
+        return try await MKLocalSearch(request: words).start()
     }
 
     /// Everything a camper wants at once, for the screen that shows several groups.
