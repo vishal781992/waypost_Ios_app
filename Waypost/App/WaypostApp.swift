@@ -54,10 +54,17 @@ struct WaypostApp: App {
                 guard !code.isEmpty, code != "/" else { return }
                 app.openPark(code)
             }
+            // The passport watches where the phone is. Wired once, at launch, and it asks
+            // for nothing — the permission belongs to the moment somebody turns automatic
+            // stamping on, where they can see what they are being asked about.
+            .task { app.startWatchingForStamps() }
             // A plate can be saved from without the app ever opening, so coming back is
-            // where the app finds out.
+            // where the app finds out. The same moment settles a dwell that ran out while
+            // nothing of ours was running.
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { app.adoptSharedSaves() }
+                guard phase == .active else { return }
+                app.adoptSharedSaves()
+                StampWatch.shared.settleUp()
             }
         }
     }

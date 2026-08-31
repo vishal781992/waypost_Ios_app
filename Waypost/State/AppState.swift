@@ -217,6 +217,10 @@ final class AppState {
     var notifyPermits = false
     var notifyAlerts = false
     var notifyLive = false
+    /// Whether the phone may put a stamp in the book on its own, after fifteen unbroken
+    /// minutes inside a park. On by default — it is the point of the feature — but it is
+    /// the one switch here that writes something irreversible, so it is a switch.
+    var stampsItself = true
 
     /// Whether the app looks at the calendar for days a trip already has something on.
     ///
@@ -732,15 +736,79 @@ final class AppState {
         persist()
     }
 
-    func collectStamp(_ unitCode: String, name: String, place: String) {
+    /// Put a stamp in the book.
+    ///
+    /// `on` is when the *visit* happened, not when the app noticed it. A stamp the phone
+    /// collected on its own is dated to the moment the fifteen minutes ran out, which may
+    /// be an hour before the app was next allowed to run — dating it to the noticing would
+    /// put a Tuesday afternoon's park in Tuesday evening's book.
+    func collectStamp(_ unitCode: String, name: String, place: String,
+                      on when: Date = Date(), automatic: Bool = false) {
         guard !stamps.contains(unitCode) else {
             show("\(name) — collected")
             return
         }
         stamps.insert(unitCode)
-        stampBook.append(CollectedStamp(code: unitCode, name: name, place: place, on: Date()))
+        stampBook.append(CollectedStamp(code: unitCode, name: name, place: place, on: when))
         Haptics.success()
-        show("Stamp collected · haptic tap")
+        show(automatic ? "\(name) stamped itself" : "Stamp collected · haptic tap")
+        // The watcher knows which place this code came from, and withdraws the banner
+        // that offered it. Doing that here would use the book's code to address a notice
+        // filed under the register's, which are not the same string.
+        StampWatch.shared.stampedByHand(unitCode)
+        persist()
+    }
+
+    // MARK: - Standing in a park
+
+    /// Hand the watcher what it needs and let it start.
+    ///
+    /// The watcher decides *when* a stamp is due; this decides what a stamp is. Keeping
+    /// those apart is why the watcher can be reasoned about without a copy of the book,
+    /// and why the book gains a page through exactly one door however the stamp was asked
+    /// for — a tap on a tile, a tap on a banner, or nobody at all.
+    func startWatchingForStamps() {
+        let watch = StampWatch.shared
+        watch.isCollected = { [weak self] key in self?.stamps.contains(key) ?? false }
+        watch.stampCode = { [weak self] place in
+            self?.stampKey(forName: place.name) ?? place.key
+        }
+        watch.stampsItself = stampsItself
+        watch.collect = { [weak self] place, when, automatic in
+            guard let self else { return }
+            let code = self.stampKey(forName: place.name)
+            guard !self.stamps.contains(code) else { return }
+            self.collectStamp(code, name: place.name, place: place.place,
+                              on: when, automatic: automatic)
+            if automatic {
+                Task { await StampNotices.stamped(place, on: when) }
+            }
+        }
+
+        StampNotices.prepare()
+        StampNotices.onStamp = { [weak self] place in
+            guard let self else { return }
+            self.collectStamp(self.stampKey(forName: place.name),
+                              name: place.name, place: place.place)
+        }
+        StampNotices.onSkip = { key in StampWatch.shared.decline(key) }
+        StampNotices.onOpen = { [weak self] in
+            self?.savedShowsPassport = true
+            self?.go(.saved)
+        }
+
+        watch.begin()
+    }
+
+    /// The switch on the passport. Turning it on is also where the permissions are asked
+    /// for — never at launch, where nobody knows what they are being asked about.
+    func setStampsItself(_ on: Bool) {
+        stampsItself = on
+        StampWatch.shared.stampsItself = on
+        if on {
+            StampWatch.shared.requestPermission()
+            Task { _ = await StampNotices.ask() }
+        }
         persist()
     }
 
@@ -1085,6 +1153,10 @@ final class AppState {
         /// the initials the profile derived before there was a name to show.
         var profileEmoji: String?
         var profileName: String?
+        /// Optional, so a snapshot written before the phone could stamp on its own still
+        /// decodes — and decodes to the default rather than to off, because the absence of
+        /// the key means the question was never put, not that the answer was no.
+        var stampsItself: Bool?
     }
 
     private static let key = "waypost-app"
@@ -1156,7 +1228,8 @@ final class AppState {
             calendarCheck: checksCalendar,
             calendarTrips: Array(calendarTrips),
             profileEmoji: profileEmoji,
-            profileName: profileName
+            profileName: profileName,
+            stampsItself: stampsItself
         )
         if let data = try? JSONEncoder().encode(snapshot) {
             UserDefaults.standard.set(data, forKey: Self.key)
@@ -1202,6 +1275,7 @@ final class AppState {
         calendarTrips = Set(snapshot.calendarTrips ?? [])
         profileEmoji = snapshot.profileEmoji
         profileName = snapshot.profileName
+        stampsItself = snapshot.stampsItself ?? true
         notifyPermits = snapshot.permits
         notifyAlerts = snapshot.alerts
         notifyLive = snapshot.live

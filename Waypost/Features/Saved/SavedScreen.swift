@@ -181,25 +181,32 @@ struct SavedParkRow: View {
 
 /// The passport: a grid of scalloped stamps, collected by standing in the park.
 ///
-/// Two pages, because there are two kinds of stamp. The book is the units written into
-/// `curated.json` — a fixed page with a real denominator, and the only thing here a
-/// progress bar can honestly measure. Everything else was collected in the field, from the
-/// Nearby tab of whatever park was open, and there is no list to count those against: the
-/// park service runs four hundred units and any of them will do.
+/// The page reads in the order somebody at a trailhead needs it. **What is in reach** —
+/// one plate, present only when there is somewhere to stamp. **What is nearby** — the next
+/// ones out, so the book is useful before you arrive. **What is collected** — the brass
+/// faces, most recent first. Then the trip's own book, which is the one list here with a
+/// denominator a progress bar can honestly measure.
 ///
-/// The field page is why this screen was rebuilt. A stamp collected out there was already
-/// being kept and counted, but the grid only ever drew the bundled page — so the header
-/// went up by one and nothing appeared. It had nowhere to appear.
+/// Where the stamps come from is the whole of what changed. They used to come from tapping
+/// a tile, which meant a passport could be filled from a sofa. Now they come from standing
+/// somewhere: `StampWatch` matches the phone against every national park, state park and
+/// park-service unit the app holds a coordinate for, and a page is offered when you are
+/// inside that place's own reach. The tiles are what they always looked like — a record —
+/// rather than buttons that made one.
 struct PassportBook: View {
     @Environment(AppState.self) private var app
 
-    /// Stamps from somewhere other than the bundled page, most recent first. One with no
-    /// date was carried over from a build that kept only codes, so it sorts to the back
-    /// rather than to today.
-    private var field: [CollectedStamp] {
-        let bundled = Set(app.library.passport.map(\.code))
-        return app.stampBook
-            .filter { !bundled.contains($0.code) }
+    @State private var watch = StampWatch.shared
+
+    /// Everything in the book, most recent first — wherever it was collected. The page used
+    /// to split these by provenance, showing the bundled twelve in one grid and everything
+    /// else in another, which asked the reader to care where a stamp came from. They care
+    /// when they got it.
+    ///
+    /// One with no date was carried over from a build that kept only codes, so it sorts to
+    /// the back rather than to today.
+    private var collected: [CollectedStamp] {
+        app.stampBook
             .sorted { a, b in
                 switch (a.on, b.on) {
                 case let (x?, y?): return x > y
@@ -218,32 +225,46 @@ struct PassportBook: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Stand inside a park and the stamp unlocks. Tap it to cancel the page — the phone taps back.")
-                .font(WP.body(13)).lineSpacing(3).opacity(0.8)
-                .padding(.bottom, 12)
+            StampNowCard()
+                .padding(.bottom, watch.inReach.isEmpty ? 0 : 12)
 
-            ProgressTrack(fraction: Double(bundledCollected) / Double(max(1, app.library.passport.count)))
-                .animation(Motion.counter, value: bundledCollected)
-            Text("\(bundledCollected) of the \(app.library.passport.count) stops in the book.")
-                .font(WP.bodyItalic(11.5)).opacity(0.55).padding(.top, 7)
+            StampsItselfRow()
 
-            heading("In the book")
-            LazyVGrid(columns: columns, spacing: 11) {
-                ForEach(app.library.passport) { unit in
-                    StampTile(unit: unit)
+            if !watch.nearby.isEmpty {
+                heading("Nearby, not yet in reach")
+                Text("Ordered by how far you are from each one's edge, not its middle — a park thirty miles wide is nearer than its pin says.")
+                    .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 11)
+                VStack(spacing: 8) {
+                    ForEach(watch.nearby) { ranked in
+                        NearbyStampRow(ranked: ranked)
+                    }
+                }
+                .animation(Motion.panel, value: watch.nearby)
+            }
+
+            if !collected.isEmpty {
+                heading("Collected")
+                LazyVGrid(columns: columns, spacing: 11) {
+                    ForEach(collected) { stamp in
+                        CollectedTile(stamp: stamp)
+                    }
                 }
             }
 
-            if !field.isEmpty {
-                heading("Collected in the field")
-                Text("Found from the Nearby tab of a park screen — anywhere the park service runs a visitor centre.")
-                    .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 12)
-                LazyVGrid(columns: columns, spacing: 11) {
-                    ForEach(field) { stamp in
-                        CollectedTile(stamp: stamp)
-                    }
+            heading("On this trip")
+            Text("The stops along the trip in the book. They fill as you pass them.")
+                .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 11)
+            ProgressTrack(fraction: Double(bundledCollected) / Double(max(1, app.library.passport.count)))
+                .animation(Motion.counter, value: bundledCollected)
+            Text("\(bundledCollected) of the \(app.library.passport.count) stops in the book.")
+                .font(WP.bodyItalic(11.5)).opacity(0.55).padding(.top, 7).padding(.bottom, 12)
+            LazyVGrid(columns: columns, spacing: 11) {
+                ForEach(app.library.passport) { unit in
+                    StampTile(unit: unit)
                 }
             }
 
@@ -255,7 +276,7 @@ struct PassportBook: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Text("The paper book still wants a rubber stamp at the visitor centre. This one just remembers where you were.")
+            Text("The paper book still wants a rubber stamp at the visitor centre. This one just remembers where you stood.")
                 .font(WP.bodyItalic(11.5)).opacity(0.5).lineSpacing(3).padding(.top, 18)
         }
     }
@@ -301,6 +322,12 @@ struct CollectedTile: View {
     }
 }
 
+/// One page of the trip's book: cancelled, or waiting to be.
+///
+/// Not a button any more. It was one, and tapping it collected the stamp — which meant the
+/// whole passport could be filled without leaving the house, and made the line under the
+/// grid about standing in a park a decoration. A stamp is a claim about where the phone
+/// was, so the only things that can make one now are being there and saying yes.
 struct StampTile: View {
     @Environment(AppState.self) private var app
     var unit: PassportUnit
@@ -308,9 +335,7 @@ struct StampTile: View {
     private var collected: Bool { app.isStamped(unit.code) }
 
     var body: some View {
-        Button {
-            app.collectStamp(unit.code, name: unit.name, place: unit.city)
-        } label: {
+        Group {
             ZStack {
                 if collected {
                     StampFace(name: unit.name, caption: "stamped")
@@ -338,8 +363,9 @@ struct StampTile: View {
             .aspectRatio(1, contentMode: .fit)
             .animation(Motion.stamp, value: collected)
         }
-        .buttonStyle(PressStyle(scale: 0.94))
         .sensoryFeedback(.success, trigger: collected)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(unit.name), \(collected ? "stamped" : "not yet stamped")")
     }
 }
 

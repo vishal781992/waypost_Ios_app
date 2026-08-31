@@ -686,15 +686,27 @@ struct DetailSheet: View {
             .padding(.vertical, 20)
             .animation(Motion.stamp, value: collected)
 
+            // The line under this button has always said the stamp only works when you
+            // are actually there. It is true now, so the button has to mean it.
+            let here = StampWatch.shared.canStamp(name)
             GlowButton(
-                title: collected ? "Collected" : "Collect the stamp",
-                filled: !collected,
+                title: collected ? "Collected"
+                    : (here ? "Collect the stamp" : "Unlocks at \(name)"),
+                filled: !collected && here,
                 strongGlow: collected
             ) {
+                guard !collected else { return }
+                guard here else {
+                    Haptics.tap()
+                    app.show("\(name) stamps itself when you get there")
+                    return
+                }
                 app.collectStamp(key, name: name, place: city)
             }
 
-            Text("The phone taps back when a stamp lands. Geofenced on device, so it only works when you are actually there.")
+            Text(here
+                 ? "The phone taps back when a stamp lands. Geofenced on device, so it only works when you are actually there."
+                 : "Geofenced on device. The page unlocks inside the park and the passport offers it — nothing about where you are leaves the phone.")
                 .font(WP.bodyItalic(11.5)).opacity(0.55).lineSpacing(3).padding(.top, 12)
         }
     }

@@ -39,6 +39,8 @@
 	<string>ParkHop reads your calendar only to tell you which days of a trip you already have something booked on. It looks at the days the trip covers, nothing is sent anywhere, and events it did not write are never changed.</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
 	<string>ParkHop adds a trip to your calendar as one all-day entry per day, in a calendar of its own called “ParkHop trips”, so you can hide or delete the whole trip at once.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>ParkHop can put a stamp in your passport when you have stood in a park for fifteen minutes, and tell you what is stampable as you arrive. Watching for that while the app is closed is what needs Always. Where you are is matched against the parks on the phone and never leaves it.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>ParkHop uses your location to rank the parks near you and to measure the drive to them. Coordinates are sent to Apple Maps and to the routing and weather services that answer those questions, and are not stored on our servers.</string>
 	<key>UIAppFonts</key>
